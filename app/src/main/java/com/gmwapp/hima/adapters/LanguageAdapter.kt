@@ -200,7 +200,7 @@ class LanguageAdapter(
                     Keyframe.ofFloat(0.55f, 1.05f), Keyframe.ofFloat(1f, 1f),
                 ),
             ).apply {
-                duration = 1250
+                duration = 2200
                 interpolator = AccelerateDecelerateInterpolator()
             }
 
@@ -209,8 +209,8 @@ class LanguageAdapter(
             val heroH = hero.height.takeIf { it > 0 } ?: badge.height
             hero.clipBounds = Rect(0, 0, 0, heroH)
             val heroIn = ValueAnimator.ofFloat(0f, 1f).apply {
-                startDelay = 175   // 14% of 1250 — badge has started moving right
-                duration = 425     // completes at ~48% — badge reaches the right edge
+                startDelay = 310   // ~14% of 2200 — badge has started moving right
+                duration = 750     // completes at ~48% — badge reaches the right edge
                 interpolator = DecelerateInterpolator()
                 addUpdateListener {
                     val f = it.animatedValue as Float
@@ -225,22 +225,22 @@ class LanguageAdapter(
                 PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 0.78f),
                 PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 0.78f),
             ).apply {
-                startDelay = 975
-                duration = 275
+                startDelay = 1720
+                duration = 480
             }
 
             // 4. English + small native settle in on the return.
             val enReveal = ValueAnimator.ofFloat(0f, 1f).apply {
-                startDelay = 800
-                duration = 520
+                startDelay = 1380
+                duration = 760
                 interpolator = DecelerateInterpolator()
                 addUpdateListener {
                     nameTv.text = revealedText(englishName, enRanges, nameColor, it.animatedValue as Float)
                 }
             }
             val subReveal = ValueAnimator.ofFloat(0f, 1f).apply {
-                startDelay = 830
-                duration = 520
+                startDelay = 1440
+                duration = 730
                 interpolator = DecelerateInterpolator()
                 addUpdateListener {
                     subTv.text = revealedText(nativeName, natRanges, subColor, it.animatedValue as Float)
@@ -255,7 +255,7 @@ class LanguageAdapter(
                 PropertyValuesHolder.ofFloat(View.TRANSLATION_X, -shineWidth, shineWidth),
                 PropertyValuesHolder.ofFloat(View.ALPHA, 0f, 0.9f, 0.9f, 0f),
             ).apply {
-                duration = 1050
+                duration = 1850
                 interpolator = AccelerateDecelerateInterpolator()
             }
 
@@ -265,8 +265,8 @@ class LanguageAdapter(
                 PropertyValuesHolder.ofFloat(View.SCALE_X, 0.3f, 1f),
                 PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.3f, 1f),
             ).apply {
-                startDelay = 900
-                duration = 360
+                startDelay = 1580
+                duration = 500
                 interpolator = OvershootInterpolator()
             }
 

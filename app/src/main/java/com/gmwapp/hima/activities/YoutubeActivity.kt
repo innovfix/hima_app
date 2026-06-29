@@ -30,6 +30,9 @@ class YoutubeActivity : BaseActivity() {
         binding = ActivityYoutubeBinding.inflate(layoutInflater)
         setContentView(binding.root)
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        // Light background → dark status-bar icons.
+        androidx.core.view.WindowInsetsControllerCompat(window, binding.root)
+            .isAppearanceLightStatusBars = true
         enableEdgeToEdge()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
