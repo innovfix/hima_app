@@ -192,7 +192,8 @@ class RecentCallsAdapter(
             holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
             holder.binding.ivVideo.isEnabled = true
             holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
-            holder.binding.ivVideoCircle.visibility= View.GONE
+            // Show the Video button on the female/creator card too (both Audio + Video).
+            holder.binding.ivVideoCircle.visibility = View.VISIBLE
 
             // Chat button (design only)
             holder.binding.ivChatCircle.setOnSingleClickListener {
@@ -290,32 +291,16 @@ class RecentCallsAdapter(
 
         }
         
-        // Online / Offline labels under each call button — derived from the
-        // final button availability set by all the branches above (and matched
-        // to each button's visibility, so a hidden video button hides its label
-        // and the divider).
-        val onlineColor = ContextCompat.getColor(activity, R.color.green)
-        val offlineColor = ContextCompat.getColor(activity, R.color.grey_medium)
-
-        holder.binding.tvAudioStatus.visibility = holder.binding.ivAudioCircle.visibility
-        if (holder.binding.ivAudio.isEnabled) {
-            holder.binding.tvAudioStatus.text = activity.getString(R.string.call_status_online)
-            holder.binding.tvAudioStatus.setTextColor(onlineColor)
-        } else {
-            holder.binding.tvAudioStatus.text = activity.getString(R.string.call_status_offline)
-            holder.binding.tvAudioStatus.setTextColor(offlineColor)
-        }
-
-        holder.binding.tvVideoStatus.visibility = holder.binding.ivVideoCircle.visibility
+        // "Audio" / "Video" coin labels under each call button. Text is static
+        // (set in XML); here we only keep each label row + the divider in sync
+        // with its button's visibility (so a hidden video button hides its
+        // label row and the divider too).
+        holder.binding.llAudioLabel.visibility = holder.binding.ivAudioCircle.visibility
+        holder.binding.llVideoLabel.visibility = holder.binding.ivVideoCircle.visibility
         holder.binding.vBtnDivider.visibility =
-            if (holder.binding.ivVideoCircle.visibility == View.VISIBLE) View.VISIBLE else View.GONE
-        if (holder.binding.ivVideo.isEnabled) {
-            holder.binding.tvVideoStatus.text = activity.getString(R.string.call_status_online)
-            holder.binding.tvVideoStatus.setTextColor(onlineColor)
-        } else {
-            holder.binding.tvVideoStatus.text = activity.getString(R.string.call_status_offline)
-            holder.binding.tvVideoStatus.setTextColor(offlineColor)
-        }
+            if (holder.binding.ivAudioCircle.visibility == View.VISIBLE &&
+                holder.binding.ivVideoCircle.visibility == View.VISIBLE
+            ) View.VISIBLE else View.GONE
 
         // Add click listener on profile container to open profile detail
         holder.binding.profileContainer.setOnSingleClickListener {

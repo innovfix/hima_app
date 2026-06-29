@@ -240,7 +240,7 @@
                         android:clickable="true"
                         android:focusable="true"
                         app:cardBackgroundColor="@color/grey_extra_light"
-                        app:cardCornerRadius="12dp"
+                        app:cardCornerRadius="20dp"
                         app:cardElevation="2dp"
                         app:rippleColor="@color/colorAccent">
 
@@ -253,15 +253,31 @@
                             app:tint="@color/grey_medium" />
                     </com.google.android.material.card.MaterialCardView>
 
-                    <TextView
-                        android:id="@+id/tv_audio_status"
+                    <LinearLayout
+                        android:id="@+id/ll_audio_label"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:fontFamily="@font/poppins_regular"
-                        android:text="@string/call_status_offline"
-                        android:textColor="@color/grey_medium"
-                        android:textSize="9sp" />
+                        android:layout_marginTop="5dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
+                            android:layout_marginEnd="3dp"
+                            android:src="@drawable/coin"
+                            tools:ignore="ContentDescription" />
+
+                        <TextView
+                            android:id="@+id/tv_audio_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_medium"
+                            android:text="Audio"
+                            android:textColor="@color/black_light"
+                            android:textSize="10sp"
+                            tools:ignore="HardcodedText" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <!-- Divider -->
@@ -288,7 +304,7 @@
                         android:clickable="true"
                         android:focusable="true"
                         app:cardBackgroundColor="@color/grey_extra_light"
-                        app:cardCornerRadius="12dp"
+                        app:cardCornerRadius="20dp"
                         app:cardElevation="2dp"
                         app:rippleColor="@color/colorAccent">
 
@@ -301,15 +317,31 @@
                             app:tint="@color/grey_medium" />
                     </com.google.android.material.card.MaterialCardView>
 
-                    <TextView
-                        android:id="@+id/tv_video_status"
+                    <LinearLayout
+                        android:id="@+id/ll_video_label"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:fontFamily="@font/poppins_regular"
-                        android:text="@string/call_status_offline"
-                        android:textColor="@color/grey_medium"
-                        android:textSize="9sp" />
+                        android:layout_marginTop="5dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
+                            android:layout_marginEnd="3dp"
+                            android:src="@drawable/coin"
+                            tools:ignore="ContentDescription" />
+
+                        <TextView
+                            android:id="@+id/tv_video_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_medium"
+                            android:text="Video"
+                            android:textColor="@color/black_light"
+                            android:textSize="10sp"
+                            tools:ignore="HardcodedText" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
