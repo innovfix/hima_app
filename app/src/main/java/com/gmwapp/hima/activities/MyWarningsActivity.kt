@@ -34,9 +34,8 @@ class MyWarningsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMyWarningsBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Pink header (bg_warning_header_pink) extends under status bar via
-        // fitsSystemWindows=true on the header LinearLayout. LIGHT icons.
-        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
+        // Light header → DARK status-bar icons.
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         binding.cvBack.setOnClickListener {
             val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
@@ -134,8 +133,8 @@ class MyWarningsActivity : AppCompatActivity() {
                 !response.warningSystemImage.isNullOrBlank()
             if (!hasCurrent) {
                 showEmpty(showSummary = false)
-                binding.tvEmptyTitle.text =
-                    response.message?.takeIf { it.isNotBlank() } ?: "No warnings"
+                // Good-standing redesign uses a fixed "All Good" heading.
+                binding.tvEmptyTitle.text = "All Good"
                 binding.tvEmptySubtitle.text = ""
             } else {
                 showCurrentOnly()
