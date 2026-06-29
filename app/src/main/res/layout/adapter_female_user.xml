@@ -85,7 +85,7 @@
             android:layout_marginStart="14dp"
             android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="@id/card_profile"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/call_buttons_row"
             app:layout_constraintStart_toEndOf="@id/card_profile"
             app:layout_constraintTop_toTopOf="@id/card_profile">
 
@@ -247,104 +247,130 @@
                     tools:visibility="visible" />
             </LinearLayout>
 
-            <!-- Audio & Video Call Buttons -->
-            <LinearLayout
-                android:id="@+id/call_buttons_row"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+        </LinearLayout>
 
+        <!-- Audio & Video Call Buttons — pinned right, vertically centred with the avatar -->
+        <LinearLayout
+            android:id="@+id/call_buttons_row"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="@id/card_profile"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/card_profile">
+
+                <!-- Audio column -->
                 <LinearLayout
-                    android:id="@+id/btn_audio_call"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    android:background="@drawable/button_audio_gradient"
-                    android:clickable="true"
-                    android:focusable="true"
+                    android:layout_width="64dp"
+                    android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="8dp"
-                    tools:ignore="UselessParent">
+                    android:orientation="vertical">
 
-                    <ImageView
-                        android:id="@+id/iv_audio_icon"
-                        android:layout_width="15dp"
-                        android:layout_height="15dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_phone"
-                        app:tint="@color/white" />
+                    <FrameLayout
+                        android:id="@+id/btn_audio_call"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
+                        android:background="@drawable/bg_call_circle_white"
+                        android:clickable="true"
+                        android:elevation="3dp"
+                        android:focusable="true">
 
-                    <ImageView
-                        android:id="@+id/iv_audio_coin"
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
-                        android:layout_marginStart="5dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/coin_d" />
+                        <ImageView
+                            android:id="@+id/iv_audio_icon"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:layout_gravity="center"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_phone"
+                            app:tint="#E91E63" />
+                    </FrameLayout>
 
-                    <TextView
-                        android:id="@+id/tv_audio_rate"
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
-                        android:fontFamily="@font/poppins_semibold"
-                        android:includeFontPadding="false"
-                        android:maxLines="1"
-                        android:text="10/min"
-                        android:textColor="@color/white"
-                        android:textSize="11sp"
-                        tools:text="10/min" />
+                        android:layout_marginTop="5dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/iv_audio_coin"
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/coin_d" />
+
+                        <TextView
+                            android:id="@+id/tv_audio_rate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="3dp"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:text="10/min"
+                            android:textColor="@color/black_light"
+                            android:textSize="11sp"
+                            tools:text="10/min" />
+                    </LinearLayout>
                 </LinearLayout>
 
+                <!-- Video column -->
                 <LinearLayout
-                    android:id="@+id/btn_video_call"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
+                    android:layout_width="64dp"
+                    android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
-                    android:background="@drawable/button_video_gradient"
-                    android:clickable="true"
-                    android:focusable="true"
                     android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="8dp"
-                    tools:ignore="UselessParent">
+                    android:orientation="vertical">
 
-                    <ImageView
-                        android:id="@+id/iv_video_icon"
-                        android:layout_width="17dp"
-                        android:layout_height="17dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/baseline_video_chat_24"
-                        app:tint="@color/white" />
+                    <FrameLayout
+                        android:id="@+id/btn_video_call"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
+                        android:background="@drawable/bg_call_circle_white"
+                        android:clickable="true"
+                        android:elevation="3dp"
+                        android:focusable="true">
 
-                    <ImageView
-                        android:id="@+id/iv_video_coin"
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
-                        android:layout_marginStart="5dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/coin_d" />
+                        <ImageView
+                            android:id="@+id/iv_video_icon"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_gravity="center"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_videocam"
+                            app:tint="#9C27B0" />
+                    </FrameLayout>
 
-                    <TextView
-                        android:id="@+id/tv_video_rate"
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
-                        android:fontFamily="@font/poppins_semibold"
-                        android:includeFontPadding="false"
-                        android:maxLines="1"
-                        android:text="60/min"
-                        android:textColor="@color/white"
-                        android:textSize="11sp"
-                        tools:text="60/min" />
+                        android:layout_marginTop="5dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/iv_video_coin"
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/coin_d" />
+
+                        <TextView
+                            android:id="@+id/tv_video_rate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="3dp"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:text="60/min"
+                            android:textColor="@color/black_light"
+                            android:textSize="11sp"
+                            tools:text="60/min" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

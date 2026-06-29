@@ -1021,56 +1021,36 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     private fun updateFilterButtonStyles() {
-        val strokeWidthPx = (1 * resources.displayMetrics.density).toInt()
-        val pinkColor   = resources.getColorStateList(R.color.colorAccent, null)
-        val goldColor   = android.content.res.ColorStateList.valueOf(0xFFFFC107.toInt())
-        val chatsFreeGreen = android.content.res.ColorStateList.valueOf(0xFF10B981.toInt())
-        val whiteColor  = resources.getColorStateList(R.color.white, null)
-        val greyColor   = resources.getColor(R.color.grey_medium, null)
-        val whiteText   = resources.getColor(R.color.white, null)
-        val borderColor = resources.getColorStateList(R.color.light_grey, null)
+        val ctx = requireContext()
+        val greyColor = resources.getColor(R.color.grey_medium, null)
+        val whiteText = resources.getColor(R.color.white, null)
 
-        // Reset all to unselected state first (including the 5 interest pills)
-        val resetPills = listOf(binding.btnFilterMyChats, binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar) +
-            INTEREST_PILLS.mapNotNull { interestButton(it.first) }
-        resetPills.forEach {
-            it.backgroundTintList = whiteColor
+        // All filter pills share ONE look: white pill when unselected, purple→pink
+        // gradient when selected — uniform across Chats / All / New / Star / interests.
+        val allPills = listOf(
+            binding.btnFilterMyChats, binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar
+        ) + INTEREST_PILLS.mapNotNull { interestButton(it.first) }
+
+        allPills.forEach {
+            it.backgroundTintList = null
+            it.strokeWidth = 0
+            it.background = androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.bg_chip_white)
             it.setTextColor(greyColor)
-            it.strokeWidth = strokeWidthPx
-            it.strokeColor = borderColor
         }
 
-        // Highlight selected
-        when (filterType) {
-            "my_chats" -> binding.btnFilterMyChats.apply {
-                backgroundTintList = chatsFreeGreen
-                setTextColor(whiteText)
-                strokeWidth = 0
-            }
-            "all" -> binding.btnFilterAll.apply {
-                backgroundTintList = pinkColor
-                setTextColor(whiteText)
-                strokeWidth = 0
-            }
-            "new" -> binding.btnFilterNew.apply {
-                backgroundTintList = pinkColor
-                setTextColor(whiteText)
-                strokeWidth = 0
-            }
-            "star" -> binding.btnFilterStar.apply {
-                backgroundTintList = goldColor
-                setTextColor(whiteText)
-                strokeWidth = 0
-            }
-            "interest" -> {
-                val color = INTEREST_PILLS.firstOrNull { it.first == selectedInterest }?.second
-                val button = selectedInterest?.let { interestButton(it) }
-                if (color != null && button != null) {
-                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
-                    button.setTextColor(whiteText)
-                    button.strokeWidth = 0
-                }
-            }
+        val selected = when (filterType) {
+            "my_chats" -> binding.btnFilterMyChats
+            "all"      -> binding.btnFilterAll
+            "new"      -> binding.btnFilterNew
+            "star"     -> binding.btnFilterStar
+            "interest" -> selectedInterest?.let { interestButton(it) }
+            else       -> null
+        }
+        selected?.apply {
+            backgroundTintList = null
+            strokeWidth = 0
+            background = androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.bg_chip_gradient)
+            setTextColor(whiteText)
         }
     }
 

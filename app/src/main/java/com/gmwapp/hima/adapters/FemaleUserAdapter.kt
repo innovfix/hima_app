@@ -131,34 +131,35 @@ class FemaleUserAdapter(
         holder.binding.btnAudioCall.visibility = View.VISIBLE
         holder.binding.btnVideoCall.visibility = View.VISIBLE
 
-        holder.binding.btnAudioCall.background = activity.resources.getDrawable(
-            if (audioEnabled) R.drawable.button_audio_gradient else R.drawable.button_disabled_gradient,
-            null
-        )
-        holder.binding.btnVideoCall.background = activity.resources.getDrawable(
-            if (videoEnabled) R.drawable.button_video_gradient else R.drawable.button_disabled_gradient,
-            null
-        )
+        // Circular white buttons (icon coloured by state); see adapter_female_user.xml.
+        val audioIconColor = if (audioEnabled) android.graphics.Color.parseColor("#E91E63") else disabledTextColor
+        val videoIconColor = if (videoEnabled) android.graphics.Color.parseColor("#9C27B0") else disabledTextColor
+        val rateTextColor = activity.resources.getColor(R.color.black_light, null)
+
+        holder.binding.btnAudioCall.background =
+            activity.resources.getDrawable(R.drawable.bg_call_circle_white, null)
+        holder.binding.btnVideoCall.background =
+            activity.resources.getDrawable(R.drawable.bg_call_circle_white, null)
 
         holder.binding.btnAudioCall.isEnabled = audioEnabled
         holder.binding.btnVideoCall.isEnabled = videoEnabled
         holder.binding.btnAudioCall.isClickable = audioEnabled
         holder.binding.btnVideoCall.isClickable = videoEnabled
-        holder.binding.btnAudioCall.alpha = if (audioEnabled) 1f else 1f
-        holder.binding.btnVideoCall.alpha = if (videoEnabled) 1f else 1f
+        holder.binding.btnAudioCall.alpha = if (audioEnabled) 1f else 0.5f
+        holder.binding.btnVideoCall.alpha = if (videoEnabled) 1f else 0.5f
 
-        // Icons & text — use white on color gradients, muted grey on disabled bg.
-        holder.binding.ivAudioIcon.setColorFilter(if (audioEnabled) whiteColor else disabledTextColor)
-        holder.binding.ivVideoIcon.setColorFilter(if (videoEnabled) whiteColor else disabledTextColor)
-        holder.binding.tvAudioRate.setTextColor(if (audioEnabled) whiteColor else disabledTextColor)
-        holder.binding.tvVideoRate.setTextColor(if (videoEnabled) whiteColor else disabledTextColor)
+        // Icons pink/purple when live, muted grey when offline.
+        holder.binding.ivAudioIcon.setColorFilter(audioIconColor)
+        holder.binding.ivVideoIcon.setColorFilter(videoIconColor)
+        holder.binding.tvAudioRate.setTextColor(if (audioEnabled) rateTextColor else disabledTextColor)
+        holder.binding.tvVideoRate.setTextColor(if (videoEnabled) rateTextColor else disabledTextColor)
         holder.binding.ivAudioCoin.visibility = if (audioEnabled) View.VISIBLE else View.GONE
         holder.binding.ivVideoCoin.visibility = if (videoEnabled) View.VISIBLE else View.GONE
 
         holder.binding.tvAudioRate.text = if (audioEnabled)
-            "${femaleUser.coin_per_min_audio ?: 10}/min" else "Unavailable"
+            "${femaleUser.coin_per_min_audio ?: 10}/min" else "Offline"
         holder.binding.tvVideoRate.text = if (videoEnabled)
-            "${femaleUser.coin_per_min_video ?: 60}/min" else "Unavailable"
+            "${femaleUser.coin_per_min_video ?: 60}/min" else "Offline"
 
         holder.binding.btnAudioCall.setOnSingleClickListener {
             if (audioEnabled) {
