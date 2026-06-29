@@ -23,7 +23,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="20dp"
-            android:paddingTop="20dp"
+            android:paddingTop="8dp"
             android:paddingBottom="16dp">
 
             <!-- Title Row -->
@@ -59,77 +59,99 @@
                         android:textSize="13sp" />
                 </LinearLayout>
 
-                <!-- Decorative dating-themed icon collage (matches the design) -->
+                <!-- Decorative call icons + sparkles cluster (top-right) -->
                 <FrameLayout
-                    android:layout_width="104dp"
-                    android:layout_height="70dp"
+                    android:layout_width="124dp"
+                    android:layout_height="80dp"
                     android:clipChildren="false">
 
                     <ImageView
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
-                        android:layout_gravity="top|end"
-                        android:layout_marginTop="6dp"
-                        android:layout_marginEnd="10dp"
-                        android:alpha="0.55"
-                        android:src="@drawable/ic_sparkle"
-                        app:tint="#E91E63"
-                        tools:ignore="ContentDescription" />
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_gravity="top|end"
-                        android:layout_marginTop="20dp"
-                        android:layout_marginEnd="30dp"
-                        android:alpha="0.40"
-                        android:src="@drawable/ic_chat_bubble"
-                        app:tint="#E91E63"
-                        tools:ignore="ContentDescription" />
-
-                    <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_gravity="top|end"
                         android:layout_marginTop="4dp"
-                        android:layout_marginEnd="54dp"
-                        android:alpha="0.35"
-                        android:src="@drawable/video"
-                        app:tint="#E91E63"
-                        tools:ignore="ContentDescription" />
+                        android:layout_marginEnd="8dp"
+                        android:alpha="0.9"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_video_modern"
+                        app:tint="#FF5E9F" />
 
                     <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
+                        android:layout_width="19dp"
+                        android:layout_height="19dp"
                         android:layout_gravity="top|end"
-                        android:layout_marginTop="44dp"
-                        android:layout_marginEnd="14dp"
-                        android:alpha="0.40"
-                        android:src="@drawable/audio"
-                        app:tint="#E91E63"
-                        tools:ignore="ContentDescription" />
+                        android:layout_marginTop="22dp"
+                        android:layout_marginEnd="22dp"
+                        android:alpha="0.85"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_phone_modern"
+                        app:tint="#FF6FAB" />
 
                     <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
                         android:layout_gravity="top|end"
-                        android:layout_marginTop="40dp"
-                        android:layout_marginEnd="46dp"
-                        android:alpha="0.45"
-                        android:src="@drawable/ic_heart_filled"
-                        app:tint="#E91E63"
-                        tools:ignore="ContentDescription" />
+                        android:layout_marginTop="8dp"
+                        android:layout_marginEnd="36dp"
+                        android:alpha="0.7"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#FF85B8" />
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="17dp"
+                        android:layout_height="17dp"
                         android:layout_gravity="top|end"
                         android:layout_marginTop="28dp"
-                        android:layout_marginEnd="74dp"
-                        android:alpha="0.32"
-                        android:src="@drawable/ic_kiss_lips"
-                        app:tint="#E91E63"
-                        tools:ignore="ContentDescription" />
+                        android:layout_marginEnd="46dp"
+                        android:alpha="0.85"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_chat_bubble"
+                        app:tint="#FF85B8" />
+
+                    <ImageView
+                        android:layout_width="11dp"
+                        android:layout_height="11dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="48dp"
+                        android:layout_marginEnd="28dp"
+                        android:alpha="0.7"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#FF85B8" />
+
+                    <ImageView
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="30dp"
+                        android:layout_marginEnd="64dp"
+                        android:alpha="0.6"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#FFA0C6" />
+
+                    <ImageView
+                        android:layout_width="11dp"
+                        android:layout_height="11dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="14dp"
+                        android:layout_marginEnd="78dp"
+                        android:alpha="0.7"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#FFB3D4" />
+
+                    <ImageView
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="44dp"
+                        android:layout_marginEnd="92dp"
+                        android:alpha="0.6"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#FFB3D4" />
                 </FrameLayout>
             </LinearLayout>
 

@@ -67,18 +67,24 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     private fun setupStatusBarInsets() {
-        val basePaddingTop = binding.root.paddingTop
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+        // The whole page scrolls now, so pad the SCROLL VIEW (not the root) by the
+        // status-bar height. With default clipToPadding, the scrolling content then
+        // always clips just below the status bar instead of sliding under the clock/
+        // signal icons.
+        val scroll = binding.profileScroll
+        val baseTop = scroll.paddingTop
+        val baseBottom = scroll.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, insets ->
             val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
             view.setPadding(
                 view.paddingLeft,
-                basePaddingTop + statusBarInset,
+                baseTop + statusBarInset,
                 view.paddingRight,
-                view.paddingBottom
+                baseBottom
             )
             insets
         }
-        ViewCompat.requestApplyInsets(binding.root)
+        ViewCompat.requestApplyInsets(scroll)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
