@@ -1036,6 +1036,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             it.strokeWidth = 0
             it.background = androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.bg_chip_white)
             it.setTextColor(greyColor)
+            it.iconTint = android.content.res.ColorStateList.valueOf(greyColor)
         }
 
         val selected = when (filterType) {
@@ -1051,6 +1052,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             strokeWidth = 0
             background = androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.bg_chip_gradient)
             setTextColor(whiteText)
+            iconTint = android.content.res.ColorStateList.valueOf(whiteText)
         }
     }
 

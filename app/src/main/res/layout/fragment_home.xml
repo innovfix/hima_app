@@ -271,12 +271,16 @@
                 android:focusable="true"
                 android:fontFamily="@font/poppins_semibold"
                 android:minWidth="85dp"
-                android:paddingHorizontal="24dp"
+                android:paddingHorizontal="20dp"
                 android:text="All"
                 android:textAllCaps="false"
                 android:textSize="13sp"
                 app:cornerRadius="22dp"
-                app:elevation="2dp" />
+                app:elevation="2dp"
+                app:icon="@drawable/ic_group"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="18dp" />
 
             <Space
                 android:layout_width="10dp"
@@ -291,12 +295,16 @@
                 android:focusable="true"
                 android:fontFamily="@font/poppins_semibold"
                 android:minWidth="85dp"
-                android:paddingHorizontal="24dp"
+                android:paddingHorizontal="20dp"
                 android:text="New"
                 android:textAllCaps="false"
                 android:textSize="13sp"
                 app:cornerRadius="22dp"
-                app:elevation="2dp" />
+                app:elevation="2dp"
+                app:icon="@drawable/ic_sparkle"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="16dp" />
 
             <Space
                 android:layout_width="10dp"
