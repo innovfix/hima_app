@@ -2,12 +2,13 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipToPadding="false"
     android:background="@color/grey_extra_light">
 
-    <!-- Professional Header -->
+    <!-- Header -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
@@ -29,119 +30,320 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/tv_recent_calls"
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:fontFamily="@font/poppins_bold"
-                    android:letterSpacing="-0.02"
-                    android:text="@string/recent_calls"
-                    android:textColor="@color/black_light"
-                    android:textSize="22sp" />
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_recent_calls"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:letterSpacing="-0.02"
+                        android:text="@string/recent_calls"
+                        android:textColor="@color/black_light"
+                        android:textSize="22sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="@string/recent_calls_subtitle"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <!-- Decorative dating-themed icon collage (matches the design) -->
+                <FrameLayout
+                    android:layout_width="104dp"
+                    android:layout_height="70dp"
+                    android:clipChildren="false">
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="6dp"
+                        android:layout_marginEnd="10dp"
+                        android:alpha="0.55"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#E91E63"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="20dp"
+                        android:layout_marginEnd="30dp"
+                        android:alpha="0.40"
+                        android:src="@drawable/ic_chat_bubble"
+                        app:tint="#E91E63"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginEnd="54dp"
+                        android:alpha="0.35"
+                        android:src="@drawable/video"
+                        app:tint="#E91E63"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="44dp"
+                        android:layout_marginEnd="14dp"
+                        android:alpha="0.40"
+                        android:src="@drawable/audio"
+                        app:tint="#E91E63"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="40dp"
+                        android:layout_marginEnd="46dp"
+                        android:alpha="0.45"
+                        android:src="@drawable/ic_heart_filled"
+                        app:tint="#E91E63"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="28dp"
+                        android:layout_marginEnd="74dp"
+                        android:alpha="0.32"
+                        android:src="@drawable/ic_kiss_lips"
+                        app:tint="#E91E63"
+                        tools:ignore="ContentDescription" />
+                </FrameLayout>
             </LinearLayout>
 
-            <!-- Filter Chips Row -->
+            <!-- Filter pills (custom toggles — gradient when selected) -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:scrollbars="none"
                 android:clipToPadding="false"
-                android:paddingEnd="8dp">
+                android:paddingEnd="8dp"
+                android:scrollbars="none">
 
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/chip_group_filter"
+                <LinearLayout
+                    android:id="@+id/ll_filter_pills"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:singleSelection="true"
-                    app:selectionRequired="true">
+                    android:orientation="horizontal">
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/chip_all"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:checked="true"
-                        android:fontFamily="@font/poppins_medium"
-                        android:text="All"
-                        android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        android:textColor="@color/chip_text_selector" />
+                        android:layout_marginEnd="9dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="@color/onboarding_card_border"
+                        app:strokeWidth="1.2dp">
 
-                    <com.google.android.material.chip.Chip
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="15dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_people_pair_img"
+                                app:tint="@color/grey_medium"
+                                tools:ignore="ContentDescription" />
+
+                            <TextView
+                                android:id="@+id/tv_chip_all"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="All"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/chip_missed"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:fontFamily="@font/poppins_medium"
-                        android:text="Missed"
-                        android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        app:chipIcon="@drawable/ic_missed_call"
-                        app:chipIconVisible="true"
-                        app:chipIconSize="16dp"
-                        app:chipIconTint="@color/chip_missed_icon_selector"
-                        android:textColor="@color/chip_text_selector" />
+                        android:layout_marginEnd="9dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="@color/onboarding_card_border"
+                        app:strokeWidth="1.2dp">
 
-                    <!-- FI_06: Rejected filter — calls declined while ringing -->
-                    <com.google.android.material.chip.Chip
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="15dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_missed_call_img"
+                                app:tint="@color/grey_medium"
+                                tools:ignore="ContentDescription" />
+
+                            <TextView
+                                android:id="@+id/tv_chip_missed"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="Missed"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- FI_06: Rejected filter -->
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/chip_rejected"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:fontFamily="@font/poppins_medium"
-                        android:text="@string/rejected_call_label"
-                        android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        android:textColor="@color/chip_text_selector" />
+                        android:layout_marginEnd="9dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="@color/onboarding_card_border"
+                        app:strokeWidth="1.2dp">
 
-                    <com.google.android.material.chip.Chip
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="15dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_call_decline"
+                                app:tint="@color/grey_medium"
+                                tools:ignore="ContentDescription" />
+
+                            <TextView
+                                android:id="@+id/tv_chip_rejected"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="@string/rejected_call_label"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/chip_talk_time"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:fontFamily="@font/poppins_medium"
-                        android:text="⏱ Talk Time"
-                        android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        android:textColor="@color/chip_text_selector" />
+                        android:layout_marginEnd="9dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="@color/onboarding_card_border"
+                        app:strokeWidth="1.2dp">
 
-                    <com.google.android.material.chip.Chip
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="15dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_call_clock_img"
+                                app:tint="@color/grey_medium"
+                                tools:ignore="ContentDescription" />
+
+                            <TextView
+                                android:id="@+id/tv_chip_talk_time"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="Talk Time"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/chip_a_z"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:fontFamily="@font/poppins_medium"
-                        android:text="A → Z"
-                        android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        android:textColor="@color/chip_text_selector" />
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="@color/onboarding_card_border"
+                        app:strokeWidth="1.2dp">
 
-                </com.google.android.material.chip.ChipGroup>
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="15dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_sort_up_img"
+                                app:tint="@color/grey_medium"
+                                tools:ignore="ContentDescription" />
+
+                            <TextView
+                                android:id="@+id/tv_chip_a_z"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="A → Z"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
             </HorizontalScrollView>
 
             <!-- Search Bar -->
@@ -150,23 +352,18 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginTop="16dp"
-                app:cardCornerRadius="12dp"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="14dp"
                 app:cardElevation="0dp"
-                app:cardBackgroundColor="@color/grey_extra_light">
+                app:strokeColor="@color/colorAccent"
+                app:strokeWidth="1.5dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingHorizontal="12dp">
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_search"
-                        android:tint="@color/grey_medium"
-                        android:contentDescription="Search" />
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="14dp">
 
                     <EditText
                         android:id="@+id/et_search"
@@ -174,17 +371,26 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:background="@android:color/transparent"
+                        android:fontFamily="@font/poppins_regular"
                         android:hint="Search by name"
-                        android:paddingStart="10dp"
+                        android:imeOptions="actionSearch"
+                        android:paddingStart="2dp"
+                        android:paddingEnd="10dp"
+                        android:singleLine="true"
                         android:textColor="@color/black_light"
                         android:textColorHint="@color/grey_medium"
-                        android:textSize="14sp"
-                        android:fontFamily="@font/poppins_regular"
-                        android:singleLine="true"
-                        android:imeOptions="actionSearch" />
+                        android:textCursorDrawable="@drawable/color_cursor"
+                        android:textSize="14sp" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="Search"
+                        android:src="@drawable/ic_search_modern"
+                        android:tint="@color/black_light" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-            
+
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -254,7 +460,7 @@
             android:textSize="13sp" />
     </LinearLayout>
 
-    <!-- Offline: show instead of "No data" when there is no connectivity -->
+    <!-- Offline -->
     <LinearLayout
         android:id="@+id/layout_no_internet"
         android:layout_width="wrap_content"

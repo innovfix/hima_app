@@ -263,7 +263,10 @@
     <string name="need_help">Need Help? Please contact </string>
     <string name="version">version 1.0.0</string>
     <string name="welcome_bonus">Welcome Bonus!</string>
-    <string name="recent_calls">Recent Session</string>
+    <string name="recent_calls">Recent Calls</string>
+    <string name="recent_calls_subtitle">Your call history</string>
+    <string name="call_status_online">Online</string>
+    <string name="call_status_offline">Offline</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="delete_account">Delete Account</string>
     <string name="delete_reason_text">Please select at least one reason for deleting your account</string>

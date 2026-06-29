@@ -30,6 +30,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
+import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.viewmodels.RecentViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -288,63 +289,75 @@ class RecentFragment : BaseFragment(), Refreshable {
     }
 
     private fun setupFilterChips() {
-        binding.chipTalkTime.setOnClickListener {
-            if (currentSortType == "talk_time") {
-                showTalkTimeDaysDialog(
-                    onDaySelected = { selectedDays ->
-                        currentDaysFilter = selectedDays
-                        if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
-                        recentCallsAdapter.setFilter(currentSortType)
-                        // Re-apply filter even when same day is selected again.
+        binding.chipAll.setOnSingleClickListener { onPillSelected("recent") }
+        binding.chipMissed.setOnSingleClickListener { onPillSelected("missed") }
+        binding.chipRejected.setOnSingleClickListener { onPillSelected("rejected") }
+        binding.chipTalkTime.setOnSingleClickListener { onPillSelected("talk_time") }
+        binding.chipAZ.setOnSingleClickListener { onPillSelected("a_z") }
+        styleChips(currentSortType)
+    }
+
+    /** Single-selection handler for the custom filter pills. */
+    private fun onPillSelected(sortType: String) {
+        if (sortType == "talk_time") {
+            // Tapping Talk Time always opens the range picker.
+            showTalkTimeDaysDialog(
+                onDaySelected = { selectedDays ->
+                    val changed = currentSortType != "talk_time" || currentDaysFilter != selectedDays
+                    currentSortType = "talk_time"
+                    currentDaysFilter = selectedDays
+                    styleChips(currentSortType)
+                    if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
+                    recentCallsAdapter.setFilter(currentSortType)
+                    if (changed) {
                         loadCallsList(currentSortType, resetData = true)
-                    },
-                    onDismissWithoutSelection = {}
-                )
-            }
-        }
-
-        binding.chipGroupFilter.setOnCheckedStateChangeListener { _, checkedIds ->
-            if (isProgrammaticChipSelection) return@setOnCheckedStateChangeListener
-            val selectedChipId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
-            val sortType = when (checkedIds.firstOrNull()) {
-                R.id.chip_missed    -> "missed"
-                R.id.chip_rejected  -> "rejected"
-                R.id.chip_talk_time -> "talk_time"
-                R.id.chip_a_z       -> "a_z"
-                else                -> "recent"
-            }
-            if (selectedChipId == R.id.chip_talk_time) {
-                val previousSortType = currentSortType
-                showTalkTimeDaysDialog(
-                    onDaySelected = { selectedDays ->
-                        val changed = currentSortType != "talk_time" || currentDaysFilter != selectedDays
-                        currentSortType = "talk_time"
-                        currentDaysFilter = selectedDays
-                        if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
-                        recentCallsAdapter.setFilter(currentSortType)
-                        if (changed) {
-                            loadCallsList(currentSortType, resetData = true)
-                        }
-                    },
-                    onDismissWithoutSelection = {
-                        restoreChipSelection(previousSortType)
                     }
-                )
-                return@setOnCheckedStateChangeListener
-            }
+                },
+                // Cancelled — leave selection where it was.
+                onDismissWithoutSelection = { styleChips(currentSortType) }
+            )
+            return
+        }
 
-            val changed = currentSortType != sortType || currentDaysFilter != 0
-            currentSortType = sortType
-            currentDaysFilter = 0
-            if (!::recentCallsAdapter.isInitialized) return@setOnCheckedStateChangeListener
-            recentCallsAdapter.setFilter(currentSortType)
-            if (changed) {
-                loadCallsList(currentSortType, resetData = true)
-            }
-            if (currentSortType == "missed") {
-                loadMissedCallCount(seen = 1)
+        val changed = currentSortType != sortType || currentDaysFilter != 0
+        currentSortType = sortType
+        currentDaysFilter = 0
+        styleChips(currentSortType)
+        if (!::recentCallsAdapter.isInitialized) return
+        recentCallsAdapter.setFilter(currentSortType)
+        if (changed) {
+            loadCallsList(currentSortType, resetData = true)
+        }
+        if (currentSortType == "missed") {
+            loadMissedCallCount(seen = 1)
+        }
+    }
+
+    /** Paint the selected pill with the gradient; others stay white/outlined. */
+    private fun styleChips(selected: String) {
+        val items = listOf(
+            Triple(binding.chipAll, binding.tvChipAll, "recent"),
+            Triple(binding.chipMissed, binding.tvChipMissed, "missed"),
+            Triple(binding.chipRejected, binding.tvChipRejected, "rejected"),
+            Triple(binding.chipTalkTime, binding.tvChipTalkTime, "talk_time"),
+            Triple(binding.chipAZ, binding.tvChipAZ, "a_z"),
+        )
+        val density = resources.displayMetrics.density
+        val grey = ContextCompat.getColor(requireContext(), R.color.grey_medium)
+        items.forEach { (card, tv, sort) ->
+            val inner = card.getChildAt(0)
+            if (sort == selected) {
+                inner.setBackgroundResource(R.drawable.bg_chip_gradient)
+                card.strokeWidth = 0
+                tv.setTextColor(android.graphics.Color.WHITE)
+            } else {
+                inner.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                card.strokeWidth = (1.2f * density).toInt()
+                tv.setTextColor(grey)
             }
         }
+        // Keep the Missed badge text/colour in sync with the selection.
+        applyMissedText(selected == "missed")
     }
 
     private fun showTalkTimeDaysDialog(
@@ -378,16 +391,7 @@ class RecentFragment : BaseFragment(), Refreshable {
     }
 
     private fun restoreChipSelection(sortType: String) {
-        val chipId = when (sortType) {
-            "missed" -> R.id.chip_missed
-            "rejected" -> R.id.chip_rejected
-            "talk_time" -> R.id.chip_talk_time
-            "a_z" -> R.id.chip_a_z
-            else -> R.id.chip_all
-        }
-        isProgrammaticChipSelection = true
-        binding.chipGroupFilter.check(chipId)
-        isProgrammaticChipSelection = false
+        styleChips(sortType)
     }
 
     private fun loadMissedCallCount(seen: Int = 0) {
@@ -397,22 +401,27 @@ class RecentFragment : BaseFragment(), Refreshable {
 
     private fun updateMissedChipCount(count: Int) {
         currentMissedCount = count.coerceAtLeast(0)
-        val chip = binding.chipMissed
-        val ctx = chip.context
+        applyMissedText(currentSortType == "missed")
+    }
 
+    /** Render the Missed pill label (with the red unread badge), base colour matched to selection. */
+    private fun applyMissedText(selected: Boolean) {
+        val tv = binding.tvChipMissed
+        val base = if (selected) android.graphics.Color.WHITE
+                   else ContextCompat.getColor(requireContext(), R.color.grey_medium)
         if (currentMissedCount > 0) {
-            // Highlight the unread missed-call count in red so users notice it.
             val label = "Missed "
             val badge = "($currentMissedCount)"
-            val red = ContextCompat.getColor(ctx, R.color.chat_recording_red)
+            val red = ContextCompat.getColor(requireContext(), R.color.chat_recording_red)
             val span = SpannableString(label + badge).apply {
                 setSpan(ForegroundColorSpan(red), label.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 setSpan(StyleSpan(android.graphics.Typeface.BOLD), label.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
-            chip.text = span
+            tv.text = span
         } else {
-            chip.text = "Missed"
+            tv.text = "Missed"
         }
+        tv.setTextColor(base)
     }
 
     override fun onResume() {

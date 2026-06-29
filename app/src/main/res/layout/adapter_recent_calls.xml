@@ -218,53 +218,99 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/profile_container">
 
-            <!-- Top Row: Audio and Video buttons aligned -->
+            <!-- Top Row: Audio | divider | Video, each with an Online/Offline label -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center"
+                android:baselineAligned="false"
+                android:gravity="top"
                 android:orientation="horizontal">
 
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/iv_audio_circle"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginEnd="10dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    app:cardBackgroundColor="@color/grey_extra_light"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp"
-                    app:rippleColor="@color/colorAccent">
+                <!-- Audio column -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
 
-                    <ImageView
-                        android:id="@+id/iv_audio"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_phone_modern"
-                        app:tint="@color/grey_medium" />
-                </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/iv_audio_circle"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/grey_extra_light"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp"
+                        app:rippleColor="@color/colorAccent">
 
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/iv_video_circle"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    app:cardBackgroundColor="@color/grey_extra_light"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="2dp"
-                    app:rippleColor="@color/colorAccent">
+                        <ImageView
+                            android:id="@+id/iv_audio"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_phone_modern"
+                            app:tint="@color/grey_medium" />
+                    </com.google.android.material.card.MaterialCardView>
 
-                    <ImageView
-                        android:id="@+id/iv_video"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_video_modern"
-                        app:tint="@color/grey_medium" />
-                </com.google.android.material.card.MaterialCardView>
+                    <TextView
+                        android:id="@+id/tv_audio_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="@string/call_status_offline"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="9sp" />
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:id="@+id/v_btn_divider"
+                    android:layout_width="1dp"
+                    android:layout_height="34dp"
+                    android:layout_marginHorizontal="12dp"
+                    android:layout_marginTop="3dp"
+                    android:background="@color/divider"
+                    android:alpha="0.45" />
+
+                <!-- Video column -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/iv_video_circle"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/grey_extra_light"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp"
+                        app:rippleColor="@color/colorAccent">
+
+                        <ImageView
+                            android:id="@+id/iv_video"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_video_modern"
+                            app:tint="@color/grey_medium" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:id="@+id/tv_video_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="@string/call_status_offline"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="9sp" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Bottom Row: Amount and Chat aligned -->
