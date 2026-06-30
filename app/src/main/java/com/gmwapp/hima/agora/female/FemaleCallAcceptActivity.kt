@@ -75,6 +75,19 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     private var pendingCallType: String? = null
     private val ACCEPT_GATE_TIMEOUT_MS = 2000L
 
+    // C-04/B6: instant tap feedback on Answer/Decline. The buttons grey out the
+    // moment they're tapped (no double-fire, no "did it register?" pause). The
+    // "Connecting…" hint is DELAYED ~200ms (Option B): a fast accept opens the
+    // call screen before it ever shows, so quick calls get no flicker; only a
+    // genuinely-waiting accept surfaces the hint. Pink→purple brand gradient
+    // (#C471ED→#FF6B9D, matches profile_gradient_border / new-UI accent).
+    private val connectingHintHandler = Handler(Looper.getMainLooper())
+    private val CONNECTING_HINT_DELAY_MS = 200L
+    // Latches on the first Accept/Decline tap. Touch taps are already blocked by
+    // the disabled buttons, but performClick() (headset hook / notification
+    // accept) bypasses isEnabled — this guard hard-stops that re-entry too.
+    private var callButtonsLocked = false
+
     // ── TC-HMA-002: callee-side liveness poll ───────────────────────────────
     // The caller's cancel/hang-up reaches this ring banner only via a
     // best-effort FCM "callDeclined"/"callEnded" relay. When that push is
@@ -310,7 +323,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         }
 
         binding.accpet.setOnClickListener {
-
+            if (callButtonsLocked) return@setOnClickListener
             if (receiverId != -1 && CallChannel.isJoinable(channelName) && !callType.isNullOrEmpty()) {
                 Log.d(
                     "CreatorCallDiag",
@@ -322,6 +335,13 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                     "FemaleAccept.acceptClick channel=$channelName callId=$call_Id callType=$callType " +
                         "tokenPrefetched=${!prefetchedAgoraToken.isNullOrEmpty()} appIdPrefetched=${!prefetchedAgoraAppId.isNullOrEmpty()}"
                 )
+
+                // C-04/B6: acknowledge the tap in THIS frame — grey out both
+                // buttons (also blocks a double-tap) and arm the delayed
+                // "Connecting…" hint. launchCallScreen() cancels the hint, so a
+                // fast accept never flashes it.
+                lockCallButtons()
+                showConnectingHintDelayed()
 
                 // B10/TC_009: silence the ring immediately (responsiveness) but
                 // DEFER the call-screen launch until the "accepted" relay tells
@@ -378,8 +398,14 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             }
         }
         binding.reject.setOnClickListener {
-
+            if (callButtonsLocked) return@setOnClickListener
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
+                // C-04/B6: instant feedback — grey out the buttons and flip the
+                // status to "Ending…" the moment Decline is tapped. Teardown
+                // below is synchronous/fast, so no delay is needed here.
+                lockCallButtons()
+                showEndingState()
+
                 // TC-HMA-002: she's actively declining; stop the liveness poll so
                 // it can't race the manual reject teardown below.
                 stopAlivePolling()
@@ -541,11 +567,55 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         }
     }
 
+    // ── C-04/B6: Answer/Decline instant-feedback helpers ────────────────────
+    /** Grey out + disable both call buttons. A disabled View won't dispatch its
+     *  click, so this also hard-blocks an accidental double Accept/Decline. */
+    private fun lockCallButtons() {
+        callButtonsLocked = true
+        binding.accpet.isEnabled = false
+        binding.reject.isEnabled = false
+        binding.accpet.alpha = 0.35f
+        binding.reject.alpha = 0.35f
+    }
+
+    /** Paint [callStatusText] with the new-UI pink→purple brand gradient. */
+    private fun applyGradientStatus(text: String) {
+        val tv = binding.callStatusText
+        tv.text = text
+        val width = tv.paint.measureText(text).coerceAtLeast(1f)
+        tv.paint.shader = android.graphics.LinearGradient(
+            0f, 0f, width, 0f,
+            intArrayOf(0xFFC471ED.toInt(), 0xFFFF6B9D.toInt()),
+            null, android.graphics.Shader.TileMode.CLAMP
+        )
+        tv.invalidate()
+    }
+
+    /** Option B: show "Connecting…" only if the accept hasn't opened the call
+     *  screen within ~200ms — fast accepts never flash it. */
+    private fun showConnectingHintDelayed() {
+        connectingHintHandler.removeCallbacksAndMessages(null)
+        connectingHintHandler.postDelayed({
+            if (!isFinishing && !isDestroyed) applyGradientStatus("Connecting…")
+        }, CONNECTING_HINT_DELAY_MS)
+    }
+
+    /** Decline path: immediate solid-colour "Ending…" (no gradient shader). */
+    private fun showEndingState() {
+        val tv = binding.callStatusText
+        tv.paint.shader = null
+        tv.text = "Ending…"
+        tv.setTextColor(android.graphics.Color.parseColor("#FF7A6B"))
+    }
+
     // B10/TC_009: launch the in-call activity. Reached only after the accept
     // gate clears (relay said the call is live, or fail-open timeout). markActive
     // is done here — never on an aborted accept.
     private fun launchCallScreen() {
         if (isFinishing || isDestroyed) return
+        // C-04/B6: the call screen is opening — kill any pending "Connecting…"
+        // hint so a fast accept transitions straight to the call with no flash.
+        connectingHintHandler.removeCallbacksAndMessages(null)
         val channel = pendingChannel
         val type = pendingCallType
         val receiver = pendingReceiver
@@ -637,6 +707,8 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // C-04/B6: drop any pending "Connecting…" hint so it can't fire post-teardown.
+        connectingHintHandler.removeCallbacksAndMessages(null)
         // TC_003 ghost-block fix: clear the "incoming call" freshness flag on any
         // teardown that didn't already clear it — e.g. the launchCallScreen abort
         // at :438 (missing pending args), a swipe-away, or a system kill. Left set,
