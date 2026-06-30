@@ -637,6 +637,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // NET-002/003: "No internet" banner on a REAL device net loss only (not blips).
+        com.gmwapp.hima.utils.CallNetLossBanner.attach(this)
 
         // UI-only ambience: rotating gradient ring + drifting "smoke" glows.
         run {

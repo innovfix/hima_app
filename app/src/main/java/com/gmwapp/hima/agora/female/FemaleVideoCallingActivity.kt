@@ -606,6 +606,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleVideoCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // NET-002/003: "No internet" banner on a REAL device net loss only (not blips).
+        com.gmwapp.hima.utils.CallNetLossBanner.attach(this)
         // B042: show "Connecting..." instead of stuck 00:00:00 while we wait
         // for the peer to join the Agora channel. startCountdown() overwrites
         // this on its first tick once onUserJoined() fires.
