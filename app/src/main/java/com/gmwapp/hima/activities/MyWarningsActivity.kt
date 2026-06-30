@@ -144,8 +144,10 @@ class MyWarningsActivity : AppCompatActivity() {
         viewModel.myWarningsErrorLiveData.observe(this) { err ->
             binding.progressBar.visibility = View.GONE
             Log.e("MyWarningsUI", "my_warnings error: $err")
+            // Degrade silently to the empty/"All Good" state — the screen already
+            // communicates status, so no error Toast (it was also leaking the raw
+            // HTML error body).
             showEmpty(showSummary = false)
-            showAppToast(err ?: "Something went wrong", Toast.LENGTH_SHORT)
         }
     }
 

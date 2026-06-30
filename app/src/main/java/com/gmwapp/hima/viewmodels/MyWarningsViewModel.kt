@@ -33,8 +33,12 @@ class MyWarningsViewModel @Inject constructor(
                         myWarningsLiveData.postValue(response.body())
                         Log.d("MyWarningsAPI", "Success url=${call.request().url} body=${response.body()}")
                     } else {
+                        // Never surface the raw error body to the UI: a non-2xx from
+                        // this endpoint often returns an HTML error page, which would
+                        // otherwise be shown verbatim in a Toast (the <!DOCTYPE html>...
+                        // leak). Keep the raw body in the log only.
                         val err = response.errorBody()?.string()
-                        myWarningsErrorLiveData.postValue(err ?: "Failed to fetch warnings")
+                        myWarningsErrorLiveData.postValue("Failed to fetch warnings")
                         Log.e("MyWarningsAPI", "Error ${response.code()} url=${call.request().url} body=$err")
                     }
                 }
