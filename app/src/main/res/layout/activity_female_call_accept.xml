@@ -17,10 +17,31 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/professional_incoming_call_bg"
+    android:background="#0D0D10"
     android:clipChildren="false"
     android:clipToPadding="false"
     android:fitsSystemWindows="true">
+
+    <!-- Drifting "smoke" glows — same look as the connecting screen -->
+    <View
+        android:id="@+id/glow_tl"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_marginStart="-90dp"
+        android:layout_marginTop="-90dp"
+        android:background="@drawable/bg_call_glow_pink"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/glow_br"
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_marginEnd="-90dp"
+        android:layout_marginBottom="-110dp"
+        android:background="@drawable/bg_call_glow_purple"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Status Bar Spacer -->
     <View
