@@ -75,6 +75,73 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     private var pendingCallType: String? = null
     private val ACCEPT_GATE_TIMEOUT_MS = 2000L
 
+    // ── TC-HMA-002: callee-side liveness poll ───────────────────────────────
+    // The caller's cancel/hang-up reaches this ring banner only via a
+    // best-effort FCM "callDeclined"/"callEnded" relay. When that push is
+    // dropped/delayed (Doze, battery optimization, stale token, flaky link),
+    // the incoming banner would otherwise ring forever — the creator has to
+    // dismiss a ghost call by hand. Mirror of the caller-side poll in
+    // MaleCallConnectingActivity.startAlivePolling(): while still RINGING (not
+    // yet accepted), ping the authoritative server state every few seconds and
+    // tear the banner down the instant the backend reports the call ended.
+    // One PK lookup per tick (cheap); checkConnectingDead only fires on an
+    // ACTIVE end (end_reason set), so a legitimately-ringing call is never cut.
+    private val aliveHandler = Handler(Looper.getMainLooper())
+    private val aliveIntervalMs = 2500L
+    private var peerEndedHandled = false
+    private val alivePollRunnable = object : Runnable {
+        override fun run() {
+            // peerEndedHandled mirrors the male side's isRunning=false latch: once a
+            // teardown has begun, never poll or repost again — don't lean on
+            // isFinishing flipping, which can lag a tick behind finish().
+            if (peerEndedHandled || isFinishing || isDestroyed ||
+                acceptInFlight || acceptLaunchHandled) return
+            // No usable call id → checkConnectingDead can't query, so polling is
+            // pointless. Bail without rescheduling instead of spinning a no-op
+            // tick every 2.5s for the whole ring.
+            if (call_Id <= 0) return
+            com.gmwapp.hima.utils.CallAliveChecker.checkConnectingDead(call_Id) {
+                if (!peerEndedHandled && !isFinishing && !isDestroyed &&
+                    !acceptInFlight && !acceptLaunchHandled) {
+                    Log.d("CreatorCallDiag", "FAccept.alivePoll -> backend says call ended, dismissing ring banner callId=$call_Id")
+                    exitBecausePeerEnded()
+                }
+            }
+            aliveHandler.postDelayed(this, aliveIntervalMs)
+        }
+    }
+
+    private fun startAlivePolling() {
+        // Nothing to poll without a call id; the runnable would only no-op + repost.
+        if (call_Id <= 0) return
+        // removeCallbacks before postDelayed makes this idempotent in BOTH
+        // directions (safe to call again after a stop), matching the male side.
+        aliveHandler.removeCallbacks(alivePollRunnable)
+        aliveHandler.postDelayed(alivePollRunnable, aliveIntervalMs)
+    }
+
+    private fun stopAlivePolling() {
+        aliveHandler.removeCallbacks(alivePollRunnable)
+    }
+
+    /**
+     * The caller already ended the call server-side (cancel / not-answered) and
+     * we learned it from the liveness poll rather than the FCM relay. Tear the
+     * ring banner down the same way a dropped "callDeclined" push would — but do
+     * NOT post a "rejected" status, because the peer already stamped the
+     * terminal state (re-posting would double-stamp the call row). Idempotent.
+     */
+    private fun exitBecausePeerEnded() {
+        if (peerEndedHandled || acceptInFlight || acceptLaunchHandled) return
+        peerEndedHandled = true
+        stopAlivePolling()
+        try { HimaTelecomManager.endActiveCall(DisconnectCause.REMOTE) } catch (_: Throwable) {}
+        BaseApplication.getInstance()?.stopRingtone()
+        BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+        BaseApplication.getInstance()?.clearIncomingCall()
+        finish()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // B024: this activity is the call UI; any system heads-up banner is
@@ -212,6 +279,12 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
         Log.d("CallID","$call_Id")
 
+        // TC-HMA-002: this is a genuine live ring (passed the stale-launch guard
+        // above), so begin polling the authoritative call state. If the caller
+        // cancels and the "callDeclined"/"callEnded" push is dropped, this
+        // dismisses the banner automatically instead of ringing forever.
+        startAlivePolling()
+
 
 
         // B10/TC_009: single gate observer. Only acts while an accept is in
@@ -257,6 +330,10 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 BaseApplication.getInstance()?.stopRingtone()
                 BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
 
+                // TC-HMA-002: stop the liveness poll now — the call is going
+                // live, so a "dead" reading during accept must not tear it down.
+                stopAlivePolling()
+
                 pendingChannel = channelName
                 pendingReceiver = receiverId
                 pendingCallType = callType
@@ -286,6 +363,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                     "Couldn't connect this call. Please ask them to call again.",
                     Toast.LENGTH_LONG
                 ).show()
+                // TC-HMA-002: deliberate exit — stop the poll like every other
+                // teardown path, rather than leaving it to onDestroy.
+                stopAlivePolling()
                 HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
                 BaseApplication.getInstance()?.stopRingtone()
                 BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
@@ -296,6 +376,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         binding.reject.setOnClickListener {
 
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
+                // TC-HMA-002: she's actively declining; stop the liveness poll so
+                // it can't race the manual reject teardown below.
+                stopAlivePolling()
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
                 userId?.let { selfId ->
                     Log.d("CallStatus", "FemaleAccept.reject → rejected/receiver self=$selfId peer=$receiverId callId=$call_Id")
@@ -573,6 +656,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         // B10/TC_009: drop any pending accept-gate fail-open so it can't fire
         // against a destroyed activity.
         acceptGateHandler.removeCallbacksAndMessages(null)
+        // TC-HMA-002: stop the liveness poll so it can't fire against a
+        // destroyed activity.
+        stopAlivePolling()
         // Stop animations
         try {
             binding.pulseRingOuter.clearAnimation()
