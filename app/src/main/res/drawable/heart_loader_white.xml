@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Hima branded loader — WHITE heart (for colored / dark backgrounds:
+    gradient buttons, accent chat bubbles, dark sheets).
+    Same animation as heart_loader, white tint for contrast.
+-->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="48dp"
+            android:height="48dp"
+            android:viewportWidth="64"
+            android:viewportHeight="64">
+
+            <group
+                android:name="beat"
+                android:pivotX="32"
+                android:pivotY="32">
+
+                <path
+                    android:name="bg"
+                    android:pathData="M32,58 C12,42 4,30 4,20 C4,11 11,5 19,5 C25,5 30,9 32,14 C34,9 39,5 45,5 C53,5 60,11 60,20 C60,30 52,42 32,58 Z"
+                    android:fillColor="#00000000"
+                    android:strokeColor="#4DFFFFFF"
+                    android:strokeWidth="3" />
+
+                <group android:name="clip">
+                    <clip-path
+                        android:name="cp"
+                        android:pathData="M32,58 C12,42 4,30 4,20 C4,11 11,5 19,5 C25,5 30,9 32,14 C34,9 39,5 45,5 C53,5 60,11 60,20 C60,30 52,42 32,58 Z" />
+                    <group
+                        android:name="fillmove"
+                        android:translateY="64">
+                        <path
+                            android:name="fill"
+                            android:pathData="M0,0 L64,0 L64,64 L0,64 Z"
+                            android:fillColor="#FFFFFF" />
+                    </group>
+                </group>
+
+                <path
+                    android:name="outline"
+                    android:pathData="M32,58 C12,42 4,30 4,20 C4,11 11,5 19,5 C25,5 30,9 32,14 C34,9 39,5 45,5 C53,5 60,11 60,20 C60,30 52,42 32,58 Z"
+                    android:fillColor="#00000000"
+                    android:strokeColor="#FFFFFF"
+                    android:strokeWidth="3"
+                    android:trimPathStart="0"
+                    android:trimPathEnd="0" />
+            </group>
+        </vector>
+    </aapt:attr>
+
+    <target android:name="fillmove">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="2600"
+                android:repeatCount="infinite"
+                android:interpolator="@android:interpolator/fast_out_slow_in">
+                <propertyValuesHolder android:propertyName="translateY" android:valueType="floatType">
+                    <keyframe android:fraction="0.0"  android:value="64" />
+                    <keyframe android:fraction="0.18" android:value="64" />
+                    <keyframe android:fraction="0.55" android:value="0" />
+                    <keyframe android:fraction="0.70" android:value="0" />
+                    <keyframe android:fraction="0.96" android:value="64" />
+                    <keyframe android:fraction="1.0"  android:value="64" />
+                </propertyValuesHolder>
+            </objectAnimator>
+        </aapt:attr>
+    </target>
+
+    <target android:name="outline">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="2600"
+                android:repeatCount="infinite">
+                <propertyValuesHolder android:propertyName="trimPathEnd" android:valueType="floatType">
+                    <keyframe android:fraction="0.0"  android:value="0" />
+                    <keyframe android:fraction="0.18" android:value="1" />
+                    <keyframe android:fraction="1.0"  android:value="1" />
+                </propertyValuesHolder>
+            </objectAnimator>
+        </aapt:attr>
+    </target>
+
+    <target android:name="beat">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="2600"
+                android:repeatCount="infinite">
+                <propertyValuesHolder android:propertyName="scaleX" android:valueType="floatType">
+                    <keyframe android:fraction="0.0"  android:value="1" />
+                    <keyframe android:fraction="0.52" android:value="1" />
+                    <keyframe android:fraction="0.60" android:value="1.08" />
+                    <keyframe android:fraction="0.68" android:value="0.97" />
+                    <keyframe android:fraction="0.76" android:value="1" />
+                    <keyframe android:fraction="1.0"  android:value="1" />
+                </propertyValuesHolder>
+                <propertyValuesHolder android:propertyName="scaleY" android:valueType="floatType">
+                    <keyframe android:fraction="0.0"  android:value="1" />
+                    <keyframe android:fraction="0.52" android:value="1" />
+                    <keyframe android:fraction="0.60" android:value="1.08" />
+                    <keyframe android:fraction="0.68" android:value="0.97" />
+                    <keyframe android:fraction="0.76" android:value="1" />
+                    <keyframe android:fraction="1.0"  android:value="1" />
+                </propertyValuesHolder>
+            </objectAnimator>
+        </aapt:attr>
+    </target>
+</animated-vector>

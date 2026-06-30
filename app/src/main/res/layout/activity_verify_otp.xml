@@ -175,12 +175,11 @@
         android:elevation="8dp"
         android:indeterminate="true"
         android:visibility="gone"
-        android:indeterminateTint="#321a56"
-        android:indeterminateTintMode="src_in"
         app:layout_constraintTop_toTopOf="@+id/btn_resend_otp"
         app:layout_constraintBottom_toBottomOf="@+id/btn_resend_otp"
         app:layout_constraintStart_toStartOf="@+id/btn_resend_otp"
-        app:layout_constraintEnd_toEndOf="@+id/btn_resend_otp"/>
+        app:layout_constraintEnd_toEndOf="@+id/btn_resend_otp"
+        android:indeterminateDrawable="@drawable/heart_loader" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_verify_otp"
@@ -213,10 +212,9 @@
         android:elevation="8dp"
         android:indeterminate="true"
         android:visibility="gone"
-        android:indeterminateTint="#321a56"
-        android:indeterminateTintMode="src_in"
         app:layout_constraintTop_toTopOf="@+id/btn_verify_otp"
         app:layout_constraintBottom_toBottomOf="@+id/btn_verify_otp"
         app:layout_constraintStart_toStartOf="@+id/btn_verify_otp"
-        app:layout_constraintEnd_toEndOf="@+id/btn_verify_otp"/>
+        app:layout_constraintEnd_toEndOf="@+id/btn_verify_otp"
+        android:indeterminateDrawable="@drawable/heart_loader" />
 </androidx.constraintlayout.widget.ConstraintLayout>

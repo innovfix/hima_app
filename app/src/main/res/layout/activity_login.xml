@@ -198,10 +198,9 @@
         android:elevation="8dp"
         android:indeterminate="true"
         android:visibility="gone"
-        android:indeterminateTint="#321a56"
-        android:indeterminateTintMode="src_in"
         app:layout_constraintTop_toTopOf="@+id/btn_send_otp"
         app:layout_constraintBottom_toBottomOf="@+id/btn_send_otp"
         app:layout_constraintStart_toStartOf="@+id/btn_send_otp"
-        app:layout_constraintEnd_toEndOf="@+id/btn_send_otp"/>
+        app:layout_constraintEnd_toEndOf="@+id/btn_send_otp"
+        android:indeterminateDrawable="@drawable/heart_loader" />
 </androidx.constraintlayout.widget.ConstraintLayout>

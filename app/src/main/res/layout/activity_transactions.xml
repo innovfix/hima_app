@@ -189,12 +189,10 @@
         android:layout_height="48dp"
         android:layout_gravity="center"
         android:indeterminate="true"
-        android:indeterminateTint="@color/pink"
-        android:indeterminateTintMode="src_in"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@+id/header_layout"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" android:indeterminateDrawable="@drawable/heart_loader" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

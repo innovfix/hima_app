@@ -525,9 +525,7 @@
         android:layout_height="48dp"
         android:layout_gravity="center"
         android:indeterminate="true"
-        android:indeterminateTint="@color/pink"
-        android:indeterminateTintMode="src_in"
-        android:visibility="gone" />
+        android:visibility="gone" android:indeterminateDrawable="@drawable/heart_loader" />
 
     <!-- Background Dim Effect -->
     <View

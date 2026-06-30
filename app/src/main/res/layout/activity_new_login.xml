@@ -612,7 +612,7 @@
                 android:fontFamily="@font/poppins_semibold"
                 android:text="@string/mobile_number" />
 
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cv_login"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
@@ -687,7 +687,7 @@
                         android:background="@android:color/transparent"
                         android:textCursorDrawable="@drawable/color_cursor"
                         android:textColor="#1F2430"
-                        android:hint=""
+                        android:hint="Enter mobile number"
                         android:textColorHint="#9AA0AC"
                         android:textSize="16sp"
                         android:imeOptions="actionDone"
@@ -695,7 +695,7 @@
                         android:maxLength="10"
                         android:fontFamily="@font/poppins_medium" />
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Referral code checkbox -->
             <CheckBox
@@ -762,8 +762,7 @@
                             android:elevation="8dp"
                             android:indeterminate="true"
                             android:visibility="gone"
-                            android:indeterminateTint="@color/white"
-                            android:layout_centerInParent="true" />
+                            android:layout_centerInParent="true" android:indeterminateDrawable="@drawable/heart_loader_white" />
 
                     </RelativeLayout>
                 </LinearLayout>
@@ -805,8 +804,7 @@
                     android:elevation="8dp"
                     android:indeterminate="true"
                     android:visibility="gone"
-                    android:indeterminateTint="@color/white"
-                    android:layout_centerInParent="true" />
+                    android:layout_centerInParent="true" android:indeterminateDrawable="@drawable/heart_loader_white" />
             </RelativeLayout>
 
             <!-- Terms and Conditions -->
@@ -957,8 +955,7 @@
                     android:elevation="8dp"
                     android:indeterminate="true"
                     android:visibility="gone"
-                    android:indeterminateTint="@color/white"
-                    android:layout_centerInParent="true" />
+                    android:layout_centerInParent="true" android:indeterminateDrawable="@drawable/heart_loader_white" />
             </RelativeLayout>
 
             <!-- Resend OTP Section -->
@@ -1008,8 +1005,7 @@
                         android:layout_height="20dp"
                         android:layout_centerInParent="true"
                         android:indeterminate="true"
-                        android:visibility="gone"
-                        android:indeterminateTint="@color/colorAccent" />
+                        android:visibility="gone" android:indeterminateDrawable="@drawable/heart_loader" />
                 </RelativeLayout>
             </LinearLayout>
 

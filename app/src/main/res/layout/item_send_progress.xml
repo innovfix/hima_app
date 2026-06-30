@@ -30,8 +30,7 @@
             android:id="@+id/pb_send_spinner"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:indeterminate="true"
-            android:indeterminateTint="@color/colorAccent" />
+            android:indeterminate="true" android:indeterminateDrawable="@drawable/heart_loader" />
 
         <ImageView
             android:id="@+id/iv_send_check"
