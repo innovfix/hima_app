@@ -1730,14 +1730,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             // B-CALL RC#3: reason=1 means the peer's connection TIMED OUT (they may
             // rejoin) — not a voluntary leave. Don't tear the call down on a transient
-            // drop; arm the existing reconnect watchdog (shows "Reconnecting…", and its
-            // onTimeout ends the call after ~30s if the peer never returns). The
-            // stream-resume handler (onRemoteAudioStateChanged) clears it on rejoin.
-            // Fail-safe: the watchdog ALWAYS ends the call, so this can't hang a call.
+            // drop; arm the reconnect watchdog's HARD-OFFLINE window (NET-004: ~15s,
+            // shorter than the frozen-audio grace because Agora already waited ~20s
+            // before firing this). Its onTimeout ends the call if the peer never
+            // returns; onUserJoined / stream-resume clears it on rejoin. Fail-safe:
+            // the watchdog ALWAYS ends the call, so this can't hang a call.
             // reason 0 (voluntary leave) / 2 (kicked) still end immediately below.
             if (reason == 1 && isRemoteUserJoined) {
-                Log.w("CallReconnect", "MaleAudio onUserOffline reason=1 — reconnect grace, not ending")
-                reconnectWatchdog.peerStreamStalled(stalled = true)
+                Log.w("CallReconnect", "MaleAudio onUserOffline reason=1 — hard-offline grace, not ending")
+                reconnectWatchdog.peerOffline(gone = true)
                 return
             }
 
@@ -1757,6 +1758,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             com.gmwapp.hima.utils.CallHeartbeat.start(callId)
           //  showMessage("Remote user joined $uid")
             isRemoteUserJoined = true
+            // NET-004: peer is back on the channel — clear any hard-offline grace.
+            reconnectWatchdog.peerOffline(gone = false)
             stopAcceptResend() // CALLER_ACCEPT_RESEND — caller is here, stop nudging
             Log.d("AgoraTiming", "MaleAudio onUserJoined at ${System.currentTimeMillis()}")
             Log.d("videoUid", "$uid")

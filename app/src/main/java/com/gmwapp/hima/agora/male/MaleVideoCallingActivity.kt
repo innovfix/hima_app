@@ -1447,6 +1447,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             com.gmwapp.hima.utils.HimaAnalytics.logContact(this@MaleVideoCallingActivity, contentType = "video_call")
             startCallingService()
             isRemoteUserJoined= true
+            // NET-004: peer is back on the channel — clear any hard-offline grace.
+            reconnectWatchdog.peerOffline(gone = false)
             stopAcceptResend() // CALLER_ACCEPT_RESEND — caller is here, stop nudging
             videoUid = uid
 
@@ -1566,12 +1568,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 "onUserOffline uid=$uid reason=$reason isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined"
             )
             // B-CALL RC#3: reason=1 = peer connection TIMED OUT (may rejoin). Arm the
-            // reconnect watchdog instead of ending; stream-resume clears it on rejoin.
-            // Fail-safe: watchdog ends the call after ~30s if the peer never returns.
-            // reason 0/2 end immediately below.
+            // watchdog's HARD-OFFLINE window (NET-004: ~15s — Agora already waited
+            // ~20s before firing this) instead of ending; onUserJoined / stream-resume
+            // clears it on rejoin. Fail-safe: the watchdog ends the call if the peer
+            // never returns. reason 0/2 end immediately below.
             if (reason == 1 && isRemoteUserJoined) {
-                Log.w("CallReconnect", "MaleVideo onUserOffline reason=1 — reconnect grace, not ending")
-                reconnectWatchdog.peerStreamStalled(stalled = true)
+                Log.w("CallReconnect", "MaleVideo onUserOffline reason=1 — hard-offline grace, not ending")
+                reconnectWatchdog.peerOffline(gone = true)
                 return
             }
             stopCountdown()

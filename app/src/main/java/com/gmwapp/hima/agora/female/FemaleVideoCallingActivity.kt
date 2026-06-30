@@ -1531,6 +1531,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
          //   showMessage("Remote user joined $uid")
             Log.d("AgoraTiming", "FemaleVideo onUserJoined at ${System.currentTimeMillis()}")
             isRemoteUserJoined=true
+            // NET-004: peer is back on the channel — clear any hard-offline grace.
+            reconnectWatchdog.peerOffline(gone = false)
             stopAcceptResend() // CALLER_ACCEPT_RESEND — caller is here, stop nudging
             getRemainingTime()
             startTimerResync()
@@ -1624,12 +1626,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             runOnUiThread { runCatching { binding.peerOnHoldBanner.visibility = View.GONE } }
 
             // B-CALL RC#3: reason=1 = peer connection TIMED OUT (may rejoin). Arm the
-            // reconnect watchdog instead of ending; stream-resume / onRejoinChannelSuccess
-            // clears it on rejoin. Fail-safe: watchdog ends the call after ~30s if the
-            // peer never returns. reason 0 (voluntary leave) / 2 (kicked) end below.
+            // watchdog's HARD-OFFLINE window (NET-004: ~15s — Agora already waited ~20s
+            // before firing this) instead of ending; onUserJoined / stream-resume clears
+            // it on rejoin. Fail-safe: the watchdog ends the call if the peer never
+            // returns. reason 0 (voluntary leave) / 2 (kicked) end below.
             if (reason == 1 && isRemoteUserJoined) {
-                Log.w("CallReconnect", "FemaleVideo onUserOffline reason=1 — reconnect grace, not ending")
-                reconnectWatchdog.peerStreamStalled(stalled = true)
+                Log.w("CallReconnect", "FemaleVideo onUserOffline reason=1 — hard-offline grace, not ending")
+                reconnectWatchdog.peerOffline(gone = true)
                 return
             }
 
