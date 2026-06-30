@@ -2390,6 +2390,9 @@ class BaseApplication : Application(), Configuration.Provider {
     fun isInRealCall(): Boolean = isCallActive
 
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {
+        // C-10 fix: a fresh incoming ring supersedes any prior "accepted" marker —
+        // the accept/decline race guard below only applies to the latest ring.
+        clearAcceptedRing()
         this.senderId = senderId
         this.callTypeForSplashActivity = callType
         this.channelName = channelName
@@ -2408,6 +2411,34 @@ class BaseApplication : Application(), Configuration.Provider {
             (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
                 ?.cancel(callId.toString(), INCOMING_CALL_NOTIFICATION_ID)
         }
+    }
+
+    // ── C-10 accept/decline race guard ───────────────────────────────────────
+    // When the creator taps Accept, the caller's ring-timeout can fire a stale
+    // "callDeclined" in the same ~50ms window. The FCM handler used to honor that
+    // decline and tear down the just-accepted call → blank screen + auto-disconnect
+    // (intermittent, "not for all"). We record which caller's ring was just accepted
+    // so the decline handler can distinguish "already accepted → ignore the stale
+    // decline" from "still ringing → dismiss it". Reset on every new ring (above) so
+    // a later genuine ring/cancel still dismisses correctly.
+    @Volatile private var acceptedRingSenderId: Int = -1
+    @Volatile private var acceptedRingAtMs: Long = 0L
+
+    fun markRingAccepted(senderId: Int) {
+        this.acceptedRingSenderId = senderId
+        this.acceptedRingAtMs = System.currentTimeMillis()
+    }
+
+    fun clearAcceptedRing() {
+        this.acceptedRingSenderId = -1
+        this.acceptedRingAtMs = 0L
+    }
+
+    /** True if this caller's ring was accepted recently — so a stale callDeclined must be ignored. */
+    fun wasRingAcceptedFor(senderId: Int): Boolean {
+        if (acceptedRingSenderId == -1 || senderId != acceptedRingSenderId) return false
+        // Backstop expiry in case a reset was somehow missed (process death etc.).
+        return System.currentTimeMillis() - acceptedRingAtMs < 30 * 60 * 1000L
     }
 
     /**

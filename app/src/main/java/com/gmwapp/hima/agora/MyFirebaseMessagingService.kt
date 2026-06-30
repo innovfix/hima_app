@@ -806,7 +806,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
                 val isScreenLocked = keyguardManager.isKeyguardLocked
                 var previousSenderId = BaseApplication.getInstance()?.getSenderId()
-                if (senderId==previousSenderId) {
+                // C-10 fix: if the creator already ACCEPTED this caller's ring, a
+                // "callDeclined" arriving now is a stale race (the caller's ring-timeout
+                // crossing the accept in mid-air). Honoring it tore down the just-accepted
+                // call → blank screen then auto-disconnect. Accept wins: ignore the decline.
+                val alreadyAccepted = senderId != null &&
+                    BaseApplication.getInstance()?.wasRingAcceptedFor(senderId) == true
+                if (alreadyAccepted) {
+                    Log.d("FCM", "callDeclined IGNORED — ring already accepted (C-10 race guard) sender=$senderId")
+                } else if (senderId==previousSenderId) {
                     HimaTelecomManager.endActiveCall(DisconnectCause.REMOTE)
                     com.gmwapp.hima.agora.FcmCallService.stop(this)
                     BaseApplication.getInstance()?.stopRingtone()

@@ -339,6 +339,10 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 pendingCallType = callType
                 acceptInFlight = true
                 acceptLaunchHandled = false
+                // C-10 fix: record that THIS caller's ring is accepted, so a stale
+                // "callDeclined" racing in (caller ring-timeout firing at the same
+                // instant) is ignored instead of tearing down the accepted call.
+                BaseApplication.getInstance()?.markRingAccepted(receiverId)
                 acceptGateHandler.removeCallbacksAndMessages(null)
                 acceptGateHandler.postDelayed({
                     if (!acceptLaunchHandled) {
