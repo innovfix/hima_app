@@ -520,7 +520,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 }
                 val coins = response?.data?.coins
                 Log.d("coinsUpdated_", "${coins ?: 0}")
-                binding.tvCoins.text = (coins ?: 0).toString()
+                com.gmwapp.hima.utils.CoinAnimUtil.animateTo(binding.tvCoins, coins ?: 0)
             } catch (e: Exception) {
                 Log.e("WalletActivity", "getUserLiveData observer", e)
                 FirebaseCrashlytics.getInstance().recordException(e)
@@ -596,7 +596,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         }
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        binding.tvCoins.text = userData?.coins.toString()
+        com.gmwapp.hima.utils.CoinAnimUtil.animateTo(binding.tvCoins, userData?.coins ?: 0)
 
 
         refreshSubscribeBannerVisibility()
