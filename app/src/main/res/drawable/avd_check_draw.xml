@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "All Good" self-drawing checkmark. trimPathEnd defaults to 1 in the vector,
+     so if the animation never runs (very old devices) the full check still shows. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_check_draw">
+    <target android:name="check" android:animation="@animator/check_trim" />
+</animated-vector>

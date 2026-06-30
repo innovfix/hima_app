@@ -169,6 +169,22 @@ class MyWarningsActivity : AppCompatActivity() {
         binding.cvWarningSystemImage.visibility = View.GONE
         binding.cvInfoCard.visibility = View.GONE
         binding.rvWarnings.visibility = View.GONE
+        animateEmptyCheck()
+    }
+
+    /** "All Good" badge: circle pops in, then the checkmark draws itself (AVD trim-path). */
+    private fun animateEmptyCheck() {
+        val v = binding.ivEmptyCheck
+        v.scaleX = 0.5f
+        v.scaleY = 0.5f
+        v.alpha = 0f
+        v.animate()
+            .scaleX(1f).scaleY(1f).alpha(1f)
+            .setDuration(260)
+            .setInterpolator(android.view.animation.OvershootInterpolator())
+            .start()
+        // The AVD's own 120ms startOffset holds the stroke until the circle has popped.
+        (v.drawable as? android.graphics.drawable.Animatable)?.start()
     }
 
     private fun showList() {

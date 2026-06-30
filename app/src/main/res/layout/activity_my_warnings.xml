@@ -366,17 +366,17 @@
                         android:paddingTop="28dp"
                         android:paddingBottom="24dp">
 
-                        <!-- Pink check circle -->
-                        <TextView
+                        <!-- Pink check circle (self-drawing checkmark AVD) -->
+                        <ImageView
+                            android:id="@+id/iv_empty_check"
                             android:layout_width="96dp"
                             android:layout_height="96dp"
                             android:layout_gravity="center_horizontal"
                             android:background="@drawable/circle_bg_pink_light"
-                            android:gravity="center"
-                            android:text="✓"
-                            android:textColor="@color/colorAccent"
-                            android:textSize="44sp"
-                            tools:ignore="HardcodedText" />
+                            android:padding="24dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/avd_check_draw"
+                            android:contentDescription="@null" />
 
                         <TextView
                             android:id="@+id/tv_empty_title"

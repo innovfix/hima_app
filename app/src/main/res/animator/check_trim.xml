@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Draw the checkmark on: trimPathEnd 0 -> 1 after a short delay (lets the circle pop in first). -->
+<objectAnimator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:propertyName="trimPathEnd"
+    android:valueFrom="0"
+    android:valueTo="1"
+    android:valueType="floatType"
+    android:duration="450"
+    android:startOffset="120"
+    android:interpolator="@android:interpolator/decelerate_quad" />

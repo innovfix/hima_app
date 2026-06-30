@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stroked checkmark used by avd_check_draw (self-drawing via trimPathEnd). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="50"
+    android:viewportHeight="50">
+    <path
+        android:name="check"
+        android:pathData="M13,26 L22,35 L37,16"
+        android:strokeColor="#FF1383"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:trimPathEnd="1" />
+</vector>
