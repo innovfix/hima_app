@@ -759,11 +759,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         onAddcoinClicked()
         // B151: debounce mute + speaker so rapid taps can't desync the icon
         // from Agora's mute / AudioManager comm-device state.
-        binding.btnMuteUnmute.setOnSingleClickListener {
+        // U-06: 250ms (not the 500ms default) — pure-UI toggles; the longer
+        // window swallowed deliberate mute/speaker taps (~50% miss).
+        binding.btnMuteUnmute.setOnSingleClickListener(debounceMs = 250L) {
             toggleMute()
         }
 
-        binding.btnSpeaker.setOnSingleClickListener {
+        binding.btnSpeaker.setOnSingleClickListener(debounceMs = 250L) {
             onSpeakerButtonClicked()
         }
 

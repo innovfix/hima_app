@@ -660,11 +660,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         onAddcoinClicked()
         // B151: debounce mute + speaker so rapid taps can't desync the icon
         // from Agora's mute / AudioManager comm-device state.
-        binding.btnMuteUnmute.setOnSingleClickListener {
+        // U-06/TC-HMA-003: 250ms (not the 500ms default) — these are pure-UI
+        // toggles; 500ms swallowed deliberate mute/unmute & speaker taps so the
+        // button felt unresponsive / "disabled" (~50% miss). See B066 precedent.
+        binding.btnMuteUnmute.setOnSingleClickListener(debounceMs = 250L) {
             toggleMute()
         }
 
-        binding.btnSpeaker.setOnSingleClickListener {
+        binding.btnSpeaker.setOnSingleClickListener(debounceMs = 250L) {
             onSpeakerButtonClicked()
         }
 
@@ -1605,7 +1608,21 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // for full rationale.
         override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
             super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
-            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            // TC-HMA-001: drive the peer-mute indicator from this RELIABLE signal —
+            // it reports an already-muted peer on subscribe, which the deprecated
+            // onUserMuteAudio misses when the user joins ALREADY muted. Mute/unmute
+            // is intentional silence, so update the badge and return WITHOUT arming
+            // the reconnect watchdog below.
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) {
+                isPeerAudioMuted = true
+                updateMuteIndicators()
+                return
+            }
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_UNMUTED) {
+                isPeerAudioMuted = false
+                updateMuteIndicators()
+                return
+            }
             runOnUiThread {
                 when (state) {
                     Constants.REMOTE_AUDIO_STATE_FROZEN,

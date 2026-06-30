@@ -694,11 +694,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         onAddcoinClicked()
         // B151: debounce mute + speaker so rapid taps can't desync the icon
         // from Agora's mute / AudioManager comm-device state.
-        binding.btnMuteUnmute.setOnSingleClickListener {
+        // U-06/TC-HMA-003: 250ms (not the 500ms default) — pure-UI toggles; the
+        // longer window swallowed deliberate mute/speaker taps (~50% miss).
+        binding.btnMuteUnmute.setOnSingleClickListener(debounceMs = 250L) {
             toggleMute()
         }
 
-        binding.btnSpeaker.setOnSingleClickListener {
+        binding.btnSpeaker.setOnSingleClickListener(debounceMs = 250L) {
             onSpeakerButtonClicked()
         }
 
@@ -1492,7 +1494,24 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // for full rationale.
         override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
             super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
-            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            // TC-HMA-001: reliably show the peer-mute pill/badge — this signal reports
+            // an already-muted peer on subscribe (covers a user who joins ALREADY
+            // muted, which the deprecated onUserMuteAudio misses). Mute is intentional
+            // silence, so update the indicator and return WITHOUT arming the watchdog.
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) {
+                runOnUiThread {
+                    binding.remoteMicMutedPill.visibility = View.VISIBLE
+                    updateMuteBadge(peerMuted = true)
+                }
+                return
+            }
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_UNMUTED) {
+                runOnUiThread {
+                    binding.remoteMicMutedPill.visibility = View.GONE
+                    updateMuteBadge(peerMuted = false)
+                }
+                return
+            }
             runOnUiThread {
                 when (state) {
                     Constants.REMOTE_AUDIO_STATE_FROZEN,
