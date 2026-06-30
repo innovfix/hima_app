@@ -4785,6 +4785,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
         val isFemaleUser = userData?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
 
+        // Females don't get a video-call entry point — hide the whole video column,
+        // leaving Audio only (mirrors the Recent Calls screen). Males keep both.
+        if (isFemaleUser) {
+            findViewById<View>(R.id.ll_video_call_column)?.visibility = View.GONE
+        }
+
         // Both males and female creators get the in-chat call buttons. checkCallAvailability()
         // returns is_blocked + the peer's audio/video status; updateCallButtonsState() already
         // skips the peer-status gate for a female caller (males have no UI to set those flags),
