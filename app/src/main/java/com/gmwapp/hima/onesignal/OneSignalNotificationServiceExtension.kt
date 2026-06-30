@@ -173,6 +173,21 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
 
         if (senderId <= 0) return false
 
+        // Ghost-call guard (mirrors MyFirebaseMessagingService's call_id check):
+        // OneSignal re-delivers queued/restored pushes on reconnect, so a ring
+        // for a call the user already cut can arrive again. The FCM path drops
+        // these by call_id; the OneSignal path previously only checked the push
+        // AGE, so a recent redelivery slipped through and re-rang a dead call
+        // (un-answerable — channel/token already gone). Refuse any call_id we
+        // positively know was ended or busy-rejected.
+        val app = com.gmwapp.hima.BaseApplication.getInstance()
+        if (callId > 0 && (app?.wasCallRecentlyEnded(callId) == true ||
+                app?.wasCallBusyRejected(callId) == true)) {
+            Log.d(TAG, "Dropping OneSignal incoming push — call_id=$callId already ended/busy-rejected (ghost re-ring)")
+            event.preventDefault()
+            return true
+        }
+
         // Stale-call guard (mirrors the FCM path's freshness check): after the
         // device has been offline, OneSignal mass-delivers the queued call backlog
         // on reconnect. Drop call pushes older than the freshness window so they

@@ -2572,21 +2572,28 @@ class BaseApplication : Application(), Configuration.Provider {
      * GHOST_CALL_FIX_2026_06_22 — remember a call_id that was declined / rejected /
      * already accepted so a stale heads-up "Answer" tap can be refused. Only
      * POSITIVELY-ended ids are recorded, so an unknown / genuinely-live call is
-     * never falsely blocked. Self-prunes entries older than 60s.
+     * never falsely blocked. Self-prunes entries older than 5 min.
+     *
+     * TC-ONG-001/ghost-call: retention widened from 60s → 5 min so a delayed
+     * OneSignal REDELIVERY of an already-cut call's ring (reconnect/restore can
+     * lag well past a minute) is still recognised as dead and dropped. Safe to
+     * widen: callIds are unique auto-increment, so a longer window can never
+     * collide with — and falsely block — a genuinely new incoming call.
      */
+    private val RECENTLY_ENDED_TTL_MS = 5 * 60_000L
     fun markCallEnded(callId: Int) {
         if (callId <= 0) return
         val now = System.currentTimeMillis()
         recentlyEndedCalls[callId] = now
         val it = recentlyEndedCalls.entries.iterator()
-        while (it.hasNext()) { if (now - it.next().value > 60_000L) it.remove() }
+        while (it.hasNext()) { if (now - it.next().value > RECENTLY_ENDED_TTL_MS) it.remove() }
     }
 
-    /** True only if [callId] was explicitly ended within the last 60s. */
+    /** True only if [callId] was explicitly ended within the last 5 min. */
     fun wasCallRecentlyEnded(callId: Int): Boolean {
         if (callId <= 0) return false
         val t = recentlyEndedCalls[callId] ?: return false
-        if (System.currentTimeMillis() - t > 60_000L) { recentlyEndedCalls.remove(callId); return false }
+        if (System.currentTimeMillis() - t > RECENTLY_ENDED_TTL_MS) { recentlyEndedCalls.remove(callId); return false }
         return true
     }
 
