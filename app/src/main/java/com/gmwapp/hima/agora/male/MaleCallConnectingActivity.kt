@@ -453,10 +453,13 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             fetchReceiverImage(receiverId)
         }
 
-        Glide.with(this)
-            .load(R.drawable.double_arrow_svg)
-            .into(binding.ivDoubleArrow)
-            
+        // NOTE: do NOT load a static SVG here. The layout sets
+        // android:src="@drawable/double_arrow_anim" (an AnimatedVectorDrawable);
+        // overwriting it with the static double_arrow_svg made the
+        // `drawable as? Animatable` cast in startCallAmbienceAnimations() return
+        // null, so the bottom->top pink signal-flow never played. Leave the
+        // animated drawable in place so it can start (matches the female side).
+
         startSimpleAnimations()
         
         // Cancel button click
