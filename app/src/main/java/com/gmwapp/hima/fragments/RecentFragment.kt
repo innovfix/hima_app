@@ -69,6 +69,7 @@ class RecentFragment : BaseFragment(), Refreshable {
         initUI()
         observeViewModel()
         setupFilterChips()
+        setupSwipeBetweenPills()
         return binding.root
     }
 
@@ -295,6 +296,73 @@ class RecentFragment : BaseFragment(), Refreshable {
         binding.chipTalkTime.setOnSingleClickListener { onPillSelected("talk_time") }
         binding.chipAZ.setOnSingleClickListener { onPillSelected("a_z") }
         styleChips(currentSortType)
+    }
+
+    /** Ordered filter pills, left→right, for swipe navigation. */
+    private val pillOrder = listOf("recent", "missed", "rejected", "talk_time", "a_z")
+
+    /**
+     * Swipe horizontally across the call list to move between filter pills — same
+     * effect as tapping. Per request: swipe LEFT→RIGHT = next pill (All→Missed→…),
+     * RIGHT→LEFT = previous. Observational only, so vertical scroll is untouched.
+     */
+    private fun setupSwipeBetweenPills() {
+        if (!::binding.isInitialized) return
+        val ctx = context ?: return
+        val detector = android.view.GestureDetector(ctx,
+            object : android.view.GestureDetector.SimpleOnGestureListener() {
+                override fun onFling(
+                    e1: android.view.MotionEvent?, e2: android.view.MotionEvent,
+                    velocityX: Float, velocityY: Float
+                ): Boolean {
+                    if (e1 == null) return false
+                    val dx = e2.x - e1.x
+                    val dy = e2.y - e1.y
+                    // Decisive horizontal fling only — must clearly beat the vertical
+                    // component so we never fight list scroll or pull-to-refresh.
+                    if (kotlin.math.abs(dx) > 80f &&
+                        kotlin.math.abs(dx) > kotlin.math.abs(dy) * 2f &&
+                        kotlin.math.abs(velocityX) > 800f
+                    ) {
+                        goToAdjacentPill(if (dx > 0) 1 else -1) // left→right = next pill
+                        return true
+                    }
+                    return false
+                }
+            })
+        binding.rvCalls.addOnItemTouchListener(object :
+            androidx.recyclerview.widget.RecyclerView.OnItemTouchListener {
+            override fun onInterceptTouchEvent(
+                rv: androidx.recyclerview.widget.RecyclerView, e: android.view.MotionEvent
+            ): Boolean {
+                detector.onTouchEvent(e)
+                return false // never steal — purely observational
+            }
+            override fun onTouchEvent(
+                rv: androidx.recyclerview.widget.RecyclerView, e: android.view.MotionEvent
+            ) {}
+            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
+        })
+    }
+
+    /** Move to the pill `dir` steps away (no wrap-around) and reveal it. */
+    private fun goToAdjacentPill(dir: Int) {
+        val cur = pillOrder.indexOf(currentSortType)
+        if (cur < 0) return
+        val next = cur + dir
+        if (next !in pillOrder.indices) return
+        onPillSelected(pillOrder[next])
+        scrollPillIntoView(next)
+    }
+
+    /** Scroll the pill row so the newly-selected pill is fully visible. */
+    private fun scrollPillIntoView(index: Int) {
+        val pill = binding.llFilterPills.getChildAt(index) ?: return
+        val hsv = binding.llFilterPills.parent as? android.widget.HorizontalScrollView ?: return
+        hsv.post {
+            val offset = (32 * resources.displayMetrics.density).toInt()
+            hsv.smoothScrollTo((pill.left - offset).coerceAtLeast(0), 0)
+        }
     }
 
     /** Single-selection handler for the custom filter pills. */
