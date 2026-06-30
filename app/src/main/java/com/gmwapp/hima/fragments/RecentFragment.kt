@@ -303,8 +303,9 @@ class RecentFragment : BaseFragment(), Refreshable {
 
     /**
      * Swipe horizontally across the call list to move between filter pills — same
-     * effect as tapping. Per request: swipe LEFT→RIGHT = next pill (All→Missed→…),
-     * RIGHT→LEFT = previous. Observational only, so vertical scroll is untouched.
+     * effect as tapping. Matches the Home page: swipe RIGHT→LEFT = next pill
+     * (All→Missed→…), LEFT→RIGHT = previous. Observational only, so vertical scroll
+     * is untouched.
      */
     private fun setupSwipeBetweenPills() {
         if (!::binding.isInitialized) return
@@ -324,7 +325,7 @@ class RecentFragment : BaseFragment(), Refreshable {
                         kotlin.math.abs(dx) > kotlin.math.abs(dy) * 2f &&
                         kotlin.math.abs(velocityX) > 800f
                     ) {
-                        goToAdjacentPill(if (dx > 0) 1 else -1) // left→right = next pill
+                        goToAdjacentPill(if (dx < 0) 1 else -1) // match Home: swipe right→left = next
                         return true
                     }
                     return false

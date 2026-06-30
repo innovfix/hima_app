@@ -193,8 +193,32 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         
         // Subtle connecting dots animation
         startConnectingDotsAnimation()
+
+        // Drifting "smoke" glows — same ambience as the connecting screen.
+        val d = resources.displayMetrics.density
+        driftGlow(binding.glowTl, 85f * d, 95f * d, 6200, 8000)
+        driftGlow(binding.glowBr, -82f * d, -90f * d, 7000, 9200)
+
+        // The 3 connection arrows pulse pink bottom->top (signal flow).
+        (binding.ivDoubleArrow.drawable as? android.graphics.drawable.Animatable)?.start()
     }
-    
+
+    private fun driftGlow(v: android.view.View, dx: Float, dy: Float, durX: Long, durY: Long) {
+        val ad = android.view.animation.AccelerateDecelerateInterpolator()
+        fun loop(anim: android.animation.ObjectAnimator, dur: Long) {
+            anim.duration = dur
+            anim.repeatCount = android.animation.ObjectAnimator.INFINITE
+            anim.repeatMode = android.animation.ObjectAnimator.REVERSE
+            anim.interpolator = ad
+            anim.start()
+        }
+        loop(android.animation.ObjectAnimator.ofFloat(v, "translationX", dx), durX)
+        loop(android.animation.ObjectAnimator.ofFloat(v, "translationY", dy), durY)
+        loop(android.animation.ObjectAnimator.ofFloat(v, "scaleX", 1.28f), durX + 1500)
+        loop(android.animation.ObjectAnimator.ofFloat(v, "scaleY", 1.28f), durY + 1500)
+        loop(android.animation.ObjectAnimator.ofFloat(v, "alpha", 0.45f, 1f), durX)
+    }
+
     private fun startConnectingDotsAnimation() {
         try {
             val dot1 = findViewById<android.view.View>(R.id.dot1)

@@ -492,10 +492,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         // Drifting "smoke" glows.
         driftGlow(binding.glowTl, 85f * d, 95f * d, 6200, 8000)
         driftGlow(binding.glowBr, -82f * d, -90f * d, 7000, 9200)
-        // Ripples emanating from the connection arrows (staggered).
-        startCallRipple(binding.callRipple1, 0)
-        startCallRipple(binding.callRipple2, 1000)
-        startCallRipple(binding.callRipple3, 2000)
+        // Center ripple rings removed — the 3 arrows pulse pink bottom->top (signal flow).
+        (binding.ivDoubleArrow.drawable as? android.graphics.drawable.Animatable)?.start()
     }
 
     private fun driftGlow(v: android.view.View, dx: Float, dy: Float, durX: Long, durY: Long) {

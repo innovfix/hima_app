@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Top chevron lights last — completes the upward signal flow. -->
+<objectAnimator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:propertyName="strokeColor"
+    android:valueType="colorType"
+    android:valueFrom="#7A7A88"
+    android:valueTo="#FF6EA9"
+    android:duration="650"
+    android:startOffset="440"
+    android:repeatCount="-1"
+    android:repeatMode="reverse" />

@@ -150,6 +150,7 @@
     <!-- Connection Line (subtle on dark) -->
     <View
         android:id="@+id/connection_line_bg"
+        android:visibility="invisible"
         android:layout_width="1dp"
         android:layout_height="0dp"
         android:layout_marginVertical="20dp"
@@ -198,9 +199,8 @@
         android:id="@+id/iv_double_arrow"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:src="@drawable/double_arrow_svg"
-        android:alpha="0.6"
-        app:tint="#8A8A99"
+        android:src="@drawable/double_arrow_anim"
+        android:alpha="0.95"
         app:layout_constraintTop_toTopOf="@id/connection_line_bg"
         app:layout_constraintBottom_toBottomOf="@id/connection_line_bg"
         app:layout_constraintStart_toStartOf="parent"
@@ -353,6 +353,7 @@
         <!-- Modern Progress Bar -->
         <ProgressBar
             android:id="@+id/progressBar"
+            android:visibility="gone"
             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
             android:layout_width="match_parent"
             android:layout_height="4dp"

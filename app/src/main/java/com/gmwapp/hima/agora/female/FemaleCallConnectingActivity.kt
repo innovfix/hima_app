@@ -240,9 +240,8 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             }
             driftGlow(binding.glowTl, 85f * d, 95f * d, 6200, 8000)
             driftGlow(binding.glowBr, -82f * d, -90f * d, 7000, 9200)
-            ripple(binding.callRipple1, 0)
-            ripple(binding.callRipple2, 1000)
-            ripple(binding.callRipple3, 2000)
+            // Center ripple rings removed — the 3 arrows pulse pink bottom->top (signal flow).
+            (binding.ivDoubleArrow.drawable as? android.graphics.drawable.Animatable)?.start()
         }
         // Dark connecting screen — match the status bar to the dark page bg and
         // render the status-bar icons LIGHT (white) so they stay legible.

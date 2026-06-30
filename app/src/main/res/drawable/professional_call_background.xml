@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Professional gradient background: Dark elegant gradient -->
+<!-- In-call (connected) background: solid near-black #0D0D10 to match the
+     connecting screen, so connecting → connected looks consistent. The pink/purple
+     glow ripples sit on top (added in the dark-theme pass). Used only by the male
+     & female audio-calling layouts. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
-            <gradient
-                android:angle="135"
-                android:startColor="#1A1A2E"
-                android:centerColor="#16213E"
-                android:endColor="#0F3460"
-                android:type="linear"/>
+            <solid android:color="#0D0D10"/>
         </shape>
     </item>
 </layer-list>

@@ -3,8 +3,26 @@
     android:height="50dp"
     android:viewportWidth="50"
     android:viewportHeight="50">
-  <path
-      android:pathData="M37.155,22.846C37.806,23.496 38.861,23.496 39.512,22.846C40.163,22.195 40.163,21.139 39.512,20.489L26.178,7.155C25.528,6.504 24.472,6.504 23.822,7.155L10.488,20.489C9.837,21.139 9.837,22.195 10.488,22.846C11.139,23.496 12.194,23.496 12.845,22.846L25,10.691L37.155,22.846ZM37.155,42.846C37.806,43.496 38.861,43.496 39.512,42.846C40.163,42.195 40.163,41.139 39.512,40.488L26.178,27.155C25.528,26.504 24.472,26.504 23.822,27.155L10.488,40.488C9.837,41.139 9.837,42.195 10.488,42.846C11.139,43.496 12.194,43.496 12.845,42.846L25,30.691L37.155,42.846Z"
-      android:fillColor="#ffffff"
-      android:fillType="evenOdd"/>
+    <!-- 3 upward chevrons; each named so the AnimatedVectorDrawable can pulse it. -->
+    <path
+        android:name="chev_top"
+        android:strokeColor="#8A8A99"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M13,19 L25,10 L37,19" />
+    <path
+        android:name="chev_mid"
+        android:strokeColor="#8A8A99"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M13,30 L25,21 L37,30" />
+    <path
+        android:name="chev_bot"
+        android:strokeColor="#8A8A99"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M13,41 L25,32 L37,41" />
 </vector>

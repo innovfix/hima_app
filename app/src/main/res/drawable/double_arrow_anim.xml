@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Signal-flow: a pink pulse runs bottom -> top through the 3 chevrons. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/double_arrow_svg">
+    <target android:name="chev_bot" android:animation="@animator/arrow_flow_bot" />
+    <target android:name="chev_mid" android:animation="@animator/arrow_flow_mid" />
+    <target android:name="chev_top" android:animation="@animator/arrow_flow_top" />
+</animated-vector>
