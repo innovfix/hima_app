@@ -687,7 +687,7 @@
                         android:background="@android:color/transparent"
                         android:textCursorDrawable="@drawable/color_cursor"
                         android:textColor="#1F2430"
-                        android:hint="98765 43210"
+                        android:hint=""
                         android:textColorHint="#9AA0AC"
                         android:textSize="16sp"
                         android:imeOptions="actionDone"
