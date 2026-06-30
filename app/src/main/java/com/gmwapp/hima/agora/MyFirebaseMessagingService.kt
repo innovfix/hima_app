@@ -276,8 +276,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     Log.w("FCM_Time", "⚠️ TimeDiffercne = ($timeDiffSeconds s late)")
 
                     if (timeDiffSeconds > 20) {
-                        Log.w("FCM_Time", "⚠️ Ignoring old call notification ($timeDiffSeconds s late)")
-                        return
+                        // TC-INC-001: the device-clock diff says "too late", but that
+                        // signal is unreliable — clock skew between caller and
+                        // recipient, or a missing/unparseable timestamp (which makes
+                        // callTimestamp=0 and the diff look enormous), can wrongly
+                        // kill a call that is STILL RINGING. Before dropping the whole
+                        // banner, confirm against authoritative server state. Ring only
+                        // if the backend still considers this call alive; otherwise drop
+                        // as before. Fail-closed inside isRingingNow() on any error.
+                        val stillRinging = callIdInt > 0 &&
+                            com.gmwapp.hima.utils.CallAliveChecker.isRingingNow(callIdInt)
+                        if (!stillRinging) {
+                            Log.w("FCM_Time", "⚠️ Ignoring old call notification ($timeDiffSeconds s late, backend not alive)")
+                            return
+                        }
+                        Log.w("FCM_Time", "⚠️ Push looked $timeDiffSeconds s late but backend says ALIVE — ringing (clock-skew recovery)")
                     }
 
                     // SINGLE-CALL GUARD: we already have a fresh pending incoming call (ringing

@@ -69,6 +69,47 @@ object CallAliveChecker {
         doCheck(callId, requireEndReason = true, onShouldEnd = onShouldEnd)
     }
 
+    /**
+     * BLOCKING, FCM-thread variant. Returns whether the backend currently
+     * considers this call a LIVE incoming ring (alive=true). Used by the
+     * incoming-call FCM path (TC-INC-001) to second-guess the 20s staleness
+     * guard: a push judged "too late" by the device clock may actually be a
+     * still-ringing call (clock skew between caller/recipient, or a missing/
+     * unparseable timestamp that makes the diff look enormous). Rather than
+     * silently dropping the whole banner, confirm against server truth.
+     *
+     * Runs on the calling (FCM dispatch) thread. Timeouts are kept TIGHT (2s
+     * each phase, ~6s absolute worst case) and a callTimeout caps the total:
+     * onMessageReceived has a ~20s system budget, and a Doze wake can deliver
+     * several stale pushes back-to-back, each hitting this path — so the block
+     * must stay well under that budget even when serialized. Returns:
+     *   true  -> backend says alive (ring it)
+     *   false -> backend says ended / not found / error / no call_id (drop)
+     * Fail-CLOSED on any error so a flaky link can't conjure a ghost ring.
+     */
+    fun isRingingNow(callId: Int): Boolean {
+        if (callId <= 0) return false
+        return try {
+            val url = BuildConfig.BASE_URL + "check_call_alive"
+            val client = okhttp3.OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .writeTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(2, TimeUnit.SECONDS)
+                .callTimeout(5, TimeUnit.SECONDS)
+                .build()
+            val body = okhttp3.FormBody.Builder().add("call_id", callId.toString()).build()
+            val req = okhttp3.Request.Builder().url(url).post(body).build()
+            client.newCall(req).execute().use { resp ->
+                val raw = resp.body?.string() ?: return false
+                Log.d(TAG, "isRingingNow callId=$callId resp=$raw")
+                raw.contains("\"alive\":true") || raw.contains("\"alive\": true")
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "isRingingNow failed (fail-closed → drop): ${t.message}")
+            false
+        }
+    }
+
     private fun doCheck(callId: Int, requireEndReason: Boolean, onShouldEnd: () -> Unit) {
         if (callId <= 0) {
             Log.d(TAG, "skip: callId=$callId")

@@ -1053,6 +1053,13 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
 
+        // TC-INC-001: recover a dropped incoming-call ring. If a call push was
+        // lost while the app was backgrounded (Doze / OneSignal fallback / stale
+        // token), this surfaces the banner the creator missed by pulling
+        // authoritative server state on foreground. No-op unless a call is
+        // ringing for her right now; self-guards against double-ringing.
+        com.gmwapp.hima.utils.IncomingCallRecovery.check()
+
         // Don't set switches here - let updateEarnings() fetch fresh data and set them
         // This prevents race condition between cached data and API data
 
