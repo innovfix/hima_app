@@ -328,6 +328,48 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
     private var isRemoteUserJoined = false
+
+    // CALLER_ACCEPT_RESEND_2026_06_30 — the receiver fires "accepted" to the caller
+    // ONCE on tap; a single dropped FCM strands the caller on "Connecting" (then a
+    // black screen / "couldn't connect"). As the accepting side (!isCaller), keep
+    // re-sending "accepted" every 1.5s until the caller actually joins the channel
+    // (onUserJoined) or we hit the cap. Idempotent on the caller (it finishes on the
+    // first "accepted"). Self-stops on connect/destroy. Connecting/billing untouched.
+    private val acceptResendHandler = Handler(Looper.getMainLooper())
+    private var acceptResendCount = 0
+    private val maxAcceptResends = 5
+    private val acceptResendIntervalMs = 1500L
+    private val acceptResendRunnable = object : Runnable {
+        override fun run() {
+            if (isCaller || isRemoteUserJoined || isFinishing || isDestroyed) return
+            if (acceptResendCount >= maxAcceptResends) return
+            if (receiverId > 0 && !channelName.isNullOrEmpty()) {
+                val myId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+                if (myId > 0) {
+                    acceptResendCount++
+                    fcmNotificationViewModel.sendNotification(
+                        senderId = myId,
+                        receiverId = receiverId,
+                        callType = "video",
+                        channelName = channelName,
+                        message = "accepted"
+                    )
+                    Log.d("CallStatus", "AcceptResend $acceptResendCount/$maxAcceptResends -> peer=$receiverId ch=$channelName")
+                }
+                acceptResendHandler.postDelayed(this, acceptResendIntervalMs)
+            }
+        }
+    }
+    private fun startAcceptResend() {
+        if (isCaller) return
+        acceptResendHandler.removeCallbacks(acceptResendRunnable)
+        acceptResendCount = 0
+        acceptResendHandler.postDelayed(acceptResendRunnable, acceptResendIntervalMs)
+    }
+    private fun stopAcceptResend() {
+        acceptResendHandler.removeCallbacks(acceptResendRunnable)
+    }
+
     private var elapsedTime = 0  // Tracks elapsed seconds
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = object : Runnable {
@@ -617,6 +659,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
+        // CALLER_ACCEPT_RESEND_2026_06_30 — if we're the accepting side, keep nudging
+        // the caller with "accepted" until they join (no-op for the caller side).
+        startAcceptResend()
         call_Id = intent.getIntExtra("CALL_ID", 0)
 
         Log.d("VideoCallingLog", "Channel: $channelName, Receiver: $receiverId, callId : $call_Id")
@@ -1341,6 +1386,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
+        com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats
         // B181 backstop — covers system-killed activities that bypass leaveChannel.
         FcmUtils.isUserAvailable = 0
         // B082 backstop — close lingering switch-call dialog.
@@ -1460,9 +1507,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         }
 
         override fun onUserJoined(uid: Int, elapsed: Int) {
+            // TC-NET-005: peer connected → begin per-side liveness heartbeats.
+            com.gmwapp.hima.utils.CallHeartbeat.start(call_Id)
          //   showMessage("Remote user joined $uid")
             Log.d("AgoraTiming", "FemaleVideo onUserJoined at ${System.currentTimeMillis()}")
             isRemoteUserJoined=true
+            stopAcceptResend() // CALLER_ACCEPT_RESEND — caller is here, stop nudging
             getRemainingTime()
             startTimerResync()
             startTime = dateFormat.format(Date()) // Set call end time in IST

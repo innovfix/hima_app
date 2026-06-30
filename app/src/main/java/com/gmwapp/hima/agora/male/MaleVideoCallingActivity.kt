@@ -347,6 +347,47 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
     private var isRemoteUserJoined = false
+
+    // CALLER_ACCEPT_RESEND_2026_06_30 — the receiver fires "accepted" to the caller
+    // ONCE on tap; a single dropped FCM strands the caller on "Connecting" (then a
+    // black screen / "couldn't connect"). As the accepting side (!isCaller), keep
+    // re-sending "accepted" every 1.5s until the caller actually joins the channel
+    // (onUserJoined) or we hit the cap. Idempotent on the caller (it finishes on the
+    // first "accepted"). Self-stops on connect/destroy. Connecting/billing untouched.
+    private val acceptResendHandler = Handler(Looper.getMainLooper())
+    private var acceptResendCount = 0
+    private val maxAcceptResends = 5
+    private val acceptResendIntervalMs = 1500L
+    private val acceptResendRunnable = object : Runnable {
+        override fun run() {
+            if (isCaller || isRemoteUserJoined || isFinishing || isDestroyed) return
+            if (acceptResendCount >= maxAcceptResends) return
+            if (receiverId > 0 && !channelName.isNullOrEmpty()) {
+                val myId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+                if (myId > 0) {
+                    acceptResendCount++
+                    fcmNotificationViewModel.sendNotification(
+                        senderId = myId,
+                        receiverId = receiverId,
+                        callType = "video",
+                        channelName = channelName,
+                        message = "accepted"
+                    )
+                    Log.d("CallStatus", "AcceptResend $acceptResendCount/$maxAcceptResends -> peer=$receiverId ch=$channelName")
+                }
+                acceptResendHandler.postDelayed(this, acceptResendIntervalMs)
+            }
+        }
+    }
+    private fun startAcceptResend() {
+        if (isCaller) return
+        acceptResendHandler.removeCallbacks(acceptResendRunnable)
+        acceptResendCount = 0
+        acceptResendHandler.postDelayed(acceptResendRunnable, acceptResendIntervalMs)
+    }
+    private fun stopAcceptResend() {
+        acceptResendHandler.removeCallbacks(acceptResendRunnable)
+    }
     // Fire the "call_started" notification conversion at most once per call session
     // (onUserJoined can re-fire on reconnect, possibly under a newer notification id).
     private var callStartedConversionFired = false
@@ -682,6 +723,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
+        // CALLER_ACCEPT_RESEND_2026_06_30 — if we're the accepting side, keep nudging
+        // the caller with "accepted" until they join (no-op for the caller side).
+        startAcceptResend()
         callId = intent.getIntExtra("CALL_ID", 0)
 
         Log.d(
@@ -1328,6 +1372,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         stopHeartbeat()
+        stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
+        com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats
         Log.d(
             TAG_END,
             "onDestroy isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
@@ -1387,6 +1433,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
+            // TC-NET-005: peer connected → begin per-side liveness heartbeats.
+            com.gmwapp.hima.utils.CallHeartbeat.start(callId)
            // showMessage("Remote user joined $uid")
             Log.d(
                 TAG_END,
@@ -1397,6 +1445,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             com.gmwapp.hima.utils.HimaAnalytics.logContact(this@MaleVideoCallingActivity, contentType = "video_call")
             startCallingService()
             isRemoteUserJoined= true
+            stopAcceptResend() // CALLER_ACCEPT_RESEND — caller is here, stop nudging
             videoUid = uid
 
             getRemainingTime()

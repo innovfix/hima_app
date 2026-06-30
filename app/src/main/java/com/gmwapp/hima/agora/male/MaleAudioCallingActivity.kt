@@ -323,6 +323,48 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     // Fire the "call_started" notification conversion at most once per call session
     // (onUserJoined can re-fire on reconnect, possibly under a newer notification id).
     private var callStartedConversionFired = false
+
+    // CALLER_ACCEPT_RESEND_2026_06_30 — the receiver fires "accepted" to the caller
+    // ONCE on tap; a single dropped FCM strands the caller on "Connecting" (then a
+    // black screen / "couldn't connect"). As the accepting side (!isCaller), keep
+    // re-sending "accepted" every 1.5s until the caller actually joins the channel
+    // (onUserJoined) or we hit the cap — so one unlucky dropped push no longer fails
+    // the call. Idempotent on the caller (it finishes on the first "accepted").
+    // Self-stops on connect/destroy. Connecting screen, billing, teardown untouched.
+    private val acceptResendHandler = Handler(Looper.getMainLooper())
+    private var acceptResendCount = 0
+    private val maxAcceptResends = 5
+    private val acceptResendIntervalMs = 1500L
+    private val acceptResendRunnable = object : Runnable {
+        override fun run() {
+            if (isCaller || isRemoteUserJoined || isFinishing || isDestroyed) return
+            if (acceptResendCount >= maxAcceptResends) return
+            if (receiverId > 0 && !channelName.isNullOrEmpty()) {
+                val myId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+                if (myId > 0) {
+                    acceptResendCount++
+                    fcmNotificationViewModel.sendNotification(
+                        senderId = myId,
+                        receiverId = receiverId,
+                        callType = "audio",
+                        channelName = channelName,
+                        message = "accepted"
+                    )
+                    Log.d("CallStatus", "AcceptResend $acceptResendCount/$maxAcceptResends -> peer=$receiverId ch=$channelName")
+                }
+                acceptResendHandler.postDelayed(this, acceptResendIntervalMs)
+            }
+        }
+    }
+    private fun startAcceptResend() {
+        if (isCaller) return
+        acceptResendHandler.removeCallbacks(acceptResendRunnable)
+        acceptResendCount = 0
+        acceptResendHandler.postDelayed(acceptResendRunnable, acceptResendIntervalMs)
+    }
+    private fun stopAcceptResend() {
+        acceptResendHandler.removeCallbacks(acceptResendRunnable)
+    }
     private var elapsedTime = 0  // Tracks elapsed seconds
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = object : Runnable {
@@ -677,6 +719,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // nothing was setting it — so the receiver's switch request was
         // silently dropped at line 876 of MyFirebaseMessagingService).
         if (receiverId > 0) BaseApplication.getInstance()?.saveSenderId(receiverId)
+        // CALLER_ACCEPT_RESEND_2026_06_30 — if we're the accepting side, keep nudging
+        // the caller with "accepted" until they join (no-op for the caller side).
+        startAcceptResend()
         Log.d(
             "MaleAudioCallingLog",
             "Channel: $channelName, Receiver: $receiverId, callId : $callId"
@@ -1593,8 +1638,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onUserJoined(uid: Int, elapsed: Int) {
+            // TC-NET-005: peer connected → begin per-side liveness heartbeats.
+            com.gmwapp.hima.utils.CallHeartbeat.start(callId)
           //  showMessage("Remote user joined $uid")
             isRemoteUserJoined = true
+            stopAcceptResend() // CALLER_ACCEPT_RESEND — caller is here, stop nudging
             Log.d("AgoraTiming", "MaleAudio onUserJoined at ${System.currentTimeMillis()}")
             Log.d("videoUid", "$uid")
             videoUid = uid
@@ -1875,6 +1923,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
+        com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats
         // B181 backstop — covers system-killed activities that bypass leaveChannel.
         FcmUtils.isUserAvailable = 0
         // B082 backstop — close lingering switch-call dialog.
