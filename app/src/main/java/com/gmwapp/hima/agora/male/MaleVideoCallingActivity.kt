@@ -810,57 +810,26 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun animateGift(image: String) {
-        val giftImage = binding.ivGiftImage
-        // B071 — cancel any in-flight gift animation so its `withEndAction`
-        // chain doesn't leave the view in a stuck state when a new gift
-        // arrives before the previous one finished animating.
-        giftImage.animate().cancel()
-        giftImage.alpha = 1f
-        giftImage.visibility = View.VISIBLE
-        // B203 — `iv_gift_image` is declared in XML BEFORE blackscreen /
-        // remoteBlurOverlay / faceDetectionOverlay, so any of those being
-        // visible would render over the gift. bringToFront re-orders the
-        // view in its parent's draw list, and a high elevation handles
-        // API ≥21 z-ordering for siblings that also use elevation.
-        giftImage.bringToFront()
-        giftImage.elevation = 32f
-        (giftImage.parent as? View)?.requestLayout()
-
+        // Cinematic gift moment — shared GiftCinema overlay. Video call uses
+        // LITE mode (fewer particles, no god-rays) to protect call quality,
+        // and the local selfie PiP (a media-overlay surface composited ABOVE
+        // the normal view hierarchy) is hidden for the takeover then restored
+        // so it can't punch through the full-screen animation.
         BaseApplication.getInstance()?.playSendGiftSound()
-        com.bumptech.glide.Glide.with(this)
-            .load(image)
-            .into(giftImage)
-
-        giftImage.post {
-            val startX = giftImage.x
-            val startY = giftImage.y
-
-            val remoteContainer = binding.remoteVideoViewContainer
-            val giftLocation = IntArray(2)
-            val remoteLocation = IntArray(2)
-            giftImage.getLocationOnScreen(giftLocation)
-            remoteContainer.getLocationOnScreen(remoteLocation)
-
-            val targetX = giftImage.x + (remoteLocation[0] - giftLocation[0]) + (remoteContainer.width / 2f - giftImage.width / 2f)
-            val targetY = giftImage.y + (remoteLocation[1] - giftLocation[1]) + (remoteContainer.height / 2f - giftImage.height / 2f)
-
-            giftImage.animate()
-                .x(targetX)
-                .y(targetY)
-                .setDuration(2000)
-                .withEndAction {
-                    giftImage.animate()
-                        .alpha(0f)
-                        .setDuration(1000)
-                        .withEndAction {
-                            giftImage.visibility = View.INVISIBLE
-                            giftImage.x = startX
-                            giftImage.y = startY
-                        }
-                        .start()
-                }
-                .start()
-        }
+        com.gmwapp.hima.widgets.GiftCinema.send(
+            activity = this,
+            giftUrl = image,
+            recipientView = binding.remoteVideoViewContainer,
+            lite = true,
+            onStart = {
+                localSurfaceView?.visibility = View.INVISIBLE
+                localPreviewSurface?.visibility = View.INVISIBLE
+            },
+            onEnd = {
+                localSurfaceView?.visibility = View.VISIBLE
+                localPreviewSurface?.visibility = View.VISIBLE
+            }
+        )
     }
 
     fun sendGiftSentNotification(giftIcon: String) {

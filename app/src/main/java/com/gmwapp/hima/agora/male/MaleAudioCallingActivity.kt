@@ -3621,64 +3621,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     fun animateGift(image: String) {
-        val giftImage = binding.ivGiftImage
-        val femaleImage = binding.ivFemaleUser
-
-        // B071 — cancel any in-flight gift animation so a rapid burst
-        // doesn't leave the view stuck in an indeterminate state.
-        giftImage.animate().cancel()
-        // Reset visibility and alpha
-        giftImage.alpha = 1f
-        giftImage.visibility = View.VISIBLE
-        // B070 — `iv_gift_image` carries no elevation in XML, so sibling
-        // elevated views (gift_button_card 12dp, users_container 10dp,
-        // controls_container 10dp, top_bar 10dp) all drew over it and the
-        // sender saw no animation. Match the B203 video-side fix: bring to
-        // front + bump elevation so the gift sails above every other
-        // in-call surface for the duration of the animation.
-        giftImage.bringToFront()
-        giftImage.elevation = 32f
-        (giftImage.parent as? View)?.requestLayout()
-
+        // Cinematic gift moment — shared GiftCinema overlay. Audio call uses
+        // the full-quality sequence; the gift flies to the creator avatar.
         BaseApplication.getInstance()?.playSendGiftSound()
-        Glide.with(this)
-            .load(image)
-            .into(giftImage)
-
-        giftImage.post {
-            val startX = giftImage.x
-            val startY = giftImage.y
-
-            // Get absolute positions on screen
-            val giftLocation = IntArray(2)
-            val femaleLocation = IntArray(2)
-            giftImage.getLocationOnScreen(giftLocation)
-            femaleImage.getLocationOnScreen(femaleLocation)
-
-            // Calculate destination position relative to giftImage’s parent
-            val femaleCenterX = giftImage.x + (femaleLocation[0] - giftLocation[0]) + (femaleImage.width / 2f - giftImage.width / 2f)
-            val femaleCenterY = giftImage.y + (femaleLocation[1] - giftLocation[1]) + (femaleImage.height / 2f - giftImage.height / 2f)
-
-            // Animate movement
-            giftImage.animate()
-                .x(femaleCenterX)
-                .y(femaleCenterY)
-                .setDuration(2000)
-                .withEndAction {
-                    // Fade out after reaching target
-                    giftImage.animate()
-                        .alpha(0f)
-                        .setDuration(1000)
-                        .withEndAction {
-                            giftImage.visibility = View.INVISIBLE
-                            // Reset to original position
-                            giftImage.x = startX
-                            giftImage.y = startY
-                        }
-                        .start()
-                }
-                .start()
-        }
+        com.gmwapp.hima.widgets.GiftCinema.send(
+            activity = this,
+            giftUrl = image,
+            recipientView = binding.ivFemaleUser,
+            lite = false
+        )
     }
 
 

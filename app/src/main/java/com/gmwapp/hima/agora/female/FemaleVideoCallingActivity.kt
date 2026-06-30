@@ -2560,61 +2560,24 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun animateGift(image: String) {
-        val giftImage = binding.ivGiftImage
-        val femaleImage = binding.ivFemaleUser
-
-        Toast.makeText(this, "Gift Received", Toast.LENGTH_SHORT).show()
-
-        // B071 — cancel any in-flight gift animation so its `withEndAction`
-        // chain doesn't leave the view in a stuck state when a new gift
-        // arrives before the previous one finished animating.
-        giftImage.animate().cancel()
-        giftImage.alpha = 1f
-        giftImage.visibility = View.VISIBLE
-        // B203 — `iv_gift_image` is declared in XML BEFORE blackscreen /
-        // remoteBlurOverlay / faceDetectionOverlay, so any of those being
-        // visible would render over the gift. bringToFront re-orders the
-        // view in its parent's draw list, and a high elevation handles
-        // API ≥21 z-ordering for siblings that also use elevation.
-        giftImage.bringToFront()
-        giftImage.elevation = 32f
-        (giftImage.parent as? View)?.requestLayout()
-
+        // Cinematic gift moment — shared GiftCinema overlay (receiver side,
+        // video). LITE mode + hide the local selfie PiP (media-overlay surface
+        // above the view hierarchy) for the takeover, then restore it.
         BaseApplication.getInstance()?.playSendGiftSound()
-
-        Glide.with(this)
-            .load(image)
-            .into(giftImage)
-
-        giftImage.post {
-            val startX = giftImage.translationX
-            val startY = giftImage.translationY
-
-            val giftLocation = IntArray(2)
-            val femaleLocation = IntArray(2)
-            giftImage.getLocationOnScreen(giftLocation)
-            femaleImage.getLocationOnScreen(femaleLocation)
-
-            val femaleCenterX = (femaleLocation[0] - giftLocation[0] + (femaleImage.width / 2f - giftImage.width / 2f))
-            val femaleCenterY = (femaleLocation[1] - giftLocation[1] + (femaleImage.height / 2f - giftImage.height / 2f))
-
-            giftImage.animate()
-                .translationX(femaleCenterX)
-                .translationY(femaleCenterY)
-                .setDuration(2000)
-                .withEndAction {
-                    giftImage.animate()
-                        .alpha(0f)
-                        .setDuration(1000)
-                        .withEndAction {
-                            giftImage.visibility = View.INVISIBLE
-                            giftImage.translationX = startX
-                            giftImage.translationY = startY
-                        }
-                        .start()
-                }
-                .start()
-        }
+        com.gmwapp.hima.widgets.GiftCinema.send(
+            activity = this,
+            giftUrl = image,
+            recipientView = binding.ivFemaleUser,
+            lite = true,
+            onStart = {
+                localSurfaceView?.visibility = View.INVISIBLE
+                localPreviewSurface?.visibility = View.INVISIBLE
+            },
+            onEnd = {
+                localSurfaceView?.visibility = View.VISIBLE
+                localPreviewSurface?.visibility = View.VISIBLE
+            }
+        )
     }
 
     override fun onStart() {
