@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neon gradient ring for the connected-call creator avatar. Geometry tuned so
+     the band hugs the OUTER edge of the ~126dp avatar (inner radius ≈ 63dp,
+     ~8dp thick) instead of sitting hidden behind it. Rotated in code. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="ring"
+    android:innerRadiusRatio="2.35"
+    android:thicknessRatio="18"
+    android:useLevel="false">
+    <gradient
+        android:type="sweep"
+        android:startColor="#22D3A5"
+        android:centerColor="#8B5CF6"
+        android:endColor="#FF1383" />
+</shape>

@@ -80,6 +80,8 @@ import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
+import com.gmwapp.hima.viewmodels.GiftViewModel
+import com.gmwapp.hima.retrofit.responses.GiftData
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.retrofit.responses.CallEndReason
@@ -138,6 +140,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private lateinit var giftAdapter: GiftAdapter
     private val giftImageViewModel: GiftImageViewModel by viewModels()
+    private val giftViewModel: GiftViewModel by viewModels()
+    // Inline quick-gift row state (mirrors GiftBottomSheetFragment's throttle).
+    private var lastQuickGiftAt = 0L
+    private val quickGiftCooldownMs = 1000L
+    private var quickGiftSentGuard = 1
 
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
@@ -753,7 +760,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // B151: 500 ms debounce on the mute toggle so rapid taps can't outrun
         // Agora's muteLocalAudioStream ack and leave the icon out of sync with
         // the actual mic state.
-        binding.btnMuteUnmute.setOnSingleClickListener {
+        // U-06: 250ms (not the 500ms default) — the longer window swallowed
+        // deliberate mute/unmute taps so the button felt unresponsive (~50% miss).
+        binding.btnMuteUnmute.setOnSingleClickListener(debounceMs = 250L) {
             toggleMute()
         }
 
@@ -761,7 +770,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // clear/set + Agora SDK + verify read-back) is multi-step and a
         // rapid double-tap would queue redundant work and leave state in
         // an unpredictable mid-flip.
-        binding.btnSpeaker.setOnSingleClickListener {
+        // U-06: trimmed to 250ms — still debounces the multi-step routing chain
+        // against rapid double-taps, but no longer swallows deliberate taps.
+        binding.btnSpeaker.setOnSingleClickListener(debounceMs = 250L) {
             onSpeakerButtonClicked()
         }
 
@@ -782,6 +793,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         setupLocalPreviewDrag()
 
         giftIconClicked()
+        setupQuickGifts()
         getBlockWords()
         if (com.gmwapp.hima.utils.FeatureFlags.LUDO_ENABLED) {
             setupLudoInviteFlow()
@@ -1349,6 +1361,109 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 bottomSheet.show(supportFragmentManager, "BottomSheetGift")
             }
         }
+    }
+
+    /**
+     * Inline "Tap to send" quick-gift row on the connected audio screen.
+     * Shows the first 4 gifts from the shared catalog and sends one instantly
+     * on tap, reusing the same coin-check + send + animate pipeline as
+     * GiftBottomSheetFragment (so behaviour and throttling stay identical).
+     */
+    private fun setupQuickGifts() {
+        val cards = listOf(
+            binding.giftCard1, binding.giftCard2, binding.giftCard3, binding.giftCard4
+        )
+        val icons = listOf(
+            binding.ivQuickGift1, binding.ivQuickGift2, binding.ivQuickGift3, binding.ivQuickGift4
+        )
+        val coinLabels = listOf(
+            binding.tvQuickGiftCoins1, binding.tvQuickGiftCoins2,
+            binding.tvQuickGiftCoins3, binding.tvQuickGiftCoins4
+        )
+
+        fun bind(gifts: List<GiftData>) {
+            for (i in cards.indices) {
+                val gift = gifts.getOrNull(i)
+                if (gift == null) {
+                    cards[i].visibility = View.GONE
+                    continue
+                }
+                cards[i].visibility = View.VISIBLE
+                coinLabels[i].text = gift.coins.toString()
+                Glide.with(this).load(gift.gift_icon).into(icons[i])
+                cards[i].setOnClickListener { sendQuickGift(gift) }
+            }
+        }
+
+        val cached = com.gmwapp.hima.utils.GiftManager.getCachedGifts()
+        if (cached.isNotEmpty()) bind(cached)
+        com.gmwapp.hima.utils.GiftManager.cachedGiftsLiveData.observe(this) { list ->
+            if (!list.isNullOrEmpty()) bind(list)
+        }
+        // Cold cache (call opened before MainActivity prefetched) — fetch now and
+        // warm the shared cache so the row fills in.
+        giftImageViewModel.giftResponseLiveData.observe(this) { response ->
+            response?.data?.let { list ->
+                if (list.isNotEmpty()) {
+                    bind(list)
+                    com.gmwapp.hima.utils.GiftManager.updateGifts(list)
+                }
+            }
+        }
+        if (cached.isEmpty()) giftImageViewModel.fetchGiftImages()
+
+        // One observer for inline sends — animate + notify once per success.
+        giftViewModel.giftResponseLiveData.observe(this) { response ->
+            if (response != null && response.success && quickGiftSentGuard == 1) {
+                quickGiftSentGuard++
+                response.data?.let {
+                    sendGiftSentNotification(it.gift_icon)
+                    animateGift(it.gift_icon)
+                }
+                newRemainingTime()
+                Toast.makeText(this, "Gift Sent Successfully!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun sendQuickGift(gift: GiftData) {
+        // Throttle rapid taps (B071) — same 1s window as the bottom sheet.
+        val now = System.currentTimeMillis()
+        if (now - lastQuickGiftAt < quickGiftCooldownMs) return
+        lastQuickGiftAt = now
+
+        val maleUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        profileViewModel.getRemainingTime(maleUserId, "audio", object :
+            NetworkCallback<GetRemainingTimeResponse> {
+            override fun onNoNetwork() {}
+            override fun onFailure(call: retrofit2.Call<GetRemainingTimeResponse>, t: Throwable) {}
+            override fun onResponse(
+                call: retrofit2.Call<GetRemainingTimeResponse>,
+                response: retrofit2.Response<GetRemainingTimeResponse>
+            ) {
+                val remaining = response.body()?.data?.remaining_time ?: return
+                val availableCoins = calculateAvailableQuickGiftCoins(remaining)
+                if (availableCoins >= gift.coins) {
+                    quickGiftSentGuard = 1
+                    giftViewModel.sendGift(maleUserId, receiverId, gift.id)
+                } else {
+                    Toast.makeText(
+                        this@MaleAudioCallingActivity,
+                        "You don't have enough coins to send this gift!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        })
+    }
+
+    /** Audio call: 10 coins per minute, round up at >=30s (matches GiftBottomSheetFragment). */
+    private fun calculateAvailableQuickGiftCoins(remainingTime: String): Int {
+        val parts = remainingTime.split(":")
+        val minutes = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val seconds = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val totalMinutes = minutes + if (seconds >= 30) 1 else 0
+        return totalMinutes * 10
     }
 
 
