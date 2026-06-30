@@ -127,9 +127,6 @@ import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
 import com.google.gson.Gson
 import com.zoho.salesiqembed.ZohoSalesIQ
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import okhttp3.Callback
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -375,15 +372,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //            ZohoSalesIQ.showLauncher(true)
 //        }
 
+        // C-27: the notification-permission request now lives in ONE place (the Android 13+
+        // block below). The previous duplicate OneSignal.Notifications.requestPermission() here
+        // raced the AndroidX launcher (two native prompts fired on the same pass because the
+        // block below re-checks the stale local lastAskedTime), which could leave the OneSignal
+        // push subscription stuck "unsubscribed" — every chat push then came back from OneSignal
+        // as "All included players are not subscribed" and reached zero devices.
         val notifPrefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         val lastAskedTime = notifPrefs.getLong("notif_permission_last_asked", 0L)
         val oneDayMillis = 24 * 60 * 60 * 1000L
-        if (System.currentTimeMillis() - lastAskedTime >= oneDayMillis) {
-            notifPrefs.edit().putLong("notif_permission_last_asked", System.currentTimeMillis()).apply()
-            CoroutineScope(Dispatchers.IO).launch {
-                OneSignal.Notifications.requestPermission(false)
-            }
-        }
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
@@ -403,9 +400,18 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 if (System.currentTimeMillis() - lastAskedTime >= oneDayMillis) {
+                    notifPrefs.edit().putLong("notif_permission_last_asked", System.currentTimeMillis()).apply()
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
+            } else {
+                // C-27: permission already granted — make sure the OneSignal push subscription is
+                // actually registered as SUBSCRIBED (it can be left opted-out if optIn ran before
+                // the OS grant on an earlier launch).
+                reassertOneSignalPushSubscription()
             }
+        } else {
+            // Pre-Android-13: notifications are granted by default; just ensure the subscription.
+            reassertOneSignalPushSubscription()
         }
 
         userData?.let { ud ->
@@ -544,10 +550,28 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     ) { isGranted: Boolean ->
         com.gmwapp.hima.utils.OneSignalDiag.dump(this, "post_perm_result.granted=$isGranted")
         if (isGranted) {
-            // Permission granted, notifications will work
+            // C-27: register the OneSignal push subscription right now instead of waiting for the
+            // next cold start — otherwise the user stays "unsubscribed" and keeps missing chat
+            // pushes for the rest of this session even though they just granted permission.
+            reassertOneSignalPushSubscription()
         } else {
             maybeShowNotificationImportance()
         }
+    }
+
+    /**
+     * C-27: re-assert the OneSignal external id + push opt-in so the subscription is registered as
+     * SUBSCRIBED once notification permission exists. login()/optIn() are idempotent no-ops when the
+     * state already matches (the same contract BaseApplication's cold-start subscribe relies on).
+     */
+    private fun reassertOneSignalPushSubscription() {
+        runCatching {
+            val uid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+            if (uid != null && uid > 0) {
+                OneSignal.login(com.gmwapp.hima.BuildConfig.ONESIGNAL_EXTERNAL_PREFIX + uid.toString())
+                OneSignal.User.pushSubscription.optIn()
+            }
+        }.onFailure { android.util.Log.w("OneSignalFix", "reassert push subscription failed: ${it.message}") }
     }
 
     private fun maybeShowNotificationImportance() {
