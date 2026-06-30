@@ -488,23 +488,65 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         agoraViewModel.getAgoraToken(channelForToken, 0, "publisher", 3600)
     }
 
+    // Holds the Accept/Decline "rock" animators so they can be cancelled on teardown.
+    private val buttonShakeAnimators = mutableListOf<android.animation.ObjectAnimator>()
+
     private fun startPulseAnimations() {
         try {
             // Load pulse animation
             val pulseAnimation = AnimationUtils.loadAnimation(this, R.anim.pulse_animation)
-            
+
             // Start animation on outer ring with delay
             Handler(Looper.getMainLooper()).postDelayed({
                 binding.pulseRingOuter.startAnimation(pulseAnimation)
             }, 0)
-            
+
             // Start animation on middle ring with delay for staggered effect
             Handler(Looper.getMainLooper()).postDelayed({
                 binding.pulseRingMiddle.startAnimation(pulseAnimation)
             }, 500)
+
+            // Both call buttons gently rock to draw the eye while ringing (mockup-approved).
+            startButtonShake(binding.accpet)
+            startButtonShake(binding.reject)
         } catch (e: Exception) {
             Log.e("MaleCallAccept_Anim", "Error starting pulse animations: ${e.message}")
         }
+    }
+
+    /** Gentle attention "rock": a decaying ±14° swing with a slight scale, looping every 1.3s. */
+    private fun startButtonShake(view: android.view.View) {
+        val rot = android.animation.PropertyValuesHolder.ofKeyframe(
+            android.view.View.ROTATION,
+            android.animation.Keyframe.ofFloat(0f, 0f),
+            android.animation.Keyframe.ofFloat(0.15f, -14f),
+            android.animation.Keyframe.ofFloat(0.30f, 12f),
+            android.animation.Keyframe.ofFloat(0.45f, -9f),
+            android.animation.Keyframe.ofFloat(0.60f, 7f),
+            android.animation.Keyframe.ofFloat(0.75f, -3f),
+            android.animation.Keyframe.ofFloat(1f, 0f)
+        )
+        val sx = android.animation.PropertyValuesHolder.ofKeyframe(
+            android.view.View.SCALE_X,
+            android.animation.Keyframe.ofFloat(0f, 1f),
+            android.animation.Keyframe.ofFloat(0.22f, 1.06f),
+            android.animation.Keyframe.ofFloat(0.6f, 1f),
+            android.animation.Keyframe.ofFloat(1f, 1f)
+        )
+        val sy = android.animation.PropertyValuesHolder.ofKeyframe(
+            android.view.View.SCALE_Y,
+            android.animation.Keyframe.ofFloat(0f, 1f),
+            android.animation.Keyframe.ofFloat(0.22f, 1.06f),
+            android.animation.Keyframe.ofFloat(0.6f, 1f),
+            android.animation.Keyframe.ofFloat(1f, 1f)
+        )
+        val anim = android.animation.ObjectAnimator.ofPropertyValuesHolder(view, rot, sx, sy).apply {
+            duration = 1300
+            repeatCount = android.animation.ObjectAnimator.INFINITE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            start()
+        }
+        buttonShakeAnimators.add(anim)
     }
 
     /**
@@ -540,6 +582,8 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         try {
             binding.pulseRingOuter.clearAnimation()
             binding.pulseRingMiddle.clearAnimation()
+            buttonShakeAnimators.forEach { it.cancel() }
+            buttonShakeAnimators.clear()
         } catch (e: Exception) {
             Log.e("MaleCallAccept_Anim", "Error clearing animations: ${e.message}")
         }
