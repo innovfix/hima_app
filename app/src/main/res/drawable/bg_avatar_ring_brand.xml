@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Subtle static brand-gradient rim shown behind the call avatar card.
+     Sized a few dp larger than the 126dp avatar so only a thin (~3dp) rim
+     peeks out around it. Used identically for male + female so the two
+     avatars read as a matched pair (replaces the old loud spinning neon). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:type="linear"
+        android:angle="135"
+        android:startColor="#EC1E63"
+        android:endColor="#8B5CF6" />
+</shape>

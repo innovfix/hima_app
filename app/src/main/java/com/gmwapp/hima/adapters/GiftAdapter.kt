@@ -26,6 +26,8 @@ class GiftAdapter(private val context: Context,     private val onItemClicked: (
         val gift = giftList[position]
         Glide.with(context)
             .load(gift.gift_icon)  // Loading the gift image URL
+            .placeholder(com.gmwapp.hima.R.drawable.gift_png)
+            .error(com.gmwapp.hima.R.drawable.gift_png)
             .into(holder.ivGift)
 
         holder.tvCoinsAmount.text = gift.coins.toString()  // Setting the coin amount
