@@ -189,14 +189,22 @@ class RecentCallsAdapter(
                 holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
             }
 
-            holder.binding.ivVideoCircle.setOnSingleClickListener { onVideoListener.onItemSelected(call) }
-            // Unfilled look: light-grey circle with a grey video icon.
-            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
-            holder.binding.ivVideo.isEnabled = true
-            holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
-            // Show the Video button on the female/creator card too (both Audio + Video).
+            // Video button repurposed as a CHAT button on female/creator cards.
+            // Tapping opens the in-house chat page with this user (no video call).
             holder.binding.ivVideoCircle.visibility = View.VISIBLE
+            holder.binding.ivVideo.setImageResource(R.drawable.ic_chat_bubble)
+            holder.binding.ivVideoCircle.setCardBackgroundColor(android.graphics.Color.parseColor("#FCE3EE"))
+            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.colorAccent))
+            holder.binding.ivVideo.isEnabled = true
+            holder.binding.tvVideoStatus.text = "Chat"
+            holder.binding.ivVideoCoin.visibility = View.GONE
+            holder.binding.ivVideoCircle.setOnSingleClickListener {
+                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java)
+                intent.putExtra("USER_ID", call.id)
+                intent.putExtra("USER_NAME", call.name)
+                intent.putExtra("USER_IMAGE", call.image)
+                activity.startActivity(intent)
+            }
 
             // Chat button (design only)
             holder.binding.ivChatCircle.setOnSingleClickListener {
