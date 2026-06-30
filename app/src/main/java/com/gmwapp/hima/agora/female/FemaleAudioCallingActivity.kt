@@ -1043,6 +1043,32 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    // Agora token fetch is single-shot and the prod backend (DB-overloaded
+    // himaapp.in) intermittently returns slow / blank app_id / a transient error.
+    // The old code finish()ed the call on the FIRST miss — the user saw the call
+    // "connect" then go black and auto-disconnect within ~1s. Retry a few times
+    // with a short backoff before giving up so one token blip no longer drops the
+    // call. Shared shape across all four calling activities.
+    private var agoraTokenAttempts = 0
+    private val maxAgoraTokenAttempts = 3
+    private val agoraTokenRetryDelayMs = 600L
+    private fun retryOrFailAgoraToken(reason: String) {
+        if (isFinishing || isDestroyed) return
+        if (agoraTokenAttempts < maxAgoraTokenAttempts) {
+            agoraTokenAttempts++
+            Log.w("AgoraToken", "token fetch failed ($reason) — retry $agoraTokenAttempts/$maxAgoraTokenAttempts in ${agoraTokenRetryDelayMs}ms")
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!isFinishing && !isDestroyed) {
+                    agoraViewModel.getAgoraToken(channelName, uid, "publisher", expirationTimeInSeconds)
+                }
+            }, agoraTokenRetryDelayMs)
+        } else {
+            Log.e("AgoraToken", "token fetch failed ($reason) — exhausted $maxAgoraTokenAttempts retries, ending call")
+            showMessage("Failed to initialize call. Please try again.")
+            finish()
+        }
+    }
+
     private fun getAgoraTokenFromBackend() {
         // Observe token response
         agoraViewModel.agoraTokenLiveData.observe(this) { response ->
@@ -1052,10 +1078,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 appId = response.app_id
                 if (appId.isNullOrEmpty()) {
                     Log.e("AgoraToken", "AppId not received from backend")
-                    showMessage("Failed to initialize call. Please try again.")
-                    finish()
+                    retryOrFailAgoraToken("appId-empty")
                     return@observe
                 }
+                agoraTokenAttempts = 0  // success — reset for any future re-fetch
                 Log.d("AgoraToken", "Token and AppId received from backend")
                 
                 // Request permissions if not granted
@@ -1071,16 +1097,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 }
             } else {
                 Log.e("AgoraToken", "Failed to get token: ${response?.message}")
-                showMessage("Failed to initialize call. Please try again.")
-                finish()
+                retryOrFailAgoraToken("token-failed")
             }
         }
 
         // Observe errors
         agoraViewModel.agoraTokenErrorLiveData.observe(this) { error ->
             Log.e("AgoraToken", "Error: $error")
-            showMessage(error ?: "Failed to initialize call. Please try again.")
-            finish()
+            retryOrFailAgoraToken("token-error")
         }
 
         // Request token from ViewModel
