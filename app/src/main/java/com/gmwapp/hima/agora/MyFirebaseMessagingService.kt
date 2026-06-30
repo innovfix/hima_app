@@ -997,7 +997,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         }
                     }
                 } else {
-                    Log.d(INCOMING_CALL_LOG_TAG, "callEnded ignored — not in ring stage (Agora onUserOffline owns in-call teardown)")
+                    // NET-004 (Phase C): a callEnded that MATCHES the active call's id
+                    // is a server-confirmed end (orphan reaper / peer hangup) — end this
+                    // side too so the survivor's screen doesn't dangle until Agora's slow
+                    // onUserOffline. GATED on call_id (from CallHeartbeat, set on connect)
+                    // so a stale/wrong callEnded can NEVER tear down a different live call
+                    // — this preserves the v1069 safety that disabled blind in-call ends.
+                    val endedCallId = remoteMessage.data["call_id"]?.toIntOrNull() ?: -1
+                    val activeCallId = com.gmwapp.hima.utils.CallHeartbeat.activeCallId()
+                    if (endedCallId > 0 && endedCallId == activeCallId) {
+                        Log.d(INCOMING_CALL_LOG_TAG, "callEnded matches active call $activeCallId — ending this side (NET-004 survivor)")
+                        try { com.gmwapp.hima.utils.CallHeartbeat.stop() } catch (_: Throwable) {}
+                        try { HimaTelecomManager.endActiveCall(DisconnectCause.REMOTE) } catch (_: Throwable) {}
+                        try { BaseApplication.getInstance()?.getCurrentActivity()?.finish() } catch (_: Throwable) {}
+                    } else {
+                        Log.d(INCOMING_CALL_LOG_TAG, "callEnded ignored — id mismatch (active=$activeCallId ended=$endedCallId); Agora owns teardown")
+                    }
                 }
             }
 
