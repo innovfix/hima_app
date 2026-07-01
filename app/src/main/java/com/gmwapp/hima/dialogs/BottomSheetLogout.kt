@@ -111,6 +111,7 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
             // TC_017: wipe only this user's watermarks; a second account on this
             // device that cleared its own chats should not lose that state.
             com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearForUser(ctx, logoutUserId)
+            com.gmwapp.hima.utils.DeletedChatsPrefsHelper.clearForUser(ctx, logoutUserId)
         }
         val hostActivity = activity ?: return
         val intent = Intent(hostActivity, NewLoginActivity::class.java).apply {

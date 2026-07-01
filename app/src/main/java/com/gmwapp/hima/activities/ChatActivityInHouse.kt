@@ -90,6 +90,7 @@ import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
 import com.gmwapp.hima.utils.ChatHistoryMemoryCache
 import com.gmwapp.hima.utils.ClearedChatsPrefsHelper
+import com.gmwapp.hima.utils.DeletedChatsPrefsHelper
 import com.gmwapp.hima.utils.LocallyDeletedMessagesStore
 import com.gmwapp.hima.utils.ImageCompressor
 
@@ -4539,6 +4540,18 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun deleteChatLocally() {
+        // Newest currently-loaded message time (fallback now) is the watermark for both:
+        //  - ClearedChatsPrefsHelper: hides these messages inside the conversation so a
+        //    server re-fetch on reopen can't resurrect them.
+        //  - DeletedChatsPrefsHelper: removes the conversation from the chat list until a
+        //    NEW message (beyond this watermark) arrives — WhatsApp-style.
+        // Without these the delete was purely in-memory and reverted on the next list load.
+        val deletedUpto = messages.asSequence()
+            .filterNot { it.isDateHeader }
+            .mapNotNull { it.date?.time }
+            .maxOrNull() ?: System.currentTimeMillis()
+        ClearedChatsPrefsHelper.setClearedUpto(this, myUserId, peerUserId, deletedUpto)
+        DeletedChatsPrefsHelper.setDeletedUpto(this, myUserId, peerUserId, deletedUpto)
         messages.clear()
         chatAdapter.notifyDataSetChanged()
         runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }

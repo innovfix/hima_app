@@ -1136,7 +1136,15 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         raw: List<com.gmwapp.hima.models.ChatConversation>,
         ctx: Context
     ): List<com.gmwapp.hima.models.ChatConversation> {
-        val refreshed = raw.map {
+        // WhatsApp-style "Delete chat": hide conversations the user deleted, unless a newer
+        // message has arrived since (its timestamp beats the deleted-upto watermark).
+        val myId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        val visible = raw.filterNot { conv ->
+            val peerId = conv.userId.toIntOrNull() ?: return@filterNot false
+            val lastMillis = (conv.lastMessageTime?.seconds ?: 0L) * 1000L
+            com.gmwapp.hima.utils.DeletedChatsPrefsHelper.isHidden(ctx, myId, peerId, lastMillis)
+        }
+        val refreshed = visible.map {
             it.copy(isPinned = PinnedChatsPrefsHelper.isPinned(ctx, it.userId))
         }
         val base = refreshed.sortedByDescending { it.lastMessageTime?.seconds ?: 0 }

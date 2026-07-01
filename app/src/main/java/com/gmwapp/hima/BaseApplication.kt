@@ -1207,6 +1207,7 @@ class BaseApplication : Application(), Configuration.Provider {
             // TC_017: wipe only this user's watermarks so a different account
             // that previously cleared chats on this device keeps its own state.
             com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearForUser(this, teardownUserId)
+            com.gmwapp.hima.utils.DeletedChatsPrefsHelper.clearForUser(this, teardownUserId)
         }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }

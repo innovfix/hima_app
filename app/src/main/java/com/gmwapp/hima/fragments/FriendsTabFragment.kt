@@ -800,7 +800,15 @@ class FriendsTabFragment : Fragment() {
     ): List<ChatConversation> {
         if (!isAdded) return conversations
         val ctx = requireContext()
-        val (pinnedConv, unpinned) = conversations.partition { it.isPinned }
+        // WhatsApp-style "Delete chat": hide conversations the user deleted until a newer
+        // message arrives (its timestamp beats the deleted-upto watermark).
+        val myId = com.gmwapp.hima.BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        val visible = conversations.filterNot { conv ->
+            val peerId = conv.userId.toIntOrNull() ?: return@filterNot false
+            val lastMillis = conv.lastMessageTime?.toDate()?.time ?: 0L
+            com.gmwapp.hima.utils.DeletedChatsPrefsHelper.isHidden(ctx, myId, peerId, lastMillis)
+        }
+        val (pinnedConv, unpinned) = visible.partition { it.isPinned }
         val order = PinnedChatsPrefsHelper.getPinnedIds(ctx)
         val sortedPinned = pinnedConv.sortedBy { conv ->
             val i = order.indexOf(conv.userId)
