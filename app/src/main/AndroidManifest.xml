@@ -224,9 +224,12 @@
             </intent-filter>
         </activity>
         <activity android:name=".activities.VerifyOTPActivity" />
+        <!-- TEMP layout preview; remove after review -->
+        <activity android:name=".LayoutPreviewActivity" android:exported="true" android:theme="@style/AppTheme" />
         <activity
             android:name=".activities.MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter
                 android:autoVerify="true"
                 tools:targetApi="m">

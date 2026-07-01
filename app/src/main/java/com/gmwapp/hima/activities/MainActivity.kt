@@ -338,6 +338,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 binding.bottomNavigationView.paddingRight,
                 systemBars.bottom
             )
+            // RM_010: with adjustResize the window shrinks when the soft keyboard opens, so the
+            // bottom-anchored nav rides UP and floats above the keyboard (e.g. Recent search).
+            // Hide it while the IME is visible; it returns the instant the keyboard closes.
+            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            binding.bottomNavigationView.visibility = if (imeVisible) View.GONE else View.VISIBLE
             insets
         }
         
