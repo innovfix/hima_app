@@ -204,11 +204,16 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
      * Called when the user re-taps the Profile tab in bottom nav.
      * Re-fetches user profile data and IPL match suggestions.
      */
+    // TC-HMA-005: throttle so onResume's return-to-screen re-fetch never piles
+    // on the tab-select / pull-to-refresh / initial fetch.
+    private var lastProfileFetchMs = 0L
+
     override fun refresh() {
         // Guard: see HomeFragment.refresh — MainActivity may fire this after a
         // configuration change (e.g. split-screen) before our view is rebound.
         if (view == null || !::binding.isInitialized) return
         val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        lastProfileFetchMs = android.os.SystemClock.elapsedRealtime()
         profileViewModel.getUsers(refreshUserId)
         iplRoomViewModel.getMatchSuggestions()
         updateValues()
@@ -238,11 +243,16 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
         // Refresh user data from server (handles auto-clear of expired ipl_team / dnd)
         val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
         refreshUserId?.let { profileViewModel.getUsers(it) }
+        lastProfileFetchMs = android.os.SystemClock.elapsedRealtime()
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner) { response ->
             response?.data?.let { fresh ->
                 val prev = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 val merged = UserDataLocalIntentMerge.mergePreserveLocalIntent(prev, fresh)
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(merged)
+                // TC-HMA-005: repaint the profile fields with the freshly-fetched
+                // data. The observer previously updated prefs but never re-rendered,
+                // so an edit / post-call change stayed stale until the next cycle.
+                updateValues()
                 updateIplBadge()
                 updateBlockBanner()
                 dndController.refresh()
@@ -374,6 +384,16 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
     override fun onResume() {
         super.onResume()
         refreshPremiumCrown()
+        // TC-HMA-005: re-fetch profile on return-to-screen (back from Edit Profile,
+        // or after a call) so it isn't stale — the observer repaints via updateValues().
+        // Throttled so the tab-select / initial fetch don't double up. Same getUsers-
+        // on-resume pattern the home fragments already use, but throttled (lighter).
+        val resumeUid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+        if (resumeUid != null && ::binding.isInitialized &&
+            android.os.SystemClock.elapsedRealtime() - lastProfileFetchMs > 1500L) {
+            lastProfileFetchMs = android.os.SystemClock.elapsedRealtime()
+            profileViewModel.getUsers(resumeUid)
+        }
     }
 
     private fun refreshPremiumCrown() {
