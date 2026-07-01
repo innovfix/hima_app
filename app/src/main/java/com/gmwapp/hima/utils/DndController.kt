@@ -12,9 +12,11 @@ import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.ToggleDndResponse
 import com.gmwapp.hima.retrofit.responses.UserData
+import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import retrofit2.Call
 import retrofit2.Response
@@ -40,7 +42,18 @@ class DndController(
      * Optional whole-row container; when supplied, long-press on the row also opens the
      * duration picker so the gesture isn't limited to the small switch hit area.
      */
-    private val cvDnd: View? = null
+    private val cvDnd: View? = null,
+    /**
+     * Creator side only. When [requireCallsDisabledBeforeEnablingDnd] is true and audio/video
+     * availability is still on, confirming the DND dialog turns them off through this view model
+     * (fire-and-forget, viewModel-scoped so it survives the navigate-home below).
+     */
+    private val femaleUsersViewModel: FemaleUsersViewModel? = null,
+    /**
+     * Invoked after DND is successfully enabled (TC-DND-001 — creator is taken back to Home so
+     * the "you're unavailable" state is obvious). No-op on disable.
+     */
+    private val onDndEnabled: (() -> Unit)? = null
 ) {
     fun attach() {
         Log.d(
@@ -56,12 +69,7 @@ class DndController(
                     "gender=${userData?.gender} audio=${userData?.audio_status} video=${userData?.video_status}"
             )
             if (switchDnd.isChecked) {
-                if (!canEnableDndOrToast()) {
-                    Log.d(TAG, "click enable blocked by canEnableDndOrToast")
-                    switchDnd.isChecked = false
-                    return@setOnClickListener
-                }
-                callToggleDndApi(wantedEnabled = 1, durationHours = DEFAULT_TAP_DURATION_HOURS)
+                maybeEnableDnd(durationHours = DEFAULT_TAP_DURATION_HOURS)
             } else {
                 callToggleDndApi(wantedEnabled = 0, durationHours = 0)
             }
@@ -74,7 +82,6 @@ class DndController(
                 "longPress userId=${userData?.id} currentEnabled=${userData?.dnd_enabled} " +
                     "currentUntil=${userData?.dnd_until}"
             )
-            if (!canEnableDndOrToast()) return@OnLongClickListener true
             showDndDurationPicker()
             true
         }
@@ -102,31 +109,74 @@ class DndController(
     }
 
     /**
-     * Female/creator profiles must turn off audio + video availability before enabling DND.
-     * Returns true when DND can be enabled; otherwise toasts the explainer and returns false.
-     * Tap and long-press both go through this so the rule stays consistent.
+     * Entry point for every "enable DND" gesture (tap + each duration button).
+     *
+     * On the creator profile ([requireCallsDisabledBeforeEnablingDnd] = true) DND makes them
+     * unavailable for calls, so if audio/video availability is still on we no longer block with a
+     * toast — instead we ask for confirmation. Confirming turns those toggles off and enables DND;
+     * cancelling reverts the switch. When the guard is off, or both toggles are already off, DND
+     * enables straight away.
      */
-    private fun canEnableDndOrToast(): Boolean {
+    private fun maybeEnableDnd(durationHours: Int) {
         if (!requireCallsDisabledBeforeEnablingDnd) {
-            Log.d(TAG, "canEnable allowed: no call-availability guard")
-            return true
+            callToggleDndApi(wantedEnabled = 1, durationHours = durationHours)
+            return
         }
         val ud = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val audioOn = (ud?.audio_status ?: 0) == 1
         val videoOn = (ud?.video_status ?: 0) == 1
         Log.d(
             TAG,
-            "canEnable guard userId=${ud?.id} audioOn=$audioOn videoOn=$videoOn " +
+            "maybeEnable guard userId=${ud?.id} audioOn=$audioOn videoOn=$videoOn " +
                 "audio=${ud?.audio_status} video=${ud?.video_status}"
         )
-        if (!audioOn && !videoOn) return true
-        Toast.makeText(
-            fragment.requireContext(),
-            fragment.getString(R.string.dnd_requires_calls_off),
-            Toast.LENGTH_LONG
-        ).show()
-        Log.d(TAG, "canEnable blocked: audio/video availability still enabled")
-        return false
+        if (!audioOn && !videoOn) {
+            callToggleDndApi(wantedEnabled = 1, durationHours = durationHours)
+            return
+        }
+        if (!fragment.isAdded) return
+        AlertDialog.Builder(fragment.requireContext())
+            .setTitle(fragment.getString(R.string.dnd_confirm_title))
+            .setMessage(fragment.getString(R.string.dnd_confirm_message))
+            .setNegativeButton(fragment.getString(R.string.dnd_confirm_cancel)) { d, _ ->
+                Log.d(TAG, "confirm cancelled — revert switch")
+                d.dismiss()
+                switchDnd.isChecked = false
+            }
+            .setPositiveButton(fragment.getString(R.string.dnd_confirm_positive)) { d, _ ->
+                Log.d(TAG, "confirm accepted — disable calls + enable dnd")
+                d.dismiss()
+                disableCallsThenEnableDnd(durationHours)
+            }
+            .setOnCancelListener {
+                // dismissed via back / outside tap — treat as cancel
+                switchDnd.isChecked = false
+            }
+            .show()
+    }
+
+    /**
+     * Confirm path: switch audio + video availability off (fire-and-forget, viewModel-scoped so
+     * it outlives the navigate-home), mirror that into local prefs so Home repaints the toggles
+     * off immediately, then enable DND.
+     */
+    private fun disableCallsThenEnableDnd(durationHours: Int) {
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+        if (userId == null) {
+            switchDnd.isChecked = false
+            return
+        }
+        femaleUsersViewModel?.let { vm ->
+            Log.d(TAG, "disableCalls userId=$userId audio->0 video->0")
+            vm.updateCallStatus(userId, DConstants.AUDIO, 0)
+            vm.updateCallStatus(userId, DConstants.VIDEO, 0)
+        }
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { cur ->
+            BaseApplication.getInstance()?.getPrefs()?.setUserData(
+                cur.copy(audio_status = 0, video_status = 0)
+            )
+        }
+        callToggleDndApi(wantedEnabled = 1, durationHours = durationHours)
     }
 
     private fun formatDndUntil(iso: String): String {
@@ -157,17 +207,17 @@ class DndController(
         view.findViewById<MaterialButton>(R.id.btn_dnd_1h).setOnClickListener {
             Log.d(TAG, "durationPicker selected=1h")
             dialog.dismiss()
-            callToggleDndApi(wantedEnabled = 1, durationHours = 1)
+            maybeEnableDnd(durationHours = 1)
         }
         view.findViewById<MaterialButton>(R.id.btn_dnd_2h).setOnClickListener {
             Log.d(TAG, "durationPicker selected=2h")
             dialog.dismiss()
-            callToggleDndApi(wantedEnabled = 1, durationHours = 2)
+            maybeEnableDnd(durationHours = 2)
         }
         view.findViewById<MaterialButton>(R.id.btn_dnd_4h).setOnClickListener {
             Log.d(TAG, "durationPicker selected=4h")
             dialog.dismiss()
-            callToggleDndApi(wantedEnabled = 1, durationHours = 4)
+            maybeEnableDnd(durationHours = 4)
         }
         view.findViewById<MaterialButton>(R.id.btn_dnd_cancel).setOnClickListener {
             Log.d(TAG, "durationPicker cancelled")
@@ -212,6 +262,7 @@ class DndController(
                                         fragment.getString(R.string.dnd_updated),
                                         Toast.LENGTH_SHORT
                                     ).show()
+                                    if (wantedEnabled == 1) onDndEnabled?.invoke()
                                 } else {
                                     toastAndRollback(
                                         fragment.getString(R.string.dnd_err_http, response.code())
@@ -259,6 +310,7 @@ class DndController(
                                     body.message ?: fragment.getString(R.string.dnd_updated),
                                     Toast.LENGTH_SHORT
                                 ).show()
+                                if (wantedEnabled == 1) onDndEnabled?.invoke()
                             }
                         }
                         switchDnd.isEnabled = true

@@ -671,6 +671,10 @@
     <string name="dnd_cancel">Cancel</string>
     <string name="dnd_fallback_local">Do Not Disturb saved on this device. The server did not recognize the DND endpoint yet (404) — notifications are muted locally until expiry.</string>
     <string name="dnd_requires_calls_off">Turn off Audio calls and Video calls on your home screen first, then you can enable Do Not Disturb.</string>
+    <string name="dnd_confirm_title">Turn on Do Not Disturb?</string>
+    <string name="dnd_confirm_message">You\'re currently available for calls. Turning on Do Not Disturb will switch off your Audio &amp; Video availability, so you won\'t receive any calls until it ends.</string>
+    <string name="dnd_confirm_positive">Turn on DND</string>
+    <string name="dnd_confirm_cancel">Cancel</string>
     <string name="dnd_blocked_title">Do Not Disturb is on</string>
     <string name="dnd_blocked_body">Turn off DND to place this call.</string>
     <string name="dnd_blocked_cta">Turn off &amp; call</string>

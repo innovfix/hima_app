@@ -47,6 +47,7 @@ import com.gmwapp.hima.utils.DndController
 import com.gmwapp.hima.utils.UserDataLocalIntentMerge
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
+import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import android.graphics.Color
@@ -60,6 +61,7 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private val accountViewModel: AccountViewModel by viewModels()
     private val iplRoomViewModel: com.gmwapp.hima.viewmodels.IplRoomViewModel by viewModels()
     private val whatsappLinkViewModel: WhatsappLinkViewModel by viewModels()
+    private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
 
     private val loginViewModel: LoginViewModel by viewModels()
     private lateinit var dndController: DndController
@@ -254,7 +256,14 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
             binding.tvDndStatus,
             profileViewModel,
             requireCallsDisabledBeforeEnablingDnd = true,
-            cvDnd = binding.cvDnd
+            cvDnd = binding.cvDnd,
+            femaleUsersViewModel = femaleUsersViewModel,
+            onDndEnabled = {
+                // TC-DND-001 — once DND is on the creator is unavailable, so drop them back to
+                // Home where that state is visible (toggles repaint off from the prefs we just set).
+                (activity as? com.gmwapp.hima.activities.MainActivity)
+                    ?.binding?.bottomNavigationView?.let { it.selectedItemId = R.id.home }
+            }
         )
 
         // Refresh user data from server (handles auto-clear of expired ipl_team / dnd)
