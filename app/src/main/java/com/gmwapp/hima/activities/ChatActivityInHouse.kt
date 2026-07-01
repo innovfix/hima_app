@@ -2252,11 +2252,17 @@ class ChatActivityInHouse : AppCompatActivity() {
             // Show status only if it's not null or empty
             if (!lastOnlineStatus.isNullOrEmpty()) {
                 tvUserStatus.text = formatLastOnlineStatus(lastOnlineStatus)
+                // CM_005: explicitly re-show — the empty branch now parks it at
+                // INVISIBLE (not GONE), so it must be flipped back to VISIBLE here.
+                tvUserStatus.visibility = View.VISIBLE
                 vOnlineIndicator.visibility = View.VISIBLE
             } else {
-                // Hide status if null or empty
+                // CM_005: keep the status line's height reserved when there's no
+                // status yet — use INVISIBLE, not GONE, so the name+status column
+                // height stays constant and the username never reflows/shifts
+                // down when the status later loads.
                 tvUserStatus.text = ""
-                tvUserStatus.visibility = View.GONE
+                tvUserStatus.visibility = View.INVISIBLE
                 vOnlineIndicator.visibility = View.GONE
             }
 
