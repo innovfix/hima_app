@@ -109,6 +109,12 @@ object HimaTelecomManager {
             return false
         }
         return try {
+            // RM_007: flush any stranded self-managed connection from a previous call BEFORE placing
+            // a new one. If a prior call activity was killed/crashed before its teardown ran, a stale
+            // DIALING/CONNECTING connection lingers and makes Telecom reject this call with
+            // "Cannot place another call as other outgoing call is already dialing". endActiveCall()
+            // is a no-op when there's no lingering connection, so it's safe on a clean state.
+            endActiveCall(DisconnectCause.LOCAL)
             val appContext = context.applicationContext
             registerPhoneAccountIfNeeded(appContext)
             val telecom = appContext.getSystemService(TelecomManager::class.java)
