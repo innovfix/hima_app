@@ -210,6 +210,15 @@ class ChatListAdapter(
         fun bind(conversation: ChatConversation) {
             val pinned = PinnedChatsPrefsHelper.isPinned(activity, conversation.userId)
 
+            // CM_001: the notify bell + audio/video call buttons are male/payer controls. The bell
+            // calls set_female_notification_preference (male_user_id must be male), so on the creator
+            // (female) side it always fails ("Couldn't update notification"). Hide the bell AND the
+            // call buttons for female viewers; keep only the pin. Male view is unchanged.
+            val isViewerFemale = BaseApplication.getInstance()?.getPrefs()
+                ?.getUserData()?.gender
+                ?.equals(DConstants.FEMALE, ignoreCase = true) == true
+            binding.ivNotifyBell.visibility = if (isViewerFemale) View.GONE else View.VISIBLE
+
             // Set user name (extract name only, remove trailing numbers).
             // Pin state is shown only by iv_pin (filled/outline + tint), not a compound drawable on the name.
             binding.tvUserName.text = extractNameOnly(conversation.userName)
@@ -326,7 +335,9 @@ class ChatListAdapter(
             else
                 activity.getString(R.string.chat_peer_blocked_indicator)
             binding.tvBlockedBadge.visibility = if (showBlockedBadge) View.VISIBLE else View.GONE
-            binding.callButtonsRow.visibility = if (showBlockedBadge) View.GONE else View.VISIBLE
+            // CM_001: call buttons hidden for female (creator) viewers (see bell gate above).
+            binding.callButtonsRow.visibility =
+                if (showBlockedBadge || isViewerFemale) View.GONE else View.VISIBLE
 
             val showAudio = conversation.audioStatus == 1
             val showVideo = conversation.videoStatus == 1
@@ -335,10 +346,6 @@ class ChatListAdapter(
 
             binding.btnAudioCall.visibility = View.VISIBLE
             binding.btnVideoCall.visibility = View.VISIBLE
-
-            val isViewerFemale = BaseApplication.getInstance()?.getPrefs()
-                ?.getUserData()?.gender
-                ?.equals(DConstants.FEMALE, ignoreCase = true) == true
 
             // Circular call buttons (item_chat_conversation.xml): tinted circle +
             // colored icon when available, grey circle + "Offline" label when not.
