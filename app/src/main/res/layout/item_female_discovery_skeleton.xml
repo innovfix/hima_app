@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- C-02: shimmer placeholder for a "Creators Joining Now" avatar while the
+     discovery feed loads. Mirrors item_female_discovery_creator dimensions
+     (92dp wide, 64dp circle) so the swap to real items has no layout jump. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="92dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingHorizontal="4dp">
+
+    <View
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:background="@drawable/bg_skeleton_circle" />
+
+    <View
+        android:layout_width="56dp"
+        android:layout_height="10dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_skeleton_pill" />
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="8dp"
+        android:layout_marginTop="7dp"
+        android:background="@drawable/bg_skeleton_pill" />
+</LinearLayout>

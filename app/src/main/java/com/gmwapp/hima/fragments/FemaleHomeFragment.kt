@@ -91,6 +91,12 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     private val accountViewModel: AccountViewModel by viewModels()
     private val firstCallUpdateViewModel: FirstCallUpdateViewModel by viewModels()
 
+    // C-02: shimmer placeholders for the "Creators Joining Now" row while the
+    // discovery feed loads, so a cold home isn't a blank strip. Cleared the
+    // moment renderDiscoveryCreators() populates real (or empty-state) content.
+    private var discoverySkeletonAnim: android.animation.Animator? = null
+    private var discoverySkeletonShowing = false
+
     private lateinit var sharedPreferences: SharedPreferences
     private var isPermissionDenied: Boolean = false
      var whataspplink : String = ""
@@ -669,6 +675,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 
         femaleUsersViewModel.getReports(userData?.id!!)
         femaleUsersViewModel.getFemaleUsers(userData.id)
+        showDiscoverySkeleton()
         femaleUsersViewModel.getFemaleDiscovery(userData.id)
 
         femaleUsersViewModel.femaleUsersResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
@@ -929,7 +936,40 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         setupSwitchListeners(userData)
     }
 
+    /** C-02: fill the discovery row with shimmer placeholders on a cold load so
+     *  it isn't a blank strip until the feed returns. Never overwrites real
+     *  content — only shows when the row is empty (or already skeletoned). */
+    private fun showDiscoverySkeleton() {
+        if (!::binding.isInitialized) return
+        val ll = binding.llDiscoveryCreators
+        if (ll.childCount > 0 && !discoverySkeletonShowing) return  // real items present
+        binding.cvFemaleDiscovery.visibility = View.VISIBLE
+        binding.tvDiscoveryEmpty.visibility = View.GONE
+        ll.visibility = View.VISIBLE
+        ll.removeAllViews()
+        repeat(4) {
+            ll.addView(layoutInflater.inflate(R.layout.item_female_discovery_skeleton, ll, false))
+        }
+        discoverySkeletonShowing = true
+        discoverySkeletonAnim?.cancel()
+        discoverySkeletonAnim = android.animation.ObjectAnimator.ofFloat(ll, "alpha", 1f, 0.4f).apply {
+            duration = 650L
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            start()
+        }
+    }
+
+    private fun stopDiscoverySkeleton() {
+        discoverySkeletonAnim?.cancel()
+        discoverySkeletonAnim = null
+        discoverySkeletonShowing = false
+        if (::binding.isInitialized) binding.llDiscoveryCreators.alpha = 1f
+    }
+
     private fun renderDiscoveryCreators(creators: List<Pair<String, String?>>) {
+        // C-02: real (or empty-state) content is about to replace the placeholders.
+        stopDiscoverySkeleton()
         // TC_020: the online-presence card must stay visible at all times. Previously an
         // empty (or failed) discovery fetch hid the whole card (View.GONE) — that was the
         // "Online tab missing entirely" symptom. Now we keep the card and show an empty state.
@@ -1041,6 +1081,13 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
             profileViewModel.getUsers(it)
         }
+    }
+
+    override fun onDestroyView() {
+        // C-02: stop the discovery shimmer so its animator can't outlive the view.
+        discoverySkeletonAnim?.cancel()
+        discoverySkeletonAnim = null
+        super.onDestroyView()
     }
 
     override fun onResume() {
