@@ -165,19 +165,22 @@ class ChatListAdapter(
         lastMessageType: String,
         lastMessageTime: com.google.firebase.Timestamp,
         suppressUnreadIncrement: Boolean = false,
-        incomingMessageId: Long? = null
+        incomingMessageId: Long? = null,
+        // CM_006-live: set by the push path when the socket is NOT connected — the
+        // socket can't also count this message, so the badge must bump here or it
+        // never updates live on the list. Deduped by id when an id is present.
+        forceCountUnread: Boolean = false
     ): Boolean {
         val idx = conversations.indexOfFirst { it.userId == peerUserId }
         if (idx < 0) return false
 
         val current = conversations[idx]
         // Record every id-bearing (socket) delivery so a later replay of the same
-        // message can't re-bump the badge. Bump only on the first sighting of an id,
-        // and only when the chat for this peer isn't currently open. Deliveries with
-        // no id (the OneSignal push broadcast) never bump — the socket path owns
-        // counting; the host's periodic `my_chat` refresh reconciles the server value.
+        // message can't re-bump the badge. Bump on the first sighting of an id, OR
+        // when forceCountUnread is set (push path, socket down — no double-count is
+        // possible). The host's periodic `my_chat` refresh reconciles the server value.
         val firstSighting = incomingMessageId != null && rememberCountedIncomingId(incomingMessageId)
-        val countThis = firstSighting && !suppressUnreadIncrement
+        val countThis = (firstSighting || forceCountUnread) && !suppressUnreadIncrement
         val nextUnread = if (countThis) current.unreadCount + 1 else current.unreadCount
         val updated = current.copy(
             lastMessage = lastMessageText,

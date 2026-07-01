@@ -44,6 +44,10 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         const val EXTRA_PEER_ID = "peer_id"
         const val EXTRA_LAST_MESSAGE = "last_message"
         const val EXTRA_MESSAGE_TYPE = "message_type"
+        // CM_006-live: carry the message id so the chat-list badge can bump in-place
+        // from the push (no socket needed on the list) while staying deduped against
+        // the socket path — both count the same id at most once.
+        const val EXTRA_MESSAGE_ID = "message_id"
 
         /**
          * Fired for friend_request_received / friend_request_accepted / friend_request_rejected
@@ -343,11 +347,14 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         val text = event.notification.body.orEmpty().trim()
         if (text.isBlank()) return
         val messageType = data.optString("message_type", "text").ifBlank { "text" }
+        // Numeric id if the backend sends one (may arrive as number or string).
+        val messageId = data.optLong("message_id", 0L).takeIf { it > 0L }
+            ?: data.optString("message_id", "").toLongOrNull()?.takeIf { it > 0L }
 
         // Always tell the chat list / badge to refresh — this is cheap and
         // idempotent. The thread-level refresh below only fires when the chat
         // is actively open.
-        sendChatListRefresh(context, peerId, text, messageType)
+        sendChatListRefresh(context, peerId, text, messageType, messageId)
 
         // WhatsApp-style behaviour: if the user is already looking at the chat
         // for this peer, don't show a heads-up — broadcast a refresh signal so
@@ -398,13 +405,15 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         context: Context,
         peerId: Int,
         lastMessage: String,
-        messageType: String
+        messageType: String,
+        messageId: Long? = null
     ) {
         val intent = Intent(ACTION_CHAT_LIST_REFRESH)
             .setPackage(context.packageName)
             .putExtra(EXTRA_PEER_ID, peerId)
             .putExtra(EXTRA_LAST_MESSAGE, lastMessage)
             .putExtra(EXTRA_MESSAGE_TYPE, messageType)
+        if (messageId != null) intent.putExtra(EXTRA_MESSAGE_ID, messageId)
         context.sendBroadcast(intent)
     }
 

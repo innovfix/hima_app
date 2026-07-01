@@ -222,7 +222,11 @@ class FriendsTabFragment : Fragment() {
                 val type = intent.getStringExtra(
                     com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_MESSAGE_TYPE
                 ) ?: "text"
-                applyChatListIncomingFromBroadcast(peerId, text, type)
+                val msgId = intent.getLongExtra(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_MESSAGE_ID,
+                    0L
+                ).takeIf { it > 0L }
+                applyChatListIncomingFromBroadcast(peerId, text, type, msgId)
             }
         }
         val filter = android.content.IntentFilter(
@@ -251,16 +255,25 @@ class FriendsTabFragment : Fragment() {
         chatListRefreshReceiverRegistered = false
     }
 
-    private fun applyChatListIncomingFromBroadcast(peerId: Int, text: String, type: String) {
+    private fun applyChatListIncomingFromBroadcast(peerId: Int, text: String, type: String, messageId: Long? = null) {
         if (!::chatAdapter.isInitialized) return
         val now = com.google.firebase.Timestamp.now()
         val suppressUnread = com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)
+        // CM_006-live: make the card badge update live from the push (no extra
+        // socket/connection needed). If the push carries a message id we dedup on
+        // it (so a connected socket can't double-count). If there's no id, only
+        // force the bump when the socket is DOWN — then the socket can't also
+        // count it, so there's no double-count either. When the socket is up and
+        // owns counting, we leave the count to it (unchanged behaviour).
+        val socketDown = !com.gmwapp.hima.socket.SocketManager.getInstance().isConnected()
         val handled = chatAdapter.applyIncomingMessage(
             peerUserId = peerId.toString(),
             lastMessageText = text,
             lastMessageType = type,
             lastMessageTime = now,
-            suppressUnreadIncrement = suppressUnread
+            suppressUnreadIncrement = suppressUnread,
+            incomingMessageId = messageId,
+            forceCountUnread = (messageId == null && socketDown)
         )
         if (!handled) {
             // New peer not yet in the list — pull a fresh page so the row appears.
