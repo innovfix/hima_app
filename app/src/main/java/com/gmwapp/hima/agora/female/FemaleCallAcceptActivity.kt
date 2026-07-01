@@ -635,6 +635,11 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             putExtra("CALL_ID", call_Id)
             prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
             prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
+            // C-05: hand the caller's name/image we already have to the call
+            // screen so it shows the avatar instantly instead of a blank white
+            // circle while getUserAvatar() round-trips.
+            putExtra("Caller_NAME", callerName)
+            putExtra("Caller_Image", callerImage)
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         startActivity(intent)

@@ -618,6 +618,17 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
+        // C-05: paint the caller's name/avatar we were handed IMMEDIATELY so the
+        // screen isn't a blank white circle while getUserAvatar() below refreshes
+        // it from the server (avatarObservers just overwrites with the same data).
+        intent.getStringExtra("Caller_NAME")?.takeIf { it.isNotBlank() }?.let {
+            binding.tvMaleName.text = com.gmwapp.hima.utils.DisplayName.clean(it)
+        }
+        intent.getStringExtra("Caller_Image")?.takeIf { it.isNotBlank() }?.let {
+            Glide.with(this).load(it)
+                .apply(RequestOptions.circleCropTransform())
+                .into(binding.ivMaleUser)
+        }
         // CALLER_ACCEPT_RESEND_2026_06_30 — if we're the accepting side, keep nudging
         // the caller with "accepted" until they join (no-op for the caller side).
         startAcceptResend()

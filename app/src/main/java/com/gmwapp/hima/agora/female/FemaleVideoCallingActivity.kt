@@ -661,6 +661,18 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
+        // C-05: paint the caller's name/avatar we were handed IMMEDIATELY (header
+        // avatar + the remote-video placeholder) so the screen isn't blank while
+        // getUserAvatar() below refreshes it from the server.
+        intent.getStringExtra("Caller_NAME")?.takeIf { it.isNotBlank() }?.let {
+            binding.tvMaleName.text = com.gmwapp.hima.utils.DisplayName.clean(it)
+        }
+        intent.getStringExtra("Caller_Image")?.takeIf { it.isNotBlank() }?.let { img ->
+            Glide.with(this).load(img)
+                .apply(RequestOptions.circleCropTransform())
+                .into(binding.ivMaleUser)
+            runCatching { Glide.with(this).load(img).into(binding.ivRemoteAvatarSkeleton) }
+        }
         // CALLER_ACCEPT_RESEND_2026_06_30 — if we're the accepting side, keep nudging
         // the caller with "accepted" until they join (no-op for the caller side).
         startAcceptResend()
