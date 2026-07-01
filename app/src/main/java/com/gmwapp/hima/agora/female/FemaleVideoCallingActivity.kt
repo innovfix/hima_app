@@ -322,6 +322,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var localPreviewDragStartX = 0f
     private var localPreviewDragStartY = 0f
     private var isDraggingLocalPreview = false
+    // B18: auto-hide the video-call chrome (top bar + controls) after 10s idle;
+    // tap the video to toggle it back. Any touch resets the countdown.
+    private val chromeAutoHideHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val CHROME_AUTOHIDE_MS = 10_000L
+    private var videoChromeVisible = true
+    private val chromeAutoHideRunnable = Runnable { setVideoChromeVisible(false) }
     private var isRemoteBlurVisible = false
     private var pendingRemoteBlurHide = false
     private var mRtcEngine: RtcEngine? = null
@@ -722,6 +728,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             runCatching { agoraEngine?.switchCamera() }
                 .onFailure { Log.w("FemaleVideoCalling", "switchCamera failed: ${it.message}") }
         }
+
+        // B18: tap the video (empty area — the root catches taps the SurfaceView
+        // and buttons don't consume) to toggle the chrome; start the 10s idle
+        // countdown so it auto-hides.
+        binding.main.setOnClickListener { toggleVideoChrome() }
+        armVideoChromeAutoHide()
 
         endcallBtn()
 
@@ -1234,6 +1246,42 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         }
     }
 
+    // ── B18: auto-hide video-call chrome ────────────────────────────────────
+    /** Fade the top bar + controls in/out. INVISIBLE (not GONE) so nothing
+     *  reflows and taps on the hidden area fall through to the root tap-catcher. */
+    private fun setVideoChromeVisible(visible: Boolean) {
+        if (isInPictureInPictureMode) return           // PiP owns chrome visibility
+        if (!::binding.isInitialized) return
+        videoChromeVisible = visible
+        listOf(binding.topBar, binding.controlsContainer).forEach { v ->
+            v.animate().cancel()
+            if (visible) {
+                v.visibility = View.VISIBLE
+                v.animate().alpha(1f).setDuration(280).start()
+            } else {
+                v.animate().alpha(0f).setDuration(280).withEndAction {
+                    if (!videoChromeVisible) v.visibility = View.INVISIBLE
+                }.start()
+            }
+        }
+        if (visible) armVideoChromeAutoHide()
+        else chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
+    }
+
+    private fun armVideoChromeAutoHide() {
+        chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
+        chromeAutoHideHandler.postDelayed(chromeAutoHideRunnable, CHROME_AUTOHIDE_MS)
+    }
+
+    private fun toggleVideoChrome() = setVideoChromeVisible(!videoChromeVisible)
+
+    /** Any touch (button, drag, tap) keeps visible chrome alive by restarting
+     *  the countdown. When chrome is hidden, the root tap-catcher re-shows it. */
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        if (videoChromeVisible && !isInPictureInPictureMode) armVideoChromeAutoHide()
+    }
+
     override fun onPictureInPictureModeChanged(
         isInPictureInPictureMode: Boolean,
         newConfig: Configuration
@@ -1247,6 +1295,18 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         runCatching { binding.btnMenu.visibility = chromeVisibility }
         runCatching { binding.usersContainer.visibility = chromeVisibility }
         runCatching { binding.controlsContainer.visibility = chromeVisibility }
+        // B18: leaving PiP → chrome is visible again; reset alpha and restart
+        // the auto-hide countdown so it fades on idle as usual.
+        if (!isInPictureInPictureMode) {
+            runCatching {
+                binding.topBar.alpha = 1f
+                binding.controlsContainer.alpha = 1f
+                videoChromeVisible = true
+                armVideoChromeAutoHide()
+            }
+        } else {
+            chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
+        }
     }
 
     private fun setMyAvatar(image: String, name: String) {
@@ -1402,6 +1462,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
         stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
         com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats
         // B181 backstop — covers system-killed activities that bypass leaveChannel.
