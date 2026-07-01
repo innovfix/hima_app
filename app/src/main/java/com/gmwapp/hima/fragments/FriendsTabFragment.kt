@@ -767,15 +767,22 @@ class FriendsTabFragment : Fragment() {
         val rejectBlocked = u.callBlocked == true
         val audioAvail = if (rejectBlocked) 0 else if (currentUserIsFemale) 1 else (u.audioStatus ?: 1)
         val videoAvail = if (rejectBlocked) 0 else if (currentUserIsFemale) 1 else (u.videoStatus ?: 1)
+        // Clear chat: blank the list preview + unread when the newest message is at/before the
+        // cleared watermark (keep the row). A newer message restores it — WhatsApp-style.
+        val ctx = context
+        val myId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        val clearedUpto = if (ctx != null && myId > 0)
+            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.getClearedUpto(ctx, myId, u.id) else 0L
+        val isCleared = clearedUpto > 0L && (lastMessageTime?.toDate()?.time ?: 0L) <= clearedUpto
         return ChatConversation(
             threadId = chatItem.chatId,
             userId = u.id.toString(),
             userName = u.name,
             userImage = u.image ?: "",
-            lastMessage = lastMessage?.message ?: "",
-            lastMessageType = lastMessage?.messageType ?: "text",
+            lastMessage = if (isCleared) "" else lastMessage?.message ?: "",
+            lastMessageType = if (isCleared) "text" else lastMessage?.messageType ?: "text",
             lastMessageTime = lastMessageTime,
-            unreadCount = chatItem.unreadCount,
+            unreadCount = if (isCleared) 0 else chatItem.unreadCount,
             // B097 — green dot now requires recent activity AND at least one
             // call mode available, mirroring FemaleUserAdapter semantics.
             isOnline = u.status == 1 && (audioAvail == 1 || videoAvail == 1),

@@ -1186,6 +1186,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         val readUpTo = readChatLastMsgSeconds[item.user.id.toString()]
                         val incomingSec = ts?.seconds ?: 0L
                         val effectiveUnread = if (readUpTo != null && incomingSec <= readUpTo) 0 else item.unreadCount
+                        // Clear chat: if this peer's newest message is at/before the cleared
+                        // watermark, blank the list preview + unread (keep the row). A newer
+                        // message beyond the watermark restores the preview — WhatsApp-style.
+                        val clearedUpto = com.gmwapp.hima.utils.ClearedChatsPrefsHelper.getClearedUpto(activityCtx, userId, item.user.id)
+                        val isCleared = clearedUpto > 0L && (incomingSec * 1000L) <= clearedUpto
                         // B080 + B097 — resolve once so isOnline can also check
                         // availability. For female viewers, the other party is
                         // male and there are no audio/video toggles to honor —
@@ -1202,10 +1207,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             userId = item.user.id.toString(),
                             userName = item.user.name,
                             userImage = item.user.image ?: "",
-                            lastMessage = item.lastMessage?.message ?: "",
-                            lastMessageType = item.lastMessage?.messageType ?: "text",
+                            lastMessage = if (isCleared) "" else item.lastMessage?.message ?: "",
+                            lastMessageType = if (isCleared) "text" else item.lastMessage?.messageType ?: "text",
                             lastMessageTime = ts,
-                            unreadCount = effectiveUnread,
+                            unreadCount = if (isCleared) 0 else effectiveUnread,
                             // B097 — green dot now requires BOTH recent activity
                             // (status==1) AND at least one call mode available.
                             // Previously a creator with both toggles off but
