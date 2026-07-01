@@ -316,7 +316,16 @@ class ChatActivityInHouse : AppCompatActivity() {
     /** In-flight Retrofit calls for chat history — cancelled on destroy or when superseded. */
     private var currentHistoryCall: Call<ChatHistoryResponse>? = null
     private var currentMoreCall: Call<ChatHistoryResponse>? = null
+    // C-30: driving skeleton off this flag means every load-termination site
+    // (16 of them) auto-hides the skeleton without touching each one — the
+    // setter fires on any `isInitialHistoryLoading = false`.
     private var isInitialHistoryLoading = false
+        set(value) {
+            field = value
+            if (!value) hideChatSkeleton()
+        }
+    private var chatSkeleton: View? = null
+    private var chatSkeletonAnim: android.animation.Animator? = null
     private var pendingPostInitialReload = false
     private val paginationLoadRequestId = AtomicInteger(0)
     /** Prevents duplicate mark-read on both [onBackPressed] and [onPause] in one exit. */
@@ -672,6 +681,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         tvFriendLockSecondaryText = findViewById(R.id.tv_friend_lock_secondary_text)
 
         layoutHistoryError = findViewById(R.id.layout_history_error)
+        chatSkeleton = findViewById(R.id.layout_chat_skeleton)
         tvHistoryError = findViewById(R.id.tv_history_error)
         btnHistoryRetry = findViewById(R.id.btn_history_retry)
         btnHistoryRetry?.setOnClickListener {
@@ -679,6 +689,36 @@ class ChatActivityInHouse : AppCompatActivity() {
             hideHistoryErrorUi("USER_RETRY")
             loadMessages(userRetry = true)
         }
+    }
+
+    /**
+     * C-30: show the shimmer skeleton over the (empty) message area on a cold
+     * open so it isn't a bare blank while history loads. Only shown when there's
+     * genuinely nothing to display yet — a warm revisit hydrates real messages
+     * from cache and never calls this. A gentle alpha pulse stands in for a
+     * shimmer (no extra library). Auto-hidden by the isInitialHistoryLoading
+     * setter the moment the load ends.
+     */
+    private fun showChatSkeleton() {
+        val sk = chatSkeleton ?: return
+        if (!messages.isEmpty()) return
+        if (sk.visibility == View.VISIBLE) return
+        sk.visibility = View.VISIBLE
+        chatSkeletonAnim?.cancel()
+        chatSkeletonAnim = android.animation.ObjectAnimator.ofFloat(sk, "alpha", 1f, 0.4f).apply {
+            duration = 650L
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            start()
+        }
+    }
+
+    private fun hideChatSkeleton() {
+        val sk = chatSkeleton ?: return
+        chatSkeletonAnim?.cancel()
+        chatSkeletonAnim = null
+        sk.alpha = 1f
+        if (sk.visibility != View.GONE) sk.visibility = View.GONE
     }
 
     private fun hideHistoryErrorUi(reason: String) {
@@ -2548,6 +2588,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 Log.d(CHAT_REOPEN_LOG, "CACHE HIT peer=$peerUserId count=${snap.size} ageMs=$ageMs")
             } else {
                 Log.d(CHAT_REOPEN_LOG, "CACHE MISS peer=$peerUserId")
+                // C-30: no cached snapshot to hydrate → the area would be a bare
+                // blank until the fetch returns. Show the skeleton instead. The
+                // isInitialHistoryLoading setter hides it when the load ends.
+                showChatSkeleton()
             }
         }
 
@@ -4192,6 +4236,10 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+
+        // C-30: stop the skeleton pulse so its animator can't outlive the activity.
+        chatSkeletonAnim?.cancel()
+        chatSkeletonAnim = null
 
         val hadPendingThrottle = pendingThrottleHistoryRunnable != null
         pendingThrottleHistoryRunnable?.let { mainHandler.removeCallbacks(it) }
