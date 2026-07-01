@@ -1090,6 +1090,28 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         super.onDestroyView()
     }
 
+    override fun onPause() {
+        super.onPause()
+        // TC-HMA-004: the audio/video availability toggle sends its updateCallStatus after a 400 ms
+        // debounce that runs in the VIEW lifecycle scope. Leaving Home within 400 ms of a tap (very
+        // easy — tap the toggle, then a bottom-nav tab) cancels that coroutine before it fires, so
+        // the ON/OFF never reaches the server and the creator returns to a switch snapped back to OFF.
+        // Flush any still-pending toggle here: onPause runs before the view scope is torn down, and
+        // updateCallStatus enqueues a fire-and-forget Retrofit call, so it completes even as the
+        // fragment goes away.
+        val u = getInstance()?.getPrefs()?.getUserData()
+        if (u != null) {
+            if (audioToggleDebounceJob?.isActive == true) {
+                audioToggleDebounceJob?.cancel()
+                pendingAudioStatus?.let { femaleUsersViewModel.updateCallStatus(u.id, DConstants.AUDIO, it) }
+            }
+            if (videoToggleDebounceJob?.isActive == true) {
+                videoToggleDebounceJob?.cancel()
+                pendingVideoStatus?.let { femaleUsersViewModel.updateCallStatus(u.id, DConstants.VIDEO, it) }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // Bug #10 — app-open account-blocked banner (creator Home, dismissable)
