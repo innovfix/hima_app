@@ -649,23 +649,58 @@ class ChatActivityInHouse : AppCompatActivity() {
         // card extends behind the status bar, and we pad its content down by the status
         // inset; the transparent input bar is padded up by the nav inset so the field
         // clears the gesture bar while the wallpaper still shows behind/below it.
+        val root = findViewById<View>(R.id.main)
         val topBarContent = findViewById<View>(R.id.top_bar)
         val inputContainer = findViewById<View>(R.id.message_input_container)
         val baseTopPad = topBarContent.paddingTop
         val baseInputBottomPad = inputContainer.paddingBottom
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { _, insets ->
+        // Single source of truth for the bar/keyboard padding. Reused by both the
+        // resting inset pass and the per-frame keyboard-animation callback so the
+        // composer lift stays identical whether the keyboard is settled or mid-slide.
+        //
+        // Keyboard (IME) inset: targetSdk 35 forces edge-to-edge, so the legacy
+        // adjustResize no longer shrinks the window for the keyboard on its own —
+        // the composer would sit UNDER the keyboard. We lift it ourselves so the
+        // whole input row (attach • field • mic/send) rides ABOVE the keyboard,
+        // WhatsApp-style, and the message list resizes above it. When the keyboard
+        // is up ime.bottom already includes the nav-bar height, so max() avoids
+        // double-counting; keyboard down → falls back to the nav-bar gap.
+        val applyInsetPadding = fun(insets: androidx.core.view.WindowInsetsCompat) {
             val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
             topBarContent.setPadding(
                 topBarContent.paddingLeft, baseTopPad + bars.top,
                 topBarContent.paddingRight, topBarContent.paddingBottom
             )
             inputContainer.setPadding(
                 inputContainer.paddingLeft, inputContainer.paddingTop,
-                inputContainer.paddingRight, baseInputBottomPad + bars.bottom
+                inputContainer.paddingRight, baseInputBottomPad + maxOf(bars.bottom, ime.bottom)
             )
+        }
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            // DISPATCH_MODE_STOP defers this resting pass until the keyboard
+            // animation ends, so it only sets the final settled state; the
+            // per-frame lift is driven by the animation callback below.
+            applyInsetPadding(insets)
             insets
         }
-        androidx.core.view.ViewCompat.requestApplyInsets(findViewById(R.id.main))
+        // WhatsApp-style glide: track the keyboard frame-by-frame while it animates
+        // in/out instead of snapping to the final height in one jump.
+        androidx.core.view.ViewCompat.setWindowInsetsAnimationCallback(
+            root,
+            object : androidx.core.view.WindowInsetsAnimationCompat.Callback(
+                androidx.core.view.WindowInsetsAnimationCompat.Callback.DISPATCH_MODE_STOP
+            ) {
+                override fun onProgress(
+                    insets: androidx.core.view.WindowInsetsCompat,
+                    runningAnimations: MutableList<androidx.core.view.WindowInsetsAnimationCompat>
+                ): androidx.core.view.WindowInsetsCompat {
+                    applyInsetPadding(insets)
+                    return insets
+                }
+            }
+        )
+        androidx.core.view.ViewCompat.requestApplyInsets(root)
 
         bannerAddFriend = findViewById(R.id.banner_add_friend)
         tvBannerAddFriendTitle = findViewById(R.id.tv_banner_add_friend_title)
