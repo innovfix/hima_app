@@ -62,8 +62,9 @@ import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
-import com.gmwapp.hima.agora.GiftBottomSheetFragment
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
+import com.gmwapp.hima.viewmodels.GiftViewModel
+import com.gmwapp.hima.retrofit.responses.GiftData
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
@@ -261,6 +262,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
     private val giftImageViewModel: GiftImageViewModel by viewModels()
+    private val giftViewModel: GiftViewModel by viewModels()
+    // Inline quick-gift row state (mirrors GiftBottomSheetFragment's throttle).
+    private var lastQuickGiftAt = 0L
+    private val quickGiftCooldownMs = 1000L
+    private var quickGiftSentGuard = 1
 
 
     private val uid = 0
@@ -810,15 +816,113 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         } else {
             binding.ludoButtonCard.visibility = View.GONE
         }
-        giftIconClicked()
+        setupQuickGifts()
         startHeartbeat()
     }
 
-    private fun giftIconClicked() {
-        binding.giftButtonCard.setOnClickListener {
-            val bottomSheet = GiftBottomSheetFragment("video", receiverId)
-            bottomSheet.show(supportFragmentManager, "BottomSheetGift")
+    /**
+     * Inline "Tap to send" quick-gift row on the connected video screen.
+     * Ported from MaleAudioCallingActivity so a direct video call shows the same
+     * new gift UI as an audio→video switch (which runs in the audio activity).
+     * Shows the first 4 gifts from the shared catalog and sends one instantly on
+     * tap, reusing the same coin-check + send + animate pipeline as
+     * GiftBottomSheetFragment (so behaviour and throttling stay identical).
+     */
+    private fun setupQuickGifts() {
+        val cards = listOf(
+            binding.giftCard1, binding.giftCard2, binding.giftCard3, binding.giftCard4
+        )
+        val icons = listOf(
+            binding.ivQuickGift1, binding.ivQuickGift2, binding.ivQuickGift3, binding.ivQuickGift4
+        )
+        val coinLabels = listOf(
+            binding.tvQuickGiftCoins1, binding.tvQuickGiftCoins2,
+            binding.tvQuickGiftCoins3, binding.tvQuickGiftCoins4
+        )
+
+        fun bind(gifts: List<GiftData>) {
+            for (i in cards.indices) {
+                val gift = gifts.getOrNull(i)
+                if (gift == null) {
+                    cards[i].visibility = View.GONE
+                    continue
+                }
+                cards[i].visibility = View.VISIBLE
+                coinLabels[i].text = gift.coins.toString()
+                Glide.with(this).load(gift.gift_icon).into(icons[i])
+                cards[i].setOnClickListener { sendQuickGift(gift) }
+            }
         }
+
+        val cached = com.gmwapp.hima.utils.GiftManager.getCachedGifts()
+        if (cached.isNotEmpty()) bind(cached)
+        com.gmwapp.hima.utils.GiftManager.cachedGiftsLiveData.observe(this) { list ->
+            if (!list.isNullOrEmpty()) bind(list)
+        }
+        // Cold cache (call opened before MainActivity prefetched) — fetch now and
+        // warm the shared cache so the row fills in.
+        giftImageViewModel.giftResponseLiveData.observe(this) { response ->
+            response?.data?.let { list ->
+                if (list.isNotEmpty()) {
+                    bind(list)
+                    com.gmwapp.hima.utils.GiftManager.updateGifts(list)
+                }
+            }
+        }
+        if (cached.isEmpty()) giftImageViewModel.fetchGiftImages()
+
+        // One observer for inline sends — animate + notify once per success.
+        giftViewModel.giftResponseLiveData.observe(this) { response ->
+            if (response != null && response.success && quickGiftSentGuard == 1) {
+                quickGiftSentGuard++
+                response.data?.let {
+                    sendGiftSentNotification(it.gift_icon)
+                    animateGift(it.gift_icon)
+                }
+                newRemainingTime()
+                Toast.makeText(this, "Gift Sent Successfully!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun sendQuickGift(gift: GiftData) {
+        // Throttle rapid taps (B071) — same 1s window as the bottom sheet.
+        val now = System.currentTimeMillis()
+        if (now - lastQuickGiftAt < quickGiftCooldownMs) return
+        lastQuickGiftAt = now
+
+        val maleUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        profileViewModel.getRemainingTime(maleUserId, "video", object :
+            NetworkCallback<GetRemainingTimeResponse> {
+            override fun onNoNetwork() {}
+            override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {}
+            override fun onResponse(
+                call: Call<GetRemainingTimeResponse>,
+                response: Response<GetRemainingTimeResponse>
+            ) {
+                val remaining = response.body()?.data?.remaining_time ?: return
+                val availableCoins = calculateAvailableQuickGiftCoins(remaining)
+                if (availableCoins >= gift.coins) {
+                    quickGiftSentGuard = 1
+                    giftViewModel.sendGift(maleUserId, receiverId, gift.id)
+                } else {
+                    Toast.makeText(
+                        this@MaleVideoCallingActivity,
+                        "You don't have enough coins to send this gift!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        })
+    }
+
+    /** Video call: 60 coins per minute, round up at >=30s (matches GiftBottomSheetFragment). */
+    private fun calculateAvailableQuickGiftCoins(remainingTime: String): Int {
+        val parts = remainingTime.split(":")
+        val minutes = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val seconds = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val totalMinutes = minutes + if (seconds >= 30) 1 else 0
+        return totalMinutes * 60
     }
 
     fun animateGift(image: String) {
@@ -1345,7 +1449,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         if (isInPictureInPictureMode) return           // PiP owns chrome visibility
         if (!::binding.isInitialized) return
         videoChromeVisible = visible
-        listOf(binding.topBar, binding.controlsContainer).forEach { v ->
+        listOf(binding.topBar, binding.controlsContainer, binding.quickGiftSection).forEach { v ->
             v.animate().cancel()
             if (visible) {
                 v.visibility = View.VISIBLE
@@ -1388,7 +1492,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         runCatching { binding.btnMenu.visibility = chromeVisibility }
         runCatching { binding.usersContainer.visibility = chromeVisibility }
         runCatching { binding.controlsContainer.visibility = chromeVisibility }
-        runCatching { binding.giftButtonCard.visibility = chromeVisibility }
+        runCatching { binding.quickGiftSection.visibility = chromeVisibility }
         // B18: leaving PiP → chrome is visible again; reset alpha and restart
         // the auto-hide countdown so it fades on idle as usual.
         if (!isInPictureInPictureMode) {
