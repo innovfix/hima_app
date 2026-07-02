@@ -817,7 +817,28 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             binding.ludoButtonCard.visibility = View.GONE
         }
         setupQuickGifts()
+        applyGiftCardSizing(compact = true) // video: compact cards (audio keeps the larger XML size)
         startHeartbeat()
+    }
+
+    /**
+     * Compact the inline gift cards for video (icon 36dp, padding 10/8dp) vs the
+     * larger audio default (icon 44dp, padding 14/10dp). Runtime so the same row —
+     * shown on the audio screen during an audio→video switch — is only compact in
+     * video mode. Set before first layout, so no resize flicker.
+     */
+    private fun applyGiftCardSizing(compact: Boolean) {
+        if (!::binding.isInitialized) return
+        val d = resources.displayMetrics.density
+        val icon = ((if (compact) 36 else 44) * d).toInt()
+        val padT = ((if (compact) 10 else 14) * d).toInt()
+        val padB = ((if (compact) 8 else 10) * d).toInt()
+        listOf(binding.ivQuickGift1, binding.ivQuickGift2, binding.ivQuickGift3, binding.ivQuickGift4).forEach {
+            val lp = it.layoutParams; lp.width = icon; lp.height = icon; it.layoutParams = lp
+        }
+        listOf(binding.giftCard1, binding.giftCard2, binding.giftCard3, binding.giftCard4).forEach {
+            it.setPadding(it.paddingLeft, padT, it.paddingRight, padB)
+        }
     }
 
     /**

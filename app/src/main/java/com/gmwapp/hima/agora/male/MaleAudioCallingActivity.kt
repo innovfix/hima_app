@@ -3095,6 +3095,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.main.setOnClickListener { if (isVideoCallGoing) toggleVideoChrome() }
         videoChromeVisible = true
         armVideoChromeAutoHide()
+        applyGiftCardSizing(compact = true) // video: smaller gift cards
         // B060 — keep the top-bar label honest after a mid-call switch.
         binding.tvCallType.setText(R.string.call_type_video)
         storedVideoRemainingTime = null  // Reset stored time
@@ -3492,6 +3493,25 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         if (isVideoCallGoing && videoChromeVisible) armVideoChromeAutoHide()
     }
 
+    /**
+     * Compact the inline gift cards for video (icon 36dp, padding 10/8dp) vs the
+     * larger audio default (icon 44dp, padding 14/10dp). This row lives on the
+     * audio screen, so shrink it only in video mode and restore it on switch-back.
+     */
+    private fun applyGiftCardSizing(compact: Boolean) {
+        if (!::binding.isInitialized) return
+        val d = resources.displayMetrics.density
+        val icon = ((if (compact) 36 else 44) * d).toInt()
+        val padT = ((if (compact) 10 else 14) * d).toInt()
+        val padB = ((if (compact) 8 else 10) * d).toInt()
+        listOf(binding.ivQuickGift1, binding.ivQuickGift2, binding.ivQuickGift3, binding.ivQuickGift4).forEach {
+            val lp = it.layoutParams; lp.width = icon; lp.height = icon; it.layoutParams = lp
+        }
+        listOf(binding.giftCard1, binding.giftCard2, binding.giftCard3, binding.giftCard4).forEach {
+            it.setPadding(it.paddingLeft, padT, it.paddingRight, padB)
+        }
+    }
+
 
     // Switch to audio
 
@@ -3541,6 +3561,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         isVideoCallGoing = false
         // B18: back to audio mode — stop the auto-hide timer and restore controls.
         showVideoChromeAndCancelAutoHide()
+        applyGiftCardSizing(compact = false) // back to the larger audio gift cards
         // B060 — keep the top-bar label honest after a mid-call switch.
         binding.tvCallType.setText(R.string.call_type_audio)
 
