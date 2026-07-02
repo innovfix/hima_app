@@ -6,7 +6,6 @@ import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
-import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
@@ -163,8 +162,9 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
 
     fun getIcebreakerQuestions(
         userId: Int,
-        callback: NetworkCallback<IcebreakerQuestionsResponse>
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse>
     ) {
         apiManager.getIcebreakerQuestions(userId, callback)
     }
+
 }

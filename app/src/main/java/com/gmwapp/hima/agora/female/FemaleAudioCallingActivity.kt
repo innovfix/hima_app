@@ -52,6 +52,7 @@ import com.gmwapp.hima.databinding.ActivityFemaleAudioCallingBinding
 import com.gmwapp.hima.databinding.ActivityMaleAudioCallingBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -80,7 +81,6 @@ import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.agora.services.CallingService
-import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.CallAudioFocusHelper
 import com.gmwapp.hima.utils.CallAudioRouter
@@ -98,7 +98,6 @@ import com.gmwapp.hima.workers.CallUpdateWorker
 import io.agora.rtc2.IAudioFrameObserver
 import io.agora.rtc2.audio.AudioParams
 import io.agora.rtc2.video.VideoCanvas
-import com.google.gson.JsonElement
 import org.json.JSONObject
 //import org.vosk.Model
 //import org.vosk.Recognizer
@@ -706,147 +705,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     }
 
-    private fun setupIcebreakerIfFemale() {
-        // 2026-05-22: icebreaker feature hidden until ready. To restore, remove
-        // the early return + reinstate the gender-based show/hide below.
-        binding.icebreakerHintButton.visibility = View.GONE
-        return
-        @Suppress("UNREACHABLE_CODE")
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        if (!userData.gender.equals("female", ignoreCase = true)) {
-            binding.icebreakerHintButton.visibility = View.GONE
-            return
-        }
-        binding.icebreakerHintButton.visibility = View.VISIBLE
-        binding.icebreakerHintButton.setOnSingleClickListener {
-            requestAndShowIcebreakerQuestions(userData.id)
-        }
-    }
-
-    private fun requestAndShowIcebreakerQuestions(userId: Int) {
-        profileViewModel.getIcebreakerQuestions(
-            userId = userId,
-            callback = object : NetworkCallback<IcebreakerQuestionsResponse> {
-                override fun onResponse(
-                    call: Call<IcebreakerQuestionsResponse>,
-                    response: Response<IcebreakerQuestionsResponse>
-                ) {
-                    Log.e("IcebreakerQuestions", "${response.body()}")
-
-                    val body = response.body()
-                    if (body?.success == true) {
-                        val questions = parseIcebreakerQuestions(body.data)
-                        if (questions.isEmpty()) {
-                            Toast.makeText(
-                                this@FemaleAudioCallingActivity,
-                                "No icebreaker questions available",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            showIcebreakerDialog(questions)
-                        }
-                    } else {
-                        Toast.makeText(
-                            this@FemaleAudioCallingActivity,
-                            body?.message ?: "Unable to load questions",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-
-                override fun onFailure(call: Call<IcebreakerQuestionsResponse>, t: Throwable) {
-                    Log.e("IcebreakerQuestions", "API failed: ${t.message}")
-                    Toast.makeText(
-                        this@FemaleAudioCallingActivity,
-                        "Failed to load questions",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-
-                override fun onNoNetwork() {
-                    Toast.makeText(
-                        this@FemaleAudioCallingActivity,
-                        "No internet connection",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-        )
-    }
-
-    private fun showIcebreakerDialog(questions: List<String>) {
-        val message = buildString {
-            questions.forEachIndexed { index, question ->
-                append("\u2022 ")
-                append(question)
-                if (index != questions.lastIndex) append("\n\n")
-            }
-        }
-        val dialogView = layoutInflater.inflate(R.layout.dialog_icebreaker_questions, null)
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val tvMessage = dialogView.findViewById<TextView>(R.id.tv_icebreaker_dialog_message)
-        val btnClose = dialogView.findViewById<com.google.android.material.button.MaterialButton>(
-            R.id.btn_close_icebreaker_dialog
-        )
-        tvMessage.text = message
-        btnClose.setOnClickListener { dialog.dismiss() }
-        dialog.show()
-    }
-
-    private fun parseIcebreakerQuestions(data: JsonElement?): List<String> {
-        if (data == null || data.isJsonNull) return emptyList()
-        val result = mutableListOf<String>()
-
-        fun addQuestion(raw: String?) {
-            val cleaned = raw?.trim().orEmpty()
-            if (cleaned.isNotEmpty()) {
-                result.add(cleaned)
-            }
-        }
-
-        fun parseElement(element: JsonElement?) {
-            if (element == null || element.isJsonNull) return
-
-            when {
-                element.isJsonPrimitive -> addQuestion(element.asString)
-
-                element.isJsonArray -> {
-                    element.asJsonArray.forEach { parseElement(it) }
-                }
-
-                element.isJsonObject -> {
-                    val obj = element.asJsonObject
-                    val candidateKeys = listOf("question", "text", "title", "prompt")
-                    var consumed = false
-
-                    for (key in candidateKeys) {
-                        if (obj.has(key)) {
-                            parseElement(obj.get(key))
-                            consumed = true
-                        }
-                    }
-
-                    if (!consumed) {
-                        if (obj.has("questions")) {
-                            parseElement(obj.get("questions"))
-                        } else if (obj.has("data")) {
-                            parseElement(obj.get("data"))
-                        }
-                    }
-                }
-            }
-        }
-
-        parseElement(data)
-        return result.distinct()
-    }
-
     private fun setupLocalPreviewDrag() {
         binding.localCardView.setOnTouchListener { view, event ->
             val parent = binding.main
@@ -918,6 +776,94 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 localPreviewOffsetY = clampedY
             }
         }
+    }
+
+    // Icebreaker: female-only hint button during a call, gated by admin toggles
+    // (master + audio) delivered via cached settings. On tap, fetch 5 rotating
+    // questions from the server and show them in the dialog.
+    private fun setupIcebreakerIfFemale() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        if (!userData.gender.equals("female", ignoreCase = true)) {
+            binding.icebreakerHintButton.visibility = View.GONE
+            return
+        }
+        val settings = BaseApplication.getInstance()?.getPrefs()?.getSettingsData()
+        val enabled = (settings?.icebreaker_enabled ?: 0) == 1 &&
+            (settings?.icebreaker_audio_enabled ?: 1) == 1
+        if (!enabled) {
+            binding.icebreakerHintButton.visibility = View.GONE
+            return
+        }
+        binding.icebreakerHintButton.visibility = View.VISIBLE
+        binding.icebreakerHintButton.setOnSingleClickListener {
+            requestAndShowIcebreakerQuestions(userData.id)
+        }
+    }
+
+    private fun requestAndShowIcebreakerQuestions(userId: Int) {
+        profileViewModel.getIcebreakerQuestions(
+            userId = userId,
+            callback = object : NetworkCallback<IcebreakerQuestionsResponse> {
+                override fun onResponse(
+                    call: Call<IcebreakerQuestionsResponse>,
+                    response: Response<IcebreakerQuestionsResponse>
+                ) {
+                    val body = response.body()
+                    val questions = body?.data?.map { it.question }?.filter { it.isNotBlank() } ?: emptyList()
+                    if (body?.success == true && questions.isNotEmpty()) {
+                        showIcebreakerDialog(questions)
+                    } else {
+                        Toast.makeText(
+                            this@FemaleAudioCallingActivity,
+                            body?.message ?: "No icebreaker questions available",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<IcebreakerQuestionsResponse>, t: Throwable) {
+                    Log.e("IcebreakerQuestions", "API failed: ${t.message}")
+                    Toast.makeText(
+                        this@FemaleAudioCallingActivity,
+                        "Failed to load questions",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                override fun onNoNetwork() {
+                    Toast.makeText(
+                        this@FemaleAudioCallingActivity,
+                        "No internet connection",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        )
+    }
+
+    private fun showIcebreakerDialog(questions: List<String>) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_icebreaker_questions, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val container =
+            dialogView.findViewById<android.widget.LinearLayout>(R.id.ll_icebreaker_questions)
+        questions.forEachIndexed { index, question ->
+            val row = layoutInflater.inflate(R.layout.item_icebreaker_question, container, false)
+            row.findViewById<TextView>(R.id.tv_q_number).text = (index + 1).toString()
+            row.findViewById<TextView>(R.id.tv_q_text).text = question
+            container.addView(row)
+        }
+
+        val btnClose = dialogView.findViewById<com.google.android.material.button.MaterialButton>(
+            R.id.btn_close_icebreaker_dialog
+        )
+        btnClose.setOnClickListener { dialog.dismiss() }
+        dialog.show()
     }
 
     private fun setupLudoInviteFlow() {

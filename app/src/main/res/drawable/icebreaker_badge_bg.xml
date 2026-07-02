@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Light-pink rounded badge behind the help icon in the icebreaker dialog -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:startColor="#FFE0EF"
+        android:endColor="#FFD0E6"
+        android:angle="135" />
+    <corners android:radius="18dp" />
+</shape>

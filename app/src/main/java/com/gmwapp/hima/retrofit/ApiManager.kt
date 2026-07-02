@@ -68,6 +68,7 @@ import com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse
 import com.gmwapp.hima.retrofit.responses.SendGiftResponse
 import com.gmwapp.hima.retrofit.responses.SendOTPResponse
 import com.gmwapp.hima.retrofit.responses.SettingsResponse
+import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.retrofit.responses.FreeCoinsStatusResponse
 import com.gmwapp.hima.retrofit.responses.ClaimFreeCoinsResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
@@ -118,7 +119,6 @@ import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.TrackingInfoResponse
 import com.gmwapp.hima.retrofit.responses.AgoraTokenResponse
-import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.retrofit.responses.LudoFcmResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
@@ -880,6 +880,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<SettingsResponse> = getApiInterface().getSettings()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getIcebreakerQuestions(
+        userId: Int,
+        callback: NetworkCallback<IcebreakerQuestionsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<IcebreakerQuestionsResponse> = getApiInterface().getIcebreakerQuestions(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1930,17 +1942,6 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         })
     }
 
-    fun getIcebreakerQuestions(
-        userId: Int,
-        callback: NetworkCallback<IcebreakerQuestionsResponse>
-    ) {
-        if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<IcebreakerQuestionsResponse> = getApiInterface().getIcebreakerQuestions(userId)
-            apiCall.enqueue(callback)
-        } else {
-            callback.onNoNetwork()
-        }
-    }
 
     fun callRejectCount(
         maleUserId: Int,
@@ -2771,14 +2772,14 @@ interface ApiInterface {
         @Field("duration_hours") durationHours: Int
     ): Call<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>
 
+    @POST("settings_list")
+    fun getSettings(): Call<SettingsResponse>
+
     @FormUrlEncoded
     @POST("icebreaker_questions")
     fun getIcebreakerQuestions(
         @Field("user_id") userId: Int
     ): Call<IcebreakerQuestionsResponse>
-
-    @POST("settings_list")
-    fun getSettings(): Call<SettingsResponse>
 
     @FormUrlEncoded
     @POST("free_coins_status")

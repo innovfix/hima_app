@@ -3,77 +3,90 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="24dp"
-    app:cardCornerRadius="24dp"
-    app:cardElevation="8dp">
+    android:layout_margin="20dp"
+    app:cardBackgroundColor="#FFFFFF"
+    app:cardCornerRadius="26dp"
+    app:cardElevation="12dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/dialog_professional_background"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingStart="20dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="20dp">
+
+        <View
+            android:layout_width="38dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/icebreaker_grip_bg" />
 
         <FrameLayout
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
             android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="12dp"
-            android:background="@drawable/dialog_icon_background">
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/icebreaker_badge_bg">
 
             <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
                 android:layout_gravity="center"
                 android:contentDescription="Icebreaker"
                 android:src="@drawable/ic_help"
-                app:tint="#1A237E" />
+                app:tint="#FF1383" />
         </FrameLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
             android:text="Icebreaker Questions"
-            android:textColor="#1A1A1A"
-            android:textSize="18sp"
+            android:textColor="#161029"
+            android:textSize="19sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:text="Just read one out to keep it flowing"
+            android:textColor="#8B8B9E"
+            android:textSize="12sp" />
 
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="220dp"
+            android:layout_height="wrap_content"
+            android:maxHeight="260dp"
             android:fadeScrollbars="false"
             android:scrollbars="vertical">
 
-            <TextView
-                android:id="@+id/tv_icebreaker_dialog_message"
+            <LinearLayout
+                android:id="@+id/ll_icebreaker_questions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:lineSpacingExtra="2dp"
-                android:textColor="#4B5563"
-                android:textSize="14sp"
-                android:textStyle="normal" />
+                android:orientation="vertical" />
         </ScrollView>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_close_icebreaker_dialog"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:layout_gravity="center_horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
             android:layout_marginTop="16dp"
-            android:background="@drawable/dialog_button_yes"
+            android:background="@drawable/icebreaker_close_btn_bg"
             android:elevation="0dp"
-            android:minWidth="110dp"
-            android:paddingStart="18dp"
-            android:paddingEnd="18dp"
             android:stateListAnimator="@null"
             android:text="CLOSE"
             android:textColor="#FFFFFF"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:textStyle="bold"
-            app:cornerRadius="10dp" />
+            app:cornerRadius="14dp" />
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>

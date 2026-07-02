@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Small grip handle at the top of the icebreaker dialog -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#E5D4EF" />
+    <corners android:radius="4dp" />
+</shape>

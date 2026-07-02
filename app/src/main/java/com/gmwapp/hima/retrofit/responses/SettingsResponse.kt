@@ -25,7 +25,11 @@ data class SettingsResponseData(
     val block_words_raw: String?,
     
     val audio_income: Int?,
-    val video_income: Int?
+    val video_income: Int?,
+    // Icebreaker feature toggles (admin-controlled). Default master off; audio/video on.
+    val icebreaker_enabled: Int? = 0,
+    val icebreaker_audio_enabled: Int? = 1,
+    val icebreaker_video_enabled: Int? = 1
 ) {
     // Computed property to get List<String>
     val blockWords: List<String>
