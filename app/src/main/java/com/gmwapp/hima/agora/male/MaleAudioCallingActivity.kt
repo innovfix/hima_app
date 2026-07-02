@@ -203,6 +203,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var notificationSentObserverRegistered = false
     private var callSwitchAcceptanceObserverRegistered = false
     private var isVideoCallGoing: Boolean = false
+    // B18 (switch-to-video parity): auto-hide the video-mode chrome after 10s idle.
+    // Only active while isVideoCallGoing; normal audio mode is unaffected.
+    private var videoChromeVisible = true
+    private val CHROME_AUTOHIDE_MS = 10_000L
+    private val chromeAutoHideHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val chromeAutoHideRunnable = Runnable { setVideoChromeVisible(false) }
 
     private var switchDialog: AlertDialog? = null  // Track current dialog
     private var faceDialog: Dialog? = null
@@ -2046,6 +2052,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
         stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
         com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats
         // B181 backstop — covers system-killed activities that bypass leaveChannel.
@@ -3082,6 +3089,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         FcmUtils.clearCallSwitch()
         updateCallEndDetails()
         isVideoCallGoing = true
+        // B18: now in video mode — tap toggles chrome; start the 10s idle auto-hide
+        // (parity with the direct video-call screen). The root's existing touch
+        // listener returns false, so onClick still registers.
+        binding.main.setOnClickListener { if (isVideoCallGoing) toggleVideoChrome() }
+        videoChromeVisible = true
+        armVideoChromeAutoHide()
         // B060 — keep the top-bar label honest after a mid-call switch.
         binding.tvCallType.setText(R.string.call_type_video)
         storedVideoRemainingTime = null  // Reset stored time
@@ -3432,6 +3445,53 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     fun Int.dpToPx() = (this * Resources.getSystem().displayMetrics.density).toInt()
 
+    // ===== B18 (switch-to-video parity): auto-hide video-mode chrome after 10s idle.
+    //       No-op outside video mode, so normal audio calls are unaffected. =====
+    /** Fade the video-mode chrome (top bar + controls + gift row) in/out.
+     *  INVISIBLE (not GONE) so nothing reflows. */
+    private fun setVideoChromeVisible(visible: Boolean) {
+        if (!isVideoCallGoing || !::binding.isInitialized) return
+        videoChromeVisible = visible
+        listOf(binding.topBar, binding.controlsContainer, binding.quickGiftSection).forEach { v ->
+            v.animate().cancel()
+            if (visible) {
+                v.visibility = View.VISIBLE
+                v.animate().alpha(1f).setDuration(280).start()
+            } else {
+                v.animate().alpha(0f).setDuration(280).withEndAction {
+                    if (!videoChromeVisible) v.visibility = View.INVISIBLE
+                }.start()
+            }
+        }
+        if (visible) armVideoChromeAutoHide()
+        else chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
+    }
+
+    private fun armVideoChromeAutoHide() {
+        chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
+        chromeAutoHideHandler.postDelayed(chromeAutoHideRunnable, CHROME_AUTOHIDE_MS)
+    }
+
+    private fun toggleVideoChrome() = setVideoChromeVisible(!videoChromeVisible)
+
+    /** Cancel auto-hide and force chrome visible — used when leaving video mode. */
+    private fun showVideoChromeAndCancelAutoHide() {
+        chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
+        videoChromeVisible = true
+        if (!::binding.isInitialized) return
+        listOf(binding.topBar, binding.controlsContainer, binding.quickGiftSection).forEach { v ->
+            v.animate().cancel()
+            v.alpha = 1f
+            v.visibility = View.VISIBLE
+        }
+    }
+
+    /** Any touch keeps visible chrome alive by restarting the 10s countdown. */
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        if (isVideoCallGoing && videoChromeVisible) armVideoChromeAutoHide()
+    }
+
 
     // Switch to audio
 
@@ -3479,6 +3539,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         FcmUtils.clearCallSwitch()
         isVideoCallGoing = false
+        // B18: back to audio mode — stop the auto-hide timer and restore controls.
+        showVideoChromeAndCancelAutoHide()
         // B060 — keep the top-bar label honest after a mid-call switch.
         binding.tvCallType.setText(R.string.call_type_audio)
 
