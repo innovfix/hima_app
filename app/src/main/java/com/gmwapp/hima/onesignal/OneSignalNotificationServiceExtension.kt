@@ -136,6 +136,10 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         val data = notif.additionalData
         val type = data?.optString("type", "")?.lowercase().orEmpty()
         if (type == "missed_call" || type == "call_missed") return true
+        // Status/availability notifications (e.g. the creator auto-disable push) can carry
+        // "missed"/"call" in their copy — never treat those as missed calls, or they get
+        // re-rendered as a fake "Tap to call back" that self-calls the recipient.
+        if (type == "availability_disabled" || type == "call_status_disabled" || type == "call_status") return false
         val title = notif.title.orEmpty().lowercase()
         val body = notif.body.orEmpty().lowercase()
         // Match "missed call", "missed audio call" AND "missed video call". The audio/video
@@ -463,6 +467,10 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             val keys = arrayOf("callType", "channelName", "call_id", "senderId")
             if (keys.any { data.has(it) && !data.isNull(it) }) return true
             val type = data.optString("type", "").lowercase()
+            // Status/availability notifications are NOT calls even though their type may
+            // start with "call" (e.g. call_status_disabled) — exclude before the prefix test
+            // so the creator auto-disable push never renders as an incoming ring.
+            if (type == "availability_disabled" || type == "call_status_disabled" || type == "call_status") return false
             if (type.startsWith("call") || type.contains("incoming")) return true
         }
         val title = notif.title.orEmpty().lowercase()
