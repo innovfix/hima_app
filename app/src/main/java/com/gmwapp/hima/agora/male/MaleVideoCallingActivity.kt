@@ -1959,8 +1959,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private fun updateMuteBadge(peerMuted: Boolean? = null, selfMutedOverride: Boolean? = null) {
         if (peerMuted != null) isPeerMutedBadge = peerMuted
-        val showBadge = (selfMutedOverride ?: isMuted) || isPeerMutedBadge
-        binding.ivRemoteMicMuted.visibility = if (showBadge) View.VISIBLE else View.INVISIBLE
+        val selfMuted = selfMutedOverride ?: isMuted
+        // Two independent icons so BOTH show when both sides are muted (parity with
+        // the audio→video switch screen). Peer = iv_remote_mic_muted, self = iv_self_mic_muted.
+        binding.ivRemoteMicMuted.visibility = if (isPeerMutedBadge) View.VISIBLE else View.GONE
+        binding.ivSelfMicMuted.visibility = if (selfMuted) View.VISIBLE else View.GONE
     }
 
     private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
