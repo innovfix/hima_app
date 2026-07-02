@@ -23,6 +23,9 @@ import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
+import com.gmwapp.hima.activities.CommunityGuidelinesPolicyActivity
+import com.gmwapp.hima.activities.RefundPolicyActivity
+import com.gmwapp.hima.activities.TermsPolicyActivity
 import com.gmwapp.hima.activities.CreatorLevelActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
@@ -376,19 +379,19 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
 
         binding.clTermsCondition.setOnSingleClickListener {
-            val intent = Intent(context, TermConditionWebViewActivity::class.java)
+            val intent = Intent(context, TermsPolicyActivity::class.java)
 
             startActivity(intent)
         }
 
         binding.clRefund.setOnSingleClickListener {
-            val intent = Intent(context, RefundWebViewActivity::class.java)
+            val intent = Intent(context, RefundPolicyActivity::class.java)
 
             startActivity(intent)
         }
 
         binding.clGuideline.setOnSingleClickListener {
-            val intent = Intent(context, CommunityGuidelineActivity::class.java)
+            val intent = Intent(context, CommunityGuidelinesPolicyActivity::class.java)
 
             startActivity(intent)
         }

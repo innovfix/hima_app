@@ -56,7 +56,7 @@ class AccountPrivacyActivity : BaseActivity() {
         }
         binding.cvPrivacyPolicy.setOnSingleClickListener {
             try {
-                val intent = Intent(this, WebviewActivity::class.java)
+                val intent = Intent(this, PrivacyPolicyActivity::class.java)
                 startActivity(intent)
             } catch (e: Exception) {
                 showAppToast(e.message, Toast.LENGTH_LONG)

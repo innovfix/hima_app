@@ -13,6 +13,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityRefundWebViewBinding
 import com.gmwapp.hima.databinding.ActivityTermConditionWebViewBinding
 import com.gmwapp.hima.databinding.ActivityWebviewBinding
+import com.gmwapp.hima.utils.PolicyWebViewStyler
 import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -29,6 +30,7 @@ class TermConditionWebViewActivity : AppCompatActivity() {
         binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.terms_and_condition)
         binding.includeProfileToolbar.cvBack.setOnClickListener { finish() }
         binding.wvPrivacyPolicy.getSettings().setJavaScriptEnabled(true);
+        PolicyWebViewStyler.apply(binding.wvPrivacyPolicy)
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
         prefs?.getSettingsData()?.terms_conditions?.let {

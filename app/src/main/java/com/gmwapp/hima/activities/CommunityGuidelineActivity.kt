@@ -8,6 +8,7 @@ import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityCommunityGuidelineBinding
+import com.gmwapp.hima.utils.PolicyWebViewStyler
 import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,6 +28,7 @@ class CommunityGuidelineActivity : AppCompatActivity() {
 
         // Enable JavaScript in WebView
         binding.wvPrivacyPolicy.settings.javaScriptEnabled = true
+        PolicyWebViewStyler.apply(binding.wvPrivacyPolicy)
 
         // Load from prefs if already saved
         val prefs = BaseApplication.getInstance()?.getPrefs()

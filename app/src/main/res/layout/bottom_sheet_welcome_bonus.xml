@@ -1,185 +1,292 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:background="@drawable/welcome_bonus_background"
-    android:layout_height="550dp"
-    android:maxHeight="550dp"
-    android:minHeight="550dp"
-    android:padding="@dimen/_10sdp"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_wb_sheet"
     tools:context=".activities.LoginActivity">
 
+    <!-- Background coin rain (behind everything, populated in code) -->
+    <FrameLayout
+        android:id="@+id/coin_rain"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="true"
+        android:clipToPadding="true" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <!-- Foreground content -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        >
+        android:orientation="vertical"
+        android:paddingStart="18dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="20dp">
 
+        <!-- Grabber -->
+        <View
+            android:id="@+id/v_divider"
+            android:layout_width="42dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/d_button_bg"
+            android:backgroundTint="#E0E1E6" />
 
-    <View
-        android:id="@+id/v_divider"
-        android:layout_width="40dp"
-        android:layout_height="4dp"
-        android:layout_gravity="center_vertical"
-        android:background="@drawable/d_button_bg"
-        android:backgroundTint="#75767a"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-
-
-        <RelativeLayout
-            android:id="@+id/rl1"
+        <!-- Hero banner -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:layout_constraintTop_toBottomOf="@+id/v_divider"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            android:layout_marginTop="16dp"
-
-            >
-
+            android:layout_height="176dp"
+            android:layout_marginTop="14dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp">
 
             <ImageView
                 android:id="@+id/iv_bonus"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/_180sdp"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
                 android:src="@drawable/welcome_bonus_img"
                 tools:ignore="ContentDescription" />
 
+            <!-- Limited-offer chip -->
+            <TextView
+                android:id="@+id/tv_limited"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|start"
+                android:layout_margin="12dp"
+                android:alpha="0.9"
+                android:background="@drawable/bg_wb_save_badge"
+                android:backgroundTint="#000000"
+                android:fontFamily="@font/poppins_medium"
+                android:letterSpacing="0.04"
+                android:paddingStart="10dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="4dp"
+                android:text="⚡ LIMITED OFFER"
+                android:textColor="@color/white"
+                android:textSize="10sp" />
+        </com.google.android.material.card.MaterialCardView>
 
-        </RelativeLayout>
+        <!-- Headline (thin, modern) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/poppins_medium"
+            android:letterSpacing="-0.01"
+            android:text="Your welcome offer"
+            android:textColor="@color/black_light"
+            android:textSize="20sp" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:fontFamily="@font/poppins_regular"
+            android:text="A one-time head start to find your best friend."
+            android:textColor="@color/grey_medium"
+            android:textSize="12.5sp" />
 
+        <!-- Offer card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#ECECF1"
+            app:strokeWidth="1dp">
 
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp">
 
+                <ImageView
+                    android:id="@+id/iv_coins"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/coin_d"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cl_coins"
+                <TextView
+                    android:id="@+id/tv_bonus_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:fontFamily="@font/poppins_medium"
+                    android:text="2500 Coins"
+                    android:textColor="@color/black_light"
+                    android:textSize="17sp"
+                    app:layout_constraintBottom_toTopOf="@+id/tv_save_caption"
+                    app:layout_constraintEnd_toStartOf="@+id/ll_price"
+                    app:layout_constraintHorizontal_bias="0"
+                    app:layout_constraintStart_toEndOf="@+id/iv_coins"
+                    app:layout_constraintTop_toTopOf="@+id/iv_coins"
+                    app:layout_constraintVertical_chainStyle="packed" />
+
+                <TextView
+                    android:id="@+id/tv_save_caption"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="Best value welcome pack"
+                    android:textColor="@color/grey_medium"
+                    android:textSize="11.5sp"
+                    app:layout_constraintBottom_toBottomOf="@+id/iv_coins"
+                    app:layout_constraintHorizontal_bias="0"
+                    app:layout_constraintStart_toEndOf="@+id/iv_coins"
+                    app:layout_constraintTop_toBottomOf="@+id/tv_bonus_text" />
+
+                <LinearLayout
+                    android:id="@+id/ll_price"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:orientation="vertical"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <TextView
+                        android:id="@+id/tv_discount_badge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end"
+                        android:layout_marginBottom="5dp"
+                        android:background="@drawable/bg_wb_save_badge"
+                        android:fontFamily="@font/poppins_medium"
+                        android:paddingStart="8dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="3dp"
+                        android:text="SAVE 30%"
+                        android:textColor="@color/white"
+                        android:textSize="10sp"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+
+                    <TextView
+                        android:id="@+id/tv_bonus_original"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="₹999"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tv_bonus_discount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="₹699"
+                        android:textColor="@color/pink"
+                        android:textSize="21sp" />
+                </LinearLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Social proof -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_wb_social_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="7dp">
+
+            <ImageView
+                android:id="@+id/iv_star"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/star"
+                tools:ignore="ContentDescription" />
+
+            <TextView
+                android:id="@+id/tv_used_by"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="7dp"
+                android:fontFamily="@font/poppins_regular"
+                android:text="Used by 34209 people in the last 30 mins"
+                android:textColor="@color/black_light"
+                android:textSize="11.5sp" />
+        </LinearLayout>
+
+        <!-- CTA -->
+        <LinearLayout
+            android:id="@+id/btn_add_coins"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_wb_cta"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_medium"
+                android:text="@string/add_coins"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tv_cta_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="₹699"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <!-- View more plans -->
+        <TextView
+            android:id="@+id/tv_view_more_plans"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="14dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:fontFamily="@font/poppins_medium"
+            android:paddingStart="12dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="6dp"
+            android:text="@string/view_more_plans"
+            android:textColor="@color/black_light"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
+    <!-- Festival confetti burst on open (front layer, populated in code) -->
+    <FrameLayout
+        android:id="@+id/confetti_layer"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="@drawable/d_button_bg_coins"
-        android:layout_marginTop="32dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/rl1">
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false" />
 
-        <ImageView
-            android:id="@+id/iv_coins"
-            android:layout_width="35dp"
-            android:layout_height="35dp"
-            android:layout_marginStart="14dp"
-            android:scaleType="fitXY"
-            android:src="@drawable/coin_d"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <TextView
-            android:id="@+id/tv_bonus_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintStart_toEndOf="@+id/iv_coins"
-            app:layout_constraintTop_toTopOf="parent"
-            android:layout_marginStart="4dp"
-            android:text="@string/hundred_coins"
-            android:textColor="@color/white"
-            app:layout_constraintBottom_toBottomOf="parent" />
-        <TextView
-            android:id="@+id/tv_bonus_original"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintEnd_toStartOf="@+id/tv_bonus_discount"
-            app:layout_constraintTop_toTopOf="parent"
-            android:layout_marginEnd="4dp"
-            android:text="\u20B982"
-            android:textColor="@color/white"
-            app:layout_constraintBottom_toBottomOf="parent" />
-        <TextView
-            android:id="@+id/tv_bonus_discount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            android:layout_marginEnd="12dp"
-            android:text="\u20B916"
-            android:textStyle="bold"
-            android:textColor="@color/white"
-            app:layout_constraintBottom_toBottomOf="parent" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <ImageView
-        android:id="@+id/iv_star"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:src="@drawable/star"
-        app:layout_constraintEnd_toStartOf="@+id/tv_used_by"
-        app:layout_constraintTop_toBottomOf="@+id/cl_coins" />
-
-    <TextView
-        android:id="@+id/tv_used_by"
-        android:layout_width="wrap_content"
-        android:layout_height="0dp"
-        android:layout_marginTop="4dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/iv_star"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_star"
-        android:textSize="12sp"
-        android:layout_marginEnd="4dp"
-        android:text="@string/used_by_text"
-        android:textColor="@color/black_light" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_add_coins"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:layout_marginStart="2dp"
-        android:layout_marginEnd="2dp"
-        android:layout_marginTop="16dp"
-        android:textAllCaps="false"
-        android:textSize="14sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/iv_star"
-        app:cornerRadius="@dimen/_14sdp"
-        android:textColor="@color/white"
-        android:backgroundTint="@color/pink"
-        android:padding="@dimen/_10sdp"
-        android:text="@string/add_coins"
-        />
-
-
-
-    <TextView
-        android:id="@+id/tv_view_more_plans"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="12dp"
-        android:textSize="14sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:fontFamily="@font/poppins_semibold"
-        app:layout_constraintTop_toBottomOf="@+id/btn_add_coins"
-        android:text="@string/view_more_plans"
-        android:textColor="@color/black" />
-
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-
-
-
-
-
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>

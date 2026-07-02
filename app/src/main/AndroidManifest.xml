@@ -270,6 +270,10 @@
         <activity android:name=".activities.CreatorLevelActivity" />
         <activity android:name=".activities.FemaleTransactionsActivity" />
         <activity android:name=".activities.AccountPrivacyActivity" />
+        <activity android:name=".activities.PrivacyPolicyActivity" />
+        <activity android:name=".activities.TermsPolicyActivity" />
+        <activity android:name=".activities.RefundPolicyActivity" />
+        <activity android:name=".activities.CommunityGuidelinesPolicyActivity" />
         <activity android:name=".activities.ManageNotificationsActivity" />
         <activity android:name=".activities.CreatorWarningsActivity" />
         <activity android:name=".activities.MyWarningsActivity" />

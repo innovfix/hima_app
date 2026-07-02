@@ -1,13 +1,21 @@
 package com.gmwapp.hima.dialogs
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Paint
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.LinearInterpolator
+import android.widget.FrameLayout
+import android.widget.ImageView
+import kotlin.random.Random
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.databinding.BottomSheetWelcomeBonusBinding
@@ -93,7 +101,17 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
         binding.tvBonusText.text = "$coins Coins"
         binding.tvBonusOriginal.text = "₹$originalPrice"
         binding.tvBonusDiscount.text = "₹$discountedPrice"
+        binding.tvCtaPrice.text = "₹$discountedPrice"
         binding.tvUsedBy.text = "Used by $totalCount people in the last 30 mins"
+
+        // Savings badge (hide if there is no real discount)
+        if (originalPrice > 0 && discountedPrice < originalPrice) {
+            val savePercent = Math.round((originalPrice - discountedPrice) * 100.0 / originalPrice)
+            binding.tvDiscountBadge.text = "SAVE $savePercent%"
+            binding.tvDiscountBadge.visibility = View.VISIBLE
+        } else {
+            binding.tvDiscountBadge.visibility = View.GONE
+        }
 
         val twoPercentage = discountedPrice.toDouble() * 0.02
         val roundedAmount = Math.round(twoPercentage)
@@ -107,7 +125,116 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
             addCoinsListener?.onAddCoins(totalAmount, coinId)
         }
 
+        // Subtle coin rainfall behind the content (purely decorative)
+        binding.coinRain.post { startCoinRain(binding.coinRain) }
+        // Festival confetti burst when the sheet opens
+        binding.confettiLayer.post { playConfettiBlast(binding.confettiLayer) }
+
         return binding.root
+    }
+
+    /** Festive one-shot confetti burst that rains down when the sheet opens. */
+    private fun playConfettiBlast(layer: FrameLayout) {
+        val w = layer.width
+        val h = layer.height
+        if (w <= 0 || h <= 0) return
+        val density = resources.displayMetrics.density
+        val colors = intArrayOf(
+            0xFFFF1383.toInt(), // pink
+            0xFFFFC107.toInt(), // gold
+            0xFF6E4EEF.toInt(), // purple
+            0xFF16A34A.toInt(), // green
+            0xFF29B6F6.toInt(), // blue
+            0xFFFF6D00.toInt(), // orange
+        )
+        val pieceCount = 40
+        for (i in 0 until pieceCount) {
+            val pw = ((5 + Random.nextInt(5)) * density).toInt()
+            val ph = ((8 + Random.nextInt(8)) * density).toInt()
+            val piece = View(layer.context).apply {
+                layoutParams = FrameLayout.LayoutParams(pw, ph)
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(colors[i % colors.size])
+                    cornerRadius = 2f * density
+                }
+                // Burst from just under the grabber, spread across the width.
+                x = (w / 2f) + (Random.nextFloat() - 0.5f) * (w * 0.5f)
+                y = (16 * density) + (Random.nextFloat() - 0.5f) * (20 * density)
+                rotation = Random.nextInt(360).toFloat()
+            }
+            layer.addView(piece)
+
+            val dx = (Random.nextFloat() - 0.5f) * w * 1.1f
+            val dy = h * (0.55f + Random.nextFloat() * 0.5f)
+            piece.animate()
+                .translationXBy(dx)
+                .translationYBy(dy)
+                .rotationBy((Random.nextInt(720) - 360).toFloat())
+                .alpha(0f)
+                .setStartDelay(Random.nextInt(120).toLong())
+                .setDuration((1400 + Random.nextInt(900)).toLong())
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction { layer.removeView(piece) }
+                .start()
+        }
+    }
+
+    private val coinAnimators = mutableListOf<ObjectAnimator>()
+
+    /**
+     * Gently drifts faint coins down behind the sheet content. It sits in its
+     * own back layer (coin_rain) so it never overlaps or shifts the cards —
+     * the opaque cards simply cover the coins, leaving only the light gaps
+     * showing a soft fall for a premium feel.
+     */
+    private fun startCoinRain(container: FrameLayout) {
+        val w = container.width
+        val h = container.height
+        if (w <= 0 || h <= 0) return
+        val density = resources.displayMetrics.density
+        val coinCount = 14
+        val topY = -(28 * density) // just above the sheet, off-screen
+
+        for (i in 0 until coinCount) {
+            val sizePx = ((16 + Random.nextInt(12)) * density).toInt() // 16–28dp
+            val coin = ImageView(container.context).apply {
+                setImageResource(R.drawable.coin_d)
+                layoutParams = FrameLayout.LayoutParams(sizePx, sizePx)
+                alpha = 0.45f + Random.nextFloat() * 0.22f // visible: 0.45–0.67
+                x = Random.nextInt((w - sizePx).coerceAtLeast(1)).toFloat()
+                translationY = topY // park off-screen until the animator positions it
+            }
+            container.addView(coin)
+
+            val endY = h.toFloat() + sizePx
+            val fallDur = (9000 + Random.nextInt(5000)).toLong() // slow: 9–14s
+            val fall = ObjectAnimator.ofFloat(coin, "translationY", topY, endY).apply {
+                duration = fallDur
+                repeatCount = ValueAnimator.INFINITE
+                repeatMode = ValueAnimator.RESTART
+                interpolator = LinearInterpolator()
+            }
+            val spinDur = (7000 + Random.nextInt(4000)).toLong()
+            val spin = ObjectAnimator.ofFloat(
+                coin, "rotation", 0f, if (i % 2 == 0) 360f else -360f,
+            ).apply {
+                duration = spinDur
+                repeatCount = ValueAnimator.INFINITE
+                repeatMode = ValueAnimator.RESTART
+                interpolator = LinearInterpolator()
+            }
+            fall.start()
+            spin.start()
+            // Seed each coin at a random point in its fall so the rain is
+            // already spread across the whole sheet on the first frame — no
+            // stacking at the top, no start-delay pauses, seamless looping
+            // (both ends of the fall are off-screen, so the restart is unseen).
+            fall.currentPlayTime = (Random.nextFloat() * fallDur).toLong()
+            spin.currentPlayTime = (Random.nextFloat() * spinDur).toLong()
+            coinAnimators.add(fall)
+            coinAnimators.add(spin)
+        }
     }
 
     fun setOnDismissListener(listener: OnDismissListener) {
@@ -122,6 +249,8 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
     }
 
     override fun onDestroyView() {
+        coinAnimators.forEach { it.cancel() }
+        coinAnimators.clear()
         super.onDestroyView()
         _binding = null
     }
