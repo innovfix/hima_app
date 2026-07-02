@@ -55,6 +55,25 @@ class DndController(
      */
     private val onDndEnabled: (() -> Unit)? = null
 ) {
+    // Authoritative audio/video availability from the latest server fetch (getUsers) —
+    // the SAME value the Home toggles display. The DND confirm-guard must use this,
+    // NOT the local-prefs copy: mergePreserveLocalIntent can leave the local
+    // audio/video_status stale at 0 while the server still has her ON, which made the
+    // guard skip the confirmation AND skip turning calls off (creator looked available
+    // but DND silently ate her calls). null = not fetched yet.
+    private var serverAudioStatus: Int? = null
+    private var serverVideoStatus: Int? = null
+
+    /**
+     * Fed by the hosting fragment's getUsers observer so the DND guard reads the same
+     * authoritative availability the Home screen shows.
+     */
+    fun updateServerAvailability(audioStatus: Int?, videoStatus: Int?) {
+        serverAudioStatus = audioStatus
+        serverVideoStatus = videoStatus
+        Log.d(TAG, "updateServerAvailability audio=$audioStatus video=$videoStatus")
+    }
+
     fun attach() {
         Log.d(
             TAG,
@@ -123,12 +142,20 @@ class DndController(
             return
         }
         val ud = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val audioOn = (ud?.audio_status ?: 0) == 1
-        val videoOn = (ud?.video_status ?: 0) == 1
+        // Use the AUTHORITATIVE server availability (the value the Home toggles show),
+        // not the local-prefs copy which mergePreserveLocalIntent can leave stale at 0
+        // while the server still has her ON. That staleness made this guard wrongly
+        // take the "already off" branch — skipping the confirmation AND leaving her
+        // available server-side while DND ate her calls (the reported bug). When the
+        // fresh server value isn't known yet (null), assume she MIGHT be available so
+        // DND can never leave her as an available black-hole that still gets calls.
+        val audioOn = (serverAudioStatus ?: 1) == 1
+        val videoOn = (serverVideoStatus ?: 1) == 1
         Log.d(
             TAG,
             "maybeEnable guard userId=${ud?.id} audioOn=$audioOn videoOn=$videoOn " +
-                "audio=${ud?.audio_status} video=${ud?.video_status}"
+                "serverAudio=$serverAudioStatus serverVideo=$serverVideoStatus " +
+                "localAudio=${ud?.audio_status} localVideo=${ud?.video_status}"
         )
         if (!audioOn && !videoOn) {
             callToggleDndApi(wantedEnabled = 1, durationHours = durationHours)

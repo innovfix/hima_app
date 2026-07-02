@@ -278,6 +278,10 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 val prev = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 val merged = UserDataLocalIntentMerge.mergePreserveLocalIntent(prev, fresh)
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(merged)
+                // Feed the DND guard the AUTHORITATIVE server availability (fresh, not the
+                // preserved-local merge) so enabling DND correctly detects she's still
+                // available, shows the confirmation, and turns her calls off.
+                dndController.updateServerAvailability(fresh.audio_status, fresh.video_status)
                 // TC-HMA-005: repaint the profile fields with the freshly-fetched
                 // data. The observer previously updated prefs but never re-rendered,
                 // so an edit / post-call change stayed stale until the next cycle.
