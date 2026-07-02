@@ -32,7 +32,6 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallEndReason
 import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
-import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
@@ -58,11 +57,11 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private var callId = 0
     private var channelName: String = ""  // Store channel name to ensure consistency
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
-    // 2026-05-22 v20 — wire callRejectCount from female side so unanswered/cancelled
-    // calls also count toward the 3-strike block. Previously only fired when male
-    // explicitly tapped RED reject button, which never happens when male is
-    // offline / app killed / notification dismissed — the most common case.
-    private val accountViewModel: AccountViewModel by viewModels()
+    // Bug2 2026-07-02 — the female (caller) side no longer posts callRejectCount.
+    // Her own cancel / ring-timeout must NOT count as the male rejecting her — that
+    // wrongly filled the 3-strike (male,female) block and locked her out with "User
+    // is busy". Reject-counting now lives only on the male's genuine decline
+    // (MaleCallAcceptActivity / FCM decline mirror), so AccountViewModel is unused here.
     @Inject
     lateinit var apiManager: ApiManager
     private var prefetchedAgoraToken: String? = null
@@ -327,9 +326,12 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 if (!designOnly && userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
                     Log.d("CallStatus", "FemaleConnecting.cancel → not_answered/caller self=$userId peer=$receiverId callId=$callId")
-                    // 2026-05-22 v20 — count this as a reject toward the 3-strike block.
-                    // male_user_id = receiverId (the male who didn't answer), female_user_id = userId
-                    accountViewModel.callRejectCount(receiverId, userId!!)
+                    // Bug2 2026-07-02 — do NOT post callRejectCount here. The CALLER
+                    // cancelling her own outgoing call is NOT the male rejecting her;
+                    // counting it wrongly filled the 3-strike (male,female) block and
+                    // locked her out of calling him ("User is busy") for 60 min after
+                    // ~3 cancels. Genuine rejects are still counted from the male's
+                    // decline (MaleCallAcceptActivity / FCM decline mirror).
                     callStatusViewModel.saveCallStatus(
                         userId = userId!!,
                         receivedUserId = receiverId,
@@ -892,13 +894,11 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         if (!designOnly && userId != null && callType != null) {
             sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
             Log.d("CallStatus", "FemaleConnecting.timeout → not_answered/receiver self=$userId peer=$receiverId callId=$callId")
-            // 2026-05-22 v20 — count timeout as a reject toward the 3-strike block.
-            // This is the main path: female calls, male doesn't pick up in 40s,
-            // disconnectCall() fires. Without this, the male's reject_count never
-            // increments unless he's actively pressing the RED reject button.
-            if (receiverId != -1) {
-                accountViewModel.callRejectCount(receiverId, userId!!)
-            }
+            // Bug2 2026-07-02 — do NOT post callRejectCount on ring-timeout. A male
+            // not answering within 40s is a MISSED call, not a rejection; counting it
+            // (like the cancel path above) wrongly tripped the 3-strike (male,female)
+            // block and locked the female out with "User is busy". Only a real decline
+            // (MaleCallAcceptActivity / FCM decline mirror) should increment it.
             callStatusViewModel.saveCallStatus(
                 userId = userId!!,
                 receivedUserId = receiverId,
