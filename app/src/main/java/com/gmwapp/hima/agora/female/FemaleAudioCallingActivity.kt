@@ -267,6 +267,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     // strings which truncated by up to 999ms on each end).
     private var callStartMillis: Long = 0L
     private var endTime: String = ""
+
+    // F1 Call Duration Bonus — drives the display-only milestone popups.
+    private var callBonusPresenter: com.gmwapp.hima.utils.CallBonusPresenter? = null
+    private var bonusInitDone = false
+    // Own anchor (callStartMillis resets on reconnect; this stays fixed at first join).
+    private var bonusStartMillis: Long = 0L
     private var isSwitchRequestPending = false
 
 //    private lateinit var model: Model
@@ -1638,6 +1644,21 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             getRemainingTime()
             startTimerResync()
 
+            // F1 Call Duration Bonus — configure once per call (guarded so reconnect
+            // doesn't replay the intro). Display only; server credits the money.
+            if (!bonusInitDone) {
+                bonusInitDone = true
+                bonusStartMillis = System.currentTimeMillis()
+                val bonusCfg = BaseApplication.getInstance()?.getPrefs()?.getSettingsData()?.call_bonus
+                val lead = bonusCfg?.teaser_lead_seconds ?: 60
+                val presenter = com.gmwapp.hima.utils.CallBonusPresenter(
+                    onIntro = { com.gmwapp.hima.utils.CallBonusViews.showIntro(binding.bonusOverlay) },
+                    onTeaser = { tier -> com.gmwapp.hima.utils.CallBonusViews.showTeaser(binding.bonusOverlay, tier, lead) },
+                    onPayout = { tier -> com.gmwapp.hima.utils.CallBonusViews.showPayout(binding.bonusOverlay, tier) }
+                )
+                callBonusPresenter = if (presenter.configure(bonusCfg, "audio")) presenter else null
+            }
+
 
                     femaleUsersViewModel.femaleCallAttend(receiverId,
                         call_Id,
@@ -1991,6 +2012,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                 binding.tvRemainingTime?.text = String.format("%02d:%02d:%02d", hours, minutes, secs)
                 Log.d("timechanging","${String.format("%02d:%02d:%02d", hours, minutes, secs)}")
+
+                // F1 Call Duration Bonus — tick the display popups off elapsed-since-join.
+                // Skip when remaining time is 0 (call is ending) to avoid a stale teaser.
+                callBonusPresenter?.let { p ->
+                    if (bonusStartMillis > 0L && millisUntilFinished > 0L) {
+                        p.onTick((System.currentTimeMillis() - bonusStartMillis) / 1000L)
+                    }
+                }
             }
 
             override fun onFinish() {
@@ -2007,6 +2036,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        com.gmwapp.hima.utils.CallBonusViews.clear(binding.bonusOverlay) // F1: drop any bonus popups
         stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
         com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats
         // B181 backstop — covers system-killed activities that bypass leaveChannel.

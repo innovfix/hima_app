@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    F1 Call Duration Bonus overlay (creator call screen).
+    Three transient, DISPLAY-ONLY states, all initially gone:
+      • bonusIntro   — intro toast at T+10s
+      • bonusTeaser  — "stay 1 more min to earn +₹X", lead before each milestone
+      • bonusPayout  — celebratory card at the milestone (with dim scrim)
+    Anchored just under the top timer so it never collides with the mute /
+    reconnect / on-hold pills. Included at the root of both calling activities.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Dim scrim behind the payout card -->
+    <View
+        android:id="@+id/bonusScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#40000000"
+        android:elevation="34dp"
+        android:visibility="gone" />
+
+    <!-- Intro toast -->
+    <LinearLayout
+        android:id="@+id/bonusIntro"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="96dp"
+        android:layout_marginEnd="14dp"
+        android:background="@drawable/bg_bonus_intro_pill"
+        android:elevation="36dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="8dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="🎁"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/tvBonusIntro"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/bonus_intro_text"
+            android:textColor="#FFE9C2"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Teaser pill (text set at runtime) -->
+    <LinearLayout
+        android:id="@+id/bonusTeaser"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="96dp"
+        android:layout_marginEnd="14dp"
+        android:background="@drawable/bg_bonus_teaser_pill"
+        android:elevation="36dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="13dp"
+        android:paddingVertical="9dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="⏳"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/tvBonusTeaser"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:textColor="#FFF3D6"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            tools:ignore="MissingDefaultResource" />
+    </LinearLayout>
+
+    <!-- Payout card (amount set at runtime) -->
+    <LinearLayout
+        android:id="@+id/bonusPayout"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_bonus_payout_card"
+        android:clickable="true"
+        android:elevation="38dp"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="16dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/bonus_payout_title"
+            android:textColor="#3D2600"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvBonusPayoutAmt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textColor="#3D2600"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            tools:ignore="MissingDefaultResource" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:alpha="0.8"
+            android:text="@string/bonus_payout_caption"
+            android:textColor="#3D2600"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

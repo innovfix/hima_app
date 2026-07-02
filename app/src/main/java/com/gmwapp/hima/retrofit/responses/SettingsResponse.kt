@@ -29,7 +29,10 @@ data class SettingsResponseData(
     // Icebreaker feature toggles (admin-controlled). Default master off; audio/video on.
     val icebreaker_enabled: Int? = 0,
     val icebreaker_audio_enabled: Int? = 1,
-    val icebreaker_video_enabled: Int? = 1
+    val icebreaker_video_enabled: Int? = 1,
+    // F1 Call Duration Bonus config (admin-controlled). DISPLAY ONLY — money is credited
+    // server-side; the app just uses this to decide which popups to show and when.
+    val call_bonus: CallBonusConfig? = null
 ) {
     // Computed property to get List<String>
     val blockWords: List<String>
@@ -40,3 +43,19 @@ data class SettingsResponseData(
             ?.map { it.trim().trim('\'', '"') }
             ?: emptyList()
 }
+
+// F1 Call Duration Bonus — admin config mirrored from settings_list.call_bonus.
+data class CallBonusConfig(
+    val master: Int? = 0,
+    val audio_enabled: Int? = 0,
+    val video_enabled: Int? = 0,
+    val teaser_lead_seconds: Int? = 60,
+    val audio_tiers: List<BonusTier>? = null,
+    val video_tiers: List<BonusTier>? = null
+)
+
+// One milestone: `min` = minutes into the call, `amt` = rupees shown/credited.
+data class BonusTier(
+    val min: Int = 0,
+    val amt: Double = 0.0
+)

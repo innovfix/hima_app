@@ -136,6 +136,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private var startTime: String = ""
     private var endTime: String = ""
+
+    // F1 Call Duration Bonus — display-only milestone popups.
+    private var callBonusPresenter: com.gmwapp.hima.utils.CallBonusPresenter? = null
+    private var bonusInitDone = false
+    private var bonusStartMillis: Long = 0L
     private var isMuted = false
     private var isSpeakerOn = true
 
@@ -1411,6 +1416,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        com.gmwapp.hima.utils.CallBonusViews.clear(binding.bonusOverlay) // F1: drop any bonus popups
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
         stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
         com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats
@@ -1561,6 +1567,21 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             getRemainingTime()
             startTimerResync()
             startTime = dateFormat.format(Date()) // Set call end time in IST
+
+            // F1 Call Duration Bonus — anchor T+0 and configure once per call (guarded
+            // so reconnect doesn't replay the intro). Display only; server credits money.
+            if (!bonusInitDone) {
+                bonusInitDone = true
+                bonusStartMillis = System.currentTimeMillis()
+                val bonusCfg = BaseApplication.getInstance()?.getPrefs()?.getSettingsData()?.call_bonus
+                val lead = bonusCfg?.teaser_lead_seconds ?: 60
+                val presenter = com.gmwapp.hima.utils.CallBonusPresenter(
+                    onIntro = { com.gmwapp.hima.utils.CallBonusViews.showIntro(binding.bonusOverlay) },
+                    onTeaser = { tier -> com.gmwapp.hima.utils.CallBonusViews.showTeaser(binding.bonusOverlay, tier, lead) },
+                    onPayout = { tier -> com.gmwapp.hima.utils.CallBonusViews.showPayout(binding.bonusOverlay, tier) }
+                )
+                callBonusPresenter = if (presenter.configure(bonusCfg, "video")) presenter else null
+            }
 
             startCallingService()
             videoUid = uid
@@ -2397,6 +2418,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 binding.tvRemainingTime?.text = String.format("%02d:%02d:%02d", hours, minutes, secs)
                 Log.d("timechanging","${String.format("%02d:%02d:%02d", hours, minutes, secs)}")
 
+                // F1 Call Duration Bonus — tick display popups off elapsed-since-join.
+                // Skip when remaining time is 0 (call ending) to avoid a stale teaser.
+                callBonusPresenter?.let { p ->
+                    if (bonusStartMillis > 0L && millisUntilFinished > 0L) {
+                        p.onTick((System.currentTimeMillis() - bonusStartMillis) / 1000L)
+                    }
+                }
             }
 
             override fun onFinish() {

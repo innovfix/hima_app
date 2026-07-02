@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F1 bonus payout card — gold gradient (matches approved mockup) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#FFD36E"
+        android:endColor="#F2A007" />
+    <stroke android:width="2dp" android:color="#22FFFFFF" />
+    <corners android:radius="20dp" />
+</shape>

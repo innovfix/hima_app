@@ -680,4 +680,12 @@
     <string name="dnd_blocked_cta">Turn off &amp; call</string>
     <string name="dnd_blocked_cancel">Cancel</string>
     <string name="dnd_blocked_failed">Couldn\'t turn off DND. Please try again.</string>
+
+    <!-- F1 Call Duration Bonus -->
+    <string name="bonus_intro_text">Bonuses coming up — stay longer to earn more</string>
+    <string name="bonus_payout_title">Bonus unlocked!</string>
+    <string name="bonus_payout_caption">Added to your earnings</string>
+    <!-- %1$d = whole minutes left, %2$s = formatted rupee amount e.g. ₹18 -->
+    <string name="bonus_teaser_text">Stay %1$d more min to earn +%2$s</string>
+    <string name="bonus_payout_amount">+%1$s</string>
 </resources>

@@ -853,4 +853,11 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
+    <!-- F1 Call Duration Bonus overlay (intro / teaser / payout) -->
+    <include
+        android:id="@+id/bonusOverlay"
+        layout="@layout/overlay_call_bonus"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
