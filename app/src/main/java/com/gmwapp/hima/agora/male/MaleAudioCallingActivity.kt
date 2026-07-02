@@ -3504,10 +3504,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         val icon = ((if (compact) 36 else 44) * d).toInt()
         val padT = ((if (compact) 10 else 14) * d).toInt()
         val padB = ((if (compact) 8 else 10) * d).toInt()
+        // Video → smoke-glass card (translucent over the feed); audio → opaque dark card.
+        val cardBg = if (compact) R.drawable.bg_quick_gift_card_glass else R.drawable.bg_quick_gift_card
         listOf(binding.ivQuickGift1, binding.ivQuickGift2, binding.ivQuickGift3, binding.ivQuickGift4).forEach {
             val lp = it.layoutParams; lp.width = icon; lp.height = icon; it.layoutParams = lp
         }
         listOf(binding.giftCard1, binding.giftCard2, binding.giftCard3, binding.giftCard4).forEach {
+            it.setBackgroundResource(cardBg)              // set bg first — it can reset padding
             it.setPadding(it.paddingLeft, padT, it.paddingRight, padB)
         }
     }

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smoke-glass quick-gift card for VIDEO calls: translucent dark tint + light edge.
+     The dark tint (vs the opaque audio card bg_quick_gift_card) lets the video show
+     through while keeping the white gift labels/coins readable over any brightness.
+     Applied at runtime in video mode only; audio keeps bg_quick_gift_card. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- ~40% dark navy: see-through but dark enough for white text -->
+    <solid android:color="#66100E1E" />
+    <corners android:radius="16dp" />
+    <!-- ~34% white: the glass edge highlight -->
+    <stroke
+        android:width="1dp"
+        android:color="#57FFFFFF" />
+</shape>
