@@ -428,10 +428,15 @@ class FriendsTabFragment : Fragment() {
                 
                 // Refresh tab counts in parent activity
                 refreshParentTabCounts()
-                
+
                 // Give backend time to process, then reload fresh data
                 binding.root.postDelayed({
                     loadData()
+                    // Re-fetch the bottom-nav Chat badge (incl. pending friend-requests) so it
+                    // updates right after accept/reject instead of waiting for onResume. Uses the
+                    // same delay as loadData so it reads post-commit (server drops the
+                    // friend_tabs_counts cache on the mutation, so this returns the fresh count).
+                    (activity as? com.gmwapp.hima.activities.MainActivity)?.refreshChatUnreadBadge()
                 }, 500)
             }
         })

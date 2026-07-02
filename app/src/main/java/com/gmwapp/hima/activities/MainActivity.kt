@@ -1785,6 +1785,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         updateChatBadge()
     }
 
+    /**
+     * Public: re-fetch the full Chat badge (unread messages + pending friend-requests)
+     * from the server. Called right after a friend-request accept/reject so the bottom-nav
+     * badge's request portion updates immediately instead of waiting for the next onResume.
+     * The server drops the friend_tabs_counts cache on the mutation, so this returns fresh.
+     */
+    fun refreshChatUnreadBadge() {
+        loadChatUnreadCountBadge()
+    }
+
     private fun loadChatUnreadCountBadge() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         if (userData.gender != DConstants.FEMALE) return
