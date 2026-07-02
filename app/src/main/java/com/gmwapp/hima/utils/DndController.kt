@@ -162,24 +162,31 @@ class DndController(
             return
         }
         if (!fragment.isAdded) return
-        AlertDialog.Builder(fragment.requireContext())
-            .setTitle(fragment.getString(R.string.dnd_confirm_title))
-            .setMessage(fragment.getString(R.string.dnd_confirm_message))
-            .setNegativeButton(fragment.getString(R.string.dnd_confirm_cancel)) { d, _ ->
-                Log.d(TAG, "confirm cancelled — revert switch")
-                d.dismiss()
-                switchDnd.isChecked = false
-            }
-            .setPositiveButton(fragment.getString(R.string.dnd_confirm_positive)) { d, _ ->
-                Log.d(TAG, "confirm accepted — disable calls + enable dnd")
-                d.dismiss()
-                disableCallsThenEnableDnd(durationHours)
-            }
-            .setOnCancelListener {
-                // dismissed via back / outside tap — treat as cancel
-                switchDnd.isChecked = false
-            }
-            .show()
+        // B16 — custom confirm CARD (branded), replacing the plain system dialog:
+        // moon icon in a pink circle, title/body, a pink "no calls until DND ends"
+        // warning, and Cancel / Turn-on-DND buttons. Matches B16_DND_CONFIRM_CARD.
+        val view = fragment.layoutInflater.inflate(R.layout.dialog_dnd_confirm, null)
+        val dialog = AlertDialog.Builder(fragment.requireContext())
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setDimAmount(0.5f)
+        view.findViewById<MaterialButton>(R.id.btn_dnd_confirm_cancel).setOnClickListener {
+            Log.d(TAG, "confirm cancelled — revert switch")
+            dialog.dismiss()
+            switchDnd.isChecked = false
+        }
+        view.findViewById<MaterialButton>(R.id.btn_dnd_confirm_positive).setOnClickListener {
+            Log.d(TAG, "confirm accepted — disable calls + enable dnd")
+            dialog.dismiss()
+            disableCallsThenEnableDnd(durationHours)
+        }
+        dialog.setOnCancelListener {
+            // dismissed via back / outside tap — treat as cancel
+            switchDnd.isChecked = false
+        }
+        dialog.show()
     }
 
     /**
