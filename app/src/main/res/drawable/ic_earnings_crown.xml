@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="60dp"
+    android:height="44dp"
+    android:viewportWidth="60"
+    android:viewportHeight="44">
+    <!-- royal crown, gold fill -->
+    <path
+        android:fillColor="#F3DE9A"
+        android:pathData="M6,34 L10,12 L22,26 L30,6 L38,26 L50,12 L54,34 Z" />
+    <path
+        android:fillColor="#E8C874"
+        android:pathData="M6,34 L54,34 L52,40 L8,40 Z" />
+    <path
+        android:fillColor="#FFF4CF"
+        android:pathData="M30,3 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <path
+        android:fillColor="#FFF4CF"
+        android:pathData="M9,11 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <path
+        android:fillColor="#FFF4CF"
+        android:pathData="M51,11 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+</vector>

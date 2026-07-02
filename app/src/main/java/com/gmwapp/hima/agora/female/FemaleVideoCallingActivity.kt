@@ -58,6 +58,7 @@ import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.RatingActivity
+import com.gmwapp.hima.activities.EarningsHonourActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
@@ -331,6 +332,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private val chromeAutoHideHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val CHROME_AUTOHIDE_MS = 10_000L
     private var videoChromeVisible = true
+    // Whether the female-only icebreaker hint button is active for this call;
+    // when true it fades with the rest of the chrome on auto-hide.
+    private var icebreakerActive = false
     private val chromeAutoHideRunnable = Runnable { setVideoChromeVisible(false) }
     private var isRemoteBlurVisible = false
     private var pendingRemoteBlurHide = false
@@ -772,6 +776,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private fun setupIcebreakerIfFemale() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         if (!userData.gender.equals("female", ignoreCase = true)) {
+            icebreakerActive = false
             binding.icebreakerHintButton.visibility = View.GONE
             return
         }
@@ -779,9 +784,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         val enabled = (settings?.icebreaker_enabled ?: 0) == 1 &&
             (settings?.icebreaker_video_enabled ?: 1) == 1
         if (!enabled) {
+            icebreakerActive = false
             binding.icebreakerHintButton.visibility = View.GONE
             return
         }
+        icebreakerActive = true
         binding.icebreakerHintButton.visibility = View.VISIBLE
         binding.icebreakerHintButton.setOnSingleClickListener {
             requestAndShowIcebreakerQuestions(userData.id)
@@ -1207,7 +1214,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (isInPictureInPictureMode) return           // PiP owns chrome visibility
         if (!::binding.isInitialized) return
         videoChromeVisible = visible
-        listOf(binding.topBar, binding.controlsContainer).forEach { v ->
+        // Include the icebreaker hint button only when it's active for this call,
+        // so a hidden/disabled button isn't force-shown when chrome re-appears.
+        val chrome = mutableListOf<View>(binding.topBar, binding.controlsContainer)
+        if (icebreakerActive) chrome.add(binding.icebreakerHintButton)
+        chrome.forEach { v ->
             v.animate().cancel()
             if (visible) {
                 v.visibility = View.VISIBLE
@@ -1249,12 +1260,19 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         runCatching { binding.btnMenu.visibility = chromeVisibility }
         runCatching { binding.usersContainer.visibility = chromeVisibility }
         runCatching { binding.controlsContainer.visibility = chromeVisibility }
+        // Hide the icebreaker hint button in PiP too; restore it only if active.
+        if (icebreakerActive) {
+            runCatching {
+                binding.icebreakerHintButton.visibility = chromeVisibility
+            }
+        }
         // B18: leaving PiP → chrome is visible again; reset alpha and restart
         // the auto-hide countdown so it fades on idle as usual.
         if (!isInPictureInPictureMode) {
             runCatching {
                 binding.topBar.alpha = 1f
                 binding.controlsContainer.alpha = 1f
+                if (icebreakerActive) binding.icebreakerHintButton.alpha = 1f
                 videoChromeVisible = true
                 armVideoChromeAutoHide()
             }
@@ -1458,7 +1476,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             agoraEngine, "FemaleVideoCalling", hasVideo = true
         )
         if (isRemoteUserJoined==true){
-            val intent = Intent(this@FemaleVideoCallingActivity, RatingActivity::class.java)
+            // B1: when the call-duration bonus feature is on, show the creator her
+            // real server-credited earnings first, then RatingActivity. Otherwise
+            // keep the original direct-to-rating flow. EarningsHonourActivity forwards
+            // these same extras onward to RatingActivity.
+            val bonusOn = (BaseApplication.getInstance()?.getPrefs()?.getSettingsData()
+                ?.call_bonus?.master ?: 0) == 1
+            val target = if (bonusOn) EarningsHonourActivity::class.java else RatingActivity::class.java
+            val intent = Intent(this@FemaleVideoCallingActivity, target)
             intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
             intent.putExtra(DConstants.RECEIVER_ID, receiverId)
             intent.putExtra(DConstants.CALL_ID, call_Id)

@@ -77,6 +77,7 @@ import androidx.work.WorkManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.activities.RatingActivity
+import com.gmwapp.hima.activities.EarningsHonourActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
@@ -2083,7 +2084,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         )
 
         if (isRemoteUserJoined==true){
-            val intent = Intent(this@FemaleAudioCallingActivity, RatingActivity::class.java)
+            // B1: route through the earnings honour screen when the bonus feature is
+            // on (it forwards these extras to RatingActivity); else direct to rating.
+            val bonusOn = (BaseApplication.getInstance()?.getPrefs()?.getSettingsData()
+                ?.call_bonus?.master ?: 0) == 1
+            val target = if (bonusOn) EarningsHonourActivity::class.java else RatingActivity::class.java
+            val intent = Intent(this@FemaleAudioCallingActivity, target)
             intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
             intent.putExtra(DConstants.RECEIVER_ID, receiverId)
             intent.putExtra(DConstants.CALL_ID, call_Id)

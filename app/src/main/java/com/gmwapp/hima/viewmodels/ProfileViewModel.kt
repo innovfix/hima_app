@@ -467,5 +467,15 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
         }
     }
 
+    fun getCallEarnings(
+        userId: Int,
+        callId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.CallEarningsResponse>
+    ) {
+        viewModelScope.launch {
+            profileRepositories.getCallEarnings(userId, callId, callback)
+        }
+    }
+
 }
 

@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/earningsRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_earnings_velvet">
+
+    <!-- rising embers get added here programmatically -->
+    <FrameLayout
+        android:id="@+id/embersContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- main content column -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|top"
+        android:layout_marginTop="72dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <ImageView
+            android:id="@+id/ivCrown"
+            android:layout_width="60dp"
+            android:layout_height="44dp"
+            android:src="@drawable/ic_earnings_crown"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/tvEyebrow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/earnings_eyebrow"
+            android:textColor="#D9BD7E"
+            android:textSize="10.5sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.28"
+            android:textAllCaps="true" />
+
+        <!-- amount with glow halo behind -->
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp">
+
+            <ImageView
+                android:id="@+id/ivHalo"
+                android:layout_width="230dp"
+                android:layout_height="150dp"
+                android:layout_gravity="center"
+                android:src="@drawable/bg_earnings_halo"
+                android:contentDescription="@null" />
+
+            <com.gmwapp.hima.utils.GoldShimmerTextView
+                android:id="@+id/tvAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:fontFamily="serif"
+                android:text="₹0"
+                android:textSize="60sp"
+                android:textStyle="bold" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tvSentiment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:gravity="center"
+            android:fontFamily="serif"
+            android:textStyle="italic"
+            android:text="@string/earnings_finalizing"
+            android:textColor="#EFE6D2"
+            android:textSize="14sp"
+            android:lineSpacingMultiplier="1.15" />
+
+        <TextView
+            android:id="@+id/tvThanks"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="serif"
+            android:textStyle="bold"
+            android:textColor="#F7E7B0"
+            android:textSize="17sp"
+            android:text="" />
+
+        <!-- breakdown chips -->
+        <LinearLayout
+            android:id="@+id/llChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="invisible">
+
+            <TextView
+                android:id="@+id/tvCallLine"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:textColor="#CDBD96"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="14dp"
+                android:background="#48C9A24B" />
+
+            <TextView
+                android:id="@+id/tvBonusLine"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:textColor="#FFD98A"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- wallet balance jump -->
+        <LinearLayout
+            android:id="@+id/llWallet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:layout_marginStart="26dp"
+            android:layout_marginEnd="26dp"
+            android:background="@drawable/bg_earnings_wallet"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:visibility="invisible">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/earnings_wallet_label"
+                android:textColor="#B9A97F"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.04"
+                android:textAllCaps="true" />
+
+            <TextView
+                android:id="@+id/tvWalletOld"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:textColor="#7C7295"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvWalletNew"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="serif"
+                android:textColor="#F7E7B0"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvVerified"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/earnings_verified"
+            android:textColor="#8A7FA6"
+            android:textSize="10sp"
+            android:letterSpacing="0.04"
+            android:drawablePadding="5dp"
+            android:visibility="invisible" />
+    </LinearLayout>
+
+    <!-- continue button -->
+    <TextView
+        android:id="@+id/btnContinue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="26dp"
+        android:layout_marginEnd="26dp"
+        android:layout_marginBottom="22dp"
+        android:background="@drawable/bg_earnings_button"
+        android:gravity="center"
+        android:paddingTop="13dp"
+        android:paddingBottom="13dp"
+        android:text="@string/earnings_continue"
+        android:textColor="#2A1C05"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.06"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="invisible" />
+
+</FrameLayout>

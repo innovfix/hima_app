@@ -167,4 +167,12 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         apiManager.getIcebreakerQuestions(userId, callback)
     }
 
+    fun getCallEarnings(
+        userId: Int,
+        callId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.CallEarningsResponse>
+    ) {
+        apiManager.getCallEarnings(userId, callId, callback)
+    }
+
 }

@@ -201,6 +201,9 @@
             android:exported="false"
             android:windowSoftInputMode="adjustPan" />
         <activity
+            android:name=".activities.EarningsHonourActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.BankUpdateActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

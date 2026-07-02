@@ -898,6 +898,20 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getCallEarnings(
+        userId: Int,
+        callId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.CallEarningsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<com.gmwapp.hima.retrofit.responses.CallEarningsResponse> =
+                getApiInterface().getCallEarnings(userId, callId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getFreeCoinsStatus(
         userId: Int,
         callback: NetworkCallback<FreeCoinsStatusResponse>
@@ -2780,6 +2794,13 @@ interface ApiInterface {
     fun getIcebreakerQuestions(
         @Field("user_id") userId: Int
     ): Call<IcebreakerQuestionsResponse>
+
+    @FormUrlEncoded
+    @POST("get_call_earnings")
+    fun getCallEarnings(
+        @Field("user_id") userId: Int,
+        @Field("call_id") callId: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.CallEarningsResponse>
 
     @FormUrlEncoded
     @POST("free_coins_status")

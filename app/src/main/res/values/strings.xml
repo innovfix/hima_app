@@ -686,8 +686,28 @@
     <!-- F1 Call Duration Bonus -->
     <string name="bonus_intro_text">Bonuses coming up — stay longer to earn more</string>
     <string name="bonus_payout_title">Bonus unlocked!</string>
-    <string name="bonus_payout_caption">Added to your earnings</string>
+    <!-- Provisional wording: the in-call popup is a nudge, not a receipt. The real,
+         server-credited amount is shown on the post-call earnings screen (B1). -->
+    <string name="bonus_payout_caption">Added at call end</string>
     <!-- %1$d = whole minutes left, %2$s = formatted rupee amount e.g. ₹18 -->
     <string name="bonus_teaser_text">Stay %1$d more min to earn +%2$s</string>
     <string name="bonus_payout_amount">+%1$s</string>
+
+    <!-- Post-call earnings honour screen (B1). All amounts come from the server. -->
+    <string name="earnings_eyebrow">Your reward for today</string>
+    <string name="earnings_thanks">Thank you, %1$s.</string>
+    <string name="earnings_call_label">Call</string>
+    <string name="earnings_bonus_label">Bonus</string>
+    <string name="earnings_wallet_label">Wallet</string>
+    <string name="earnings_verified">verified &amp; credited to your wallet</string>
+    <string name="earnings_finalizing">finalizing your earnings…</string>
+    <string name="earnings_continue">CONTINUE</string>
+    <string-array name="earnings_sentiments">
+        <item>Every minute you gave truly mattered.</item>
+        <item>You made a real connection today.</item>
+        <item>Your warmth stayed with someone.</item>
+        <item>Moments like these are a gift.</item>
+        <item>Kindness like yours is rare.</item>
+        <item>Someone felt truly heard today.</item>
+    </string-array>
 </resources>
