@@ -373,9 +373,14 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
 
         // Fall back to previously-seen metadata if this follow-up push omits name/image.
         val (storedName, storedImage) = ChatNotificationStore.getMeta(context, peerId)
-        val peerName = firstNonEmpty(
-            data, "user_name", "sender_name", "name", "username", "title"
-        ) ?: event.notification.title?.trim()?.takeIf { it.isNotEmpty() } ?: storedName
+        // Prefer structured name fields. The notification title is only a last
+        // resort AND must be sanitised: it is the full "<name> sent you a message"
+        // headline, so feeding it raw poisoned the chat header + profile with the
+        // whole sentence. sanitizePeerName() recovers the leading username.
+        val peerName = com.gmwapp.hima.utils.PeerNameUtils.sanitizePeerName(
+            firstNonEmpty(data, "user_name", "sender_name", "name", "username")
+                ?: event.notification.title
+        ).ifBlank { storedName }
         val peerImage = firstNonEmpty(
             data, "user_image", "image", "image_url", "profile_image", "sender_image", "avatar"
         ) ?: storedImage.orEmpty()

@@ -970,10 +970,15 @@ class BaseApplication : Application(), Configuration.Provider {
                     if (type == "message") {
                         val peerUserId = parseMessageNotificationPeerUserId(data)
                         if (peerUserId > 0) {
-                            val displayName = parseMessageNotificationOptionalString(
-                                data,
-                                "user_name", "sender_name", "name", "username", "title"
-                            ) ?: "User"
+                            // "title" is the full "<name> sent you a message" headline, so
+                            // sanitise whatever we resolve to recover just the username —
+                            // otherwise the sentence leaks into the chat header + profile.
+                            val displayName = com.gmwapp.hima.utils.PeerNameUtils.sanitizePeerName(
+                                parseMessageNotificationOptionalString(
+                                    data,
+                                    "user_name", "sender_name", "name", "username", "title"
+                                )
+                            ).ifBlank { "User" }
                             val imageUrl = parseMessageNotificationOptionalString(
                                 data,
                                 "user_image", "image", "image_url", "profile_image", "sender_image", "avatar"

@@ -1618,7 +1618,11 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun openUserProfile() {
         val intent = Intent(this, UserProfileDetailActivity::class.java).apply {
             putExtra(DConstants.USER_ID, peerUserId)
-            putExtra("USER_NAME", intent.getStringExtra("USER_NAME") ?: "User")
+            // Use the resolved header name (structured/API/store), NOT the raw intent
+            // extra — on the notification-tap path that extra can be the poisoned
+            // "<name> sent you a message" title, which would carry into the profile.
+            putExtra("USER_NAME", peerName.takeIf { it.isNotBlank() && it != "User" }
+                ?: intent.getStringExtra("USER_NAME") ?: "User")
             putExtra("USER_IMAGE", intent.getStringExtra("USER_IMAGE") ?: "")
             putExtra("USER_LANGUAGE", intent.getStringExtra("USER_LANGUAGE") ?: "")
             putExtra("USER_INTERESTS", intent.getStringExtra("USER_INTERESTS") ?: "")
@@ -5113,7 +5117,7 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun extractNameOnly(username: String): String {
         if (username.isEmpty()) return username
-        return username.replace(Regex("\\d{6,}$"), "").trim()
+        return com.gmwapp.hima.utils.PeerNameUtils.sanitizePeerName(username)
     }
 
     private fun isSubscriptionActive(): Boolean =

@@ -125,7 +125,7 @@ class FriendsAdapter(
          */
         private fun extractNameOnly(username: String): String {
             if (username.isEmpty()) return username
-            return username.replace(Regex("\\d{6,}$"), "").trim()
+            return com.gmwapp.hima.utils.PeerNameUtils.sanitizePeerName(username)
         }
     }
 }
