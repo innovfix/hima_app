@@ -129,6 +129,41 @@ object HimaAnalytics {
     }
 
     // -----------------------------------------------------------------
+    // Hindi registration completed (CMO request, F4)
+    // -----------------------------------------------------------------
+    /**
+     * Fired when a user COMPLETES registration having selected Hindi.
+     * Fires ALONGSIDE the standard all-users signup events (MMP trackSignup,
+     * Meta COMPLETED_REGISTRATION, Firebase SIGN_UP) — it never replaces them.
+     * Covers both male & female; `gender` lets marketing split the two.
+     * Mirrored to BOTH Meta and Firebase per the always-mirror policy above.
+     *
+     * @param userId the newly-registered UserData.id
+     * @param gender "Male" / "Female" (empty string if unknown)
+     */
+    fun logHindiRegistration(ctx: Context, userId: String, gender: String) {
+        try {
+            val params = Bundle().apply {
+                putString("user_id", userId)
+                putString("gender", gender)
+                putString("language", "Hindi")
+            }
+            AppEventsLogger.newLogger(ctx).logEvent("hindi_registration_completed", params)
+
+            val fbBundle = Bundle().apply {
+                putString("user_id", userId)
+                putString("gender", gender)
+                putString("language", "Hindi")
+            }
+            BaseApplication.firebaseAnalytics.logEvent("hindi_registration_completed", fbBundle)
+
+            Log.d(TAG, "hindi_registration_completed fired: userId=$userId gender=$gender")
+        } catch (t: Throwable) {
+            Log.w(TAG, "logHindiRegistration failed: ${t.message}")
+        }
+    }
+
+    // -----------------------------------------------------------------
     // 6. Subscribe — fires on autopay subscription activation
     // -----------------------------------------------------------------
     fun logSubscribe(ctx: Context, planId: String, value: Double = 0.0, currency: String = "INR") {

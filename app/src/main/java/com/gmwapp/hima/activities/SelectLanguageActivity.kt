@@ -124,19 +124,26 @@ class SelectLanguageActivity : BaseActivity() {
                 // Fires ALONGSIDE the all-users signup events above (MMP trackSignup
                 // + Meta COMPLETED_REGISTRATION + Firebase SIGN_UP) — it never
                 // replaces them. Covers BOTH male & female Hindi signups; `gender`
-                // lets marketing split male vs female in the Firebase dashboard.
+                // lets marketing split male vs female. Routed through HimaAnalytics
+                // so it mirrors to BOTH Meta AND Firebase (always-mirror policy),
+                // consistent with every other event. Plus a backend log for parity
+                // with the sign_up event above.
                 // selectedLanguage holds R.string.hindi == "Hindi" (see strings.xml).
                 if (selectedLanguage.equals("Hindi", ignoreCase = true)) {
+                    com.gmwapp.hima.utils.HimaAnalytics.logHindiRegistration(
+                        ctx = this,
+                        userId = "${it.data.id}",
+                        gender = it.data.gender ?: ""
+                    )
                     val hindiBundle = Bundle().apply {
                         putString("user_id", "${it.data.id}")
                         putString("gender", it.data.gender ?: "")
                         putString("language", "Hindi")
                     }
-                    BaseApplication.firebaseAnalytics.logEvent("hindi_registration_completed", hindiBundle)
                     AppEventLogger.logEvent(
                         context = this,
                         eventName = "hindi_registration_completed",
-                        platform = "firebase",
+                        platform = "firebase_meta",
                         userId = it.data.id,
                         params = AppEventLogger.bundleToMap(hindiBundle)
                     )
