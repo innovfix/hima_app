@@ -120,6 +120,28 @@ class SelectLanguageActivity : BaseActivity() {
                     params = AppEventLogger.bundleToMap(bundle)
                 )
 
+                // ── Additional Hindi-only registration event (CMO request, F4). ──
+                // Fires ALONGSIDE the all-users signup events above (MMP trackSignup
+                // + Meta COMPLETED_REGISTRATION + Firebase SIGN_UP) — it never
+                // replaces them. Covers BOTH male & female Hindi signups; `gender`
+                // lets marketing split male vs female in the Firebase dashboard.
+                // selectedLanguage holds R.string.hindi == "Hindi" (see strings.xml).
+                if (selectedLanguage.equals("Hindi", ignoreCase = true)) {
+                    val hindiBundle = Bundle().apply {
+                        putString("user_id", "${it.data.id}")
+                        putString("gender", it.data.gender ?: "")
+                        putString("language", "Hindi")
+                    }
+                    BaseApplication.firebaseAnalytics.logEvent("hindi_registration_completed", hindiBundle)
+                    AppEventLogger.logEvent(
+                        context = this,
+                        eventName = "hindi_registration_completed",
+                        platform = "firebase",
+                        userId = it.data.id,
+                        params = AppEventLogger.bundleToMap(hindiBundle)
+                    )
+                }
+
                 if (it.data.gender == DConstants.MALE) {
                     // Male-only routing: hit /language_config to decide
                     // AI onboarding vs autopay/skip-to-home (mutually
