@@ -420,10 +420,11 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             fetchReceiverImage(receiverId)
         }
 
-        Glide.with(this)
-            .load(R.drawable.double_arrow_svg)
-            .into(binding.ivDoubleArrow)
-            
+        // Do NOT overwrite iv_double_arrow with the static double_arrow_svg — the
+        // layout already sets @drawable/double_arrow_anim (an animated drawable) which
+        // startSimpleAnimations() starts via Animatable.start(). Glide-loading the
+        // static svg here froze the 3 arrows on the creator→male screen while the
+        // male→creator screen animated (male side already dropped this same load).
         startSimpleAnimations()
         
         // Cancel button click
