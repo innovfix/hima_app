@@ -677,30 +677,39 @@ class ChatActivityInHouse : AppCompatActivity() {
                 inputContainer.paddingRight, baseInputBottomPad + maxOf(bars.bottom, ime.bottom)
             )
         }
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            // DISPATCH_MODE_STOP defers this resting pass until the keyboard
-            // animation ends, so it only sets the final settled state; the
-            // per-frame lift is driven by the animation callback below.
-            applyInsetPadding(insets)
-            insets
-        }
-        // WhatsApp-style glide: track the keyboard frame-by-frame while it animates
-        // in/out instead of snapping to the final height in one jump.
-        androidx.core.view.ViewCompat.setWindowInsetsAnimationCallback(
-            root,
-            object : androidx.core.view.WindowInsetsAnimationCompat.Callback(
-                androidx.core.view.WindowInsetsAnimationCompat.Callback.DISPATCH_MODE_STOP
-            ) {
-                override fun onProgress(
-                    insets: androidx.core.view.WindowInsetsCompat,
-                    runningAnimations: MutableList<androidx.core.view.WindowInsetsAnimationCompat>
-                ): androidx.core.view.WindowInsetsCompat {
-                    applyInsetPadding(insets)
-                    return insets
-                }
+        // API<30 (Android 10 and below) never reports the ime() inset, and
+        // installing the WindowInsetsAnimationCompat callback there hijacks the
+        // window's inset flow so the legacy adjustResize stops shrinking for the
+        // keyboard — leaving the composer stranded UNDER it (waterdrop-notch
+        // budget phones on Android 10/11). So only run the manual lift on
+        // API 30+, where ime() insets are real; below that we leave the window
+        // alone and let the manifest's adjustResize do its native job.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+                // DISPATCH_MODE_STOP defers this resting pass until the keyboard
+                // animation ends, so it only sets the final settled state; the
+                // per-frame lift is driven by the animation callback below.
+                applyInsetPadding(insets)
+                insets
             }
-        )
-        androidx.core.view.ViewCompat.requestApplyInsets(root)
+            // WhatsApp-style glide: track the keyboard frame-by-frame while it animates
+            // in/out instead of snapping to the final height in one jump.
+            androidx.core.view.ViewCompat.setWindowInsetsAnimationCallback(
+                root,
+                object : androidx.core.view.WindowInsetsAnimationCompat.Callback(
+                    androidx.core.view.WindowInsetsAnimationCompat.Callback.DISPATCH_MODE_STOP
+                ) {
+                    override fun onProgress(
+                        insets: androidx.core.view.WindowInsetsCompat,
+                        runningAnimations: MutableList<androidx.core.view.WindowInsetsAnimationCompat>
+                    ): androidx.core.view.WindowInsetsCompat {
+                        applyInsetPadding(insets)
+                        return insets
+                    }
+                }
+            )
+            androidx.core.view.ViewCompat.requestApplyInsets(root)
+        }
 
         bannerAddFriend = findViewById(R.id.banner_add_friend)
         tvBannerAddFriendTitle = findViewById(R.id.tv_banner_add_friend_title)
