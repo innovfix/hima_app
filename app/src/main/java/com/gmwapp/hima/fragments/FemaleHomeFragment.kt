@@ -1039,6 +1039,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             }
             pendingAudioStatus = if (isChecked) 1 else 0
             if (isChecked) promptPostNotificationsIfNeededForCalls()
+            if (isChecked) disableDndIfActiveForAvailability()
             // B151 — coalesce rapid taps. Each new tap cancels the pending
             // launch; only the final state in a tap burst hits the server.
             audioToggleDebounceJob?.cancel()
@@ -1064,6 +1065,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             }
             pendingVideoStatus = if (isChecked) 1 else 0
             if (isChecked) promptPostNotificationsIfNeededForCalls()
+            if (isChecked) disableDndIfActiveForAvailability()
             // B151 — debounced for the same reason as the audio toggle above.
             videoToggleDebounceJob?.cancel()
             videoToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -1075,6 +1077,51 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 )
             }
         }
+    }
+
+    /**
+     * When the creator turns an availability toggle (audio/video) back ON while
+     * Do Not Disturb is still active, DND would keep silently black-holing every
+     * incoming call — she'd look online but males still couldn't reach her.
+     * Availability and DND are mutually exclusive, so auto-clear DND and tell her.
+     * No-op when DND isn't active (the common case), so a normal toggle stays silent.
+     *
+     * DND is purely CLIENT-SIDE suppression ([BaseApplication.isDndActiveStatic]
+     * reads the local prefs copy), so clearing the local flag is what actually
+     * unblocks calls — do that optimistically, then best-effort sync the server
+     * (toggle_dnd is 404 on prod; the local clear stands regardless).
+     */
+    private fun disableDndIfActiveForAvailability() {
+        val user = getInstance()?.getPrefs()?.getUserData() ?: return
+        if (!BaseApplication.isDndActiveStatic(user)) return
+        getInstance()?.getPrefs()?.setUserData(user.copy(dnd_enabled = 0, dnd_until = null))
+        Toast.makeText(
+            requireContext(),
+            getString(R.string.dnd_auto_off_for_availability),
+            Toast.LENGTH_LONG
+        ).show()
+        profileViewModel.toggleDnd(
+            user.id, 0, 0,
+            object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.ToggleDndResponse> {
+                override fun onResponse(
+                    call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>,
+                    response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>
+                ) {
+                    Log.d("FemaleHomeFragment", "DND auto-off resp http=${response.code()} success=${response.body()?.success}")
+                }
+
+                override fun onFailure(
+                    call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>,
+                    t: Throwable
+                ) {
+                    Log.w("FemaleHomeFragment", "DND auto-off server sync failed (local clear stands): ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    Log.w("FemaleHomeFragment", "DND auto-off server sync skipped, no network (local clear stands)")
+                }
+            }
+        )
     }
 
     fun updateEarnings(){
