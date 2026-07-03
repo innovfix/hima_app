@@ -52,6 +52,10 @@ import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
+import com.gmwapp.hima.retrofit.responses.CallStatusRequest
+import com.gmwapp.hima.retrofit.responses.CallStatusResponse
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.utils.MaleNotificationFcmGate
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -315,6 +319,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             // doesn't resurface as a ghost incoming screen after the current
                             // call ends — even if that call lasts 20+ minutes.
                             if (callIdInt > 0) BaseApplication.getInstance()?.markCallBusyRejected(callIdInt)
+                            // CONCURRENT_REJECT_STAMP_2026_07_03 — also close this call's DB row
+                            // now. Auto-rejecting a concurrent caller only sends a "userBusy"
+                            // push (no call_id), so without this the row dangles NULL/NULL/NULL
+                            // until the cleanup cron. Stamp it not_answered/receiver via the
+                            // authenticated call_status endpoint (idempotent PK write).
+                            stampConcurrentBusyReject(userData?.id, senderId, callIdInt)
                         } else {
                             Log.d(
                                 "FCM",
@@ -1472,6 +1482,52 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     }
                 }
             )
+        }
+    }
+
+    /**
+     * CONCURRENT_REJECT_STAMP_2026_07_03 — record the end_reason for a concurrent
+     * call the single-call guard just auto-rejected, so its user_calls row is
+     * closed immediately instead of dangling NULL/NULL/NULL until the cleanup
+     * cron. Reuses the authenticated call_status endpoint (idempotent, primary-key
+     * write — index-safe). Receiver-initiated (we're the busy party), reason
+     * not_answered so it stays in the caller/receiver "Missed" bucket (never the
+     * Rejected tab) and fires the standard deduped missed-call push. Fully
+     * fire-and-forget: any failure just defers to the cron backstop and can never
+     * touch the live ring of the FIRST call.
+     */
+    private fun stampConcurrentBusyReject(receiverId: Int?, callerId: Int?, callId: Int) {
+        if (receiverId == null || receiverId <= 0 || callerId == null || callerId <= 0 || callId <= 0) return
+        runCatching {
+            // lateinit callStatusRepository is Hilt-injected in Application.onCreate,
+            // so it's ready by the time any FCM arrives; guard anyway so a cold-start
+            // race can never throw into the incoming-call handler.
+            val repo = (applicationContext as? BaseApplication)?.callStatusRepository ?: return@runCatching
+            val request = CallStatusRequest(
+                userId = receiverId,
+                receivedUserId = callerId,
+                callId = callId,
+                endReason = CallEndReason.NOT_ANSWERED,
+                endedBy = CallEndedBy.RECEIVER,
+                endedByUserId = receiverId,
+                durationSeconds = 0,
+            )
+            repo.callStatus(request, object : NetworkCallback<CallStatusResponse> {
+                override fun onResponse(
+                    call: retrofit2.Call<CallStatusResponse>,
+                    response: retrofit2.Response<CallStatusResponse>
+                ) {
+                    Log.d("CallStatus", "Concurrent-busy reject stamped callId=$callId body=${response.body()}")
+                }
+
+                override fun onFailure(call: retrofit2.Call<CallStatusResponse>, t: Throwable) {
+                    Log.w("CallStatus", "Concurrent-busy reject stamp failed callId=$callId: ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    Log.w("CallStatus", "Concurrent-busy reject stamp — no network callId=$callId")
+                }
+            })
         }
     }
 
