@@ -1613,6 +1613,19 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     onPayout = { tier -> com.gmwapp.hima.utils.CallBonusViews.showPayout(binding.bonusOverlay, tier) }
                 )
                 callBonusPresenter = if (presenter.configure(bonusCfg, "video")) presenter else null
+
+                // Video only: the self-preview (localCardView, ~190dp tall, top-right) sits where
+                // the top-anchored bonus pills would be. Drop the intro/teaser below it so the
+                // toast never overlaps her own preview. Audio has no preview → left as-is.
+                if (callBonusPresenter != null) {
+                    val topDp = (205 * resources.displayMetrics.density).toInt()
+                    listOf(binding.bonusOverlay.bonusIntro, binding.bonusOverlay.bonusTeaser).forEach { v ->
+                        (v.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { lp ->
+                            lp.topMargin = topDp
+                            v.layoutParams = lp
+                        }
+                    }
+                }
             }
 
             startCallingService()

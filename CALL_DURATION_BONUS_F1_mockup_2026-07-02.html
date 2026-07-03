@@ -113,6 +113,13 @@
   .scrim{position:absolute;inset:0;background:#00000040;z-index:37}
 
   .ph-wrap{position:relative}
+
+  /* VIDEO only: drop the intro/teaser BELOW the top-right self-preview so it
+     never collides with the PiP (preview spans ~top:34 to 138px). */
+  .phone.video .bonus-intro{top:150px}
+  .phone.video .teaser{top:150px}
+  /* marker showing the preview zone the toast must clear */
+  .pip.hl{outline:2px dashed #ff5fa2;outline-offset:2px}
 </style>
 </head>
 <body>
@@ -198,7 +205,7 @@
 
   <!-- teaser before 10 min -->
   <figure><div class="ph-wrap"><div class="phone video">
-    <div class="notch"></div><div class="remote"></div><div class="pip"></div>
+    <div class="notch"></div><div class="remote"></div><div class="pip hl"></div>
     <div class="topbar"><span class="sig"></span><span class="ctype">Video call</span></div>
     <div class="timer"><span class="clk"></span>00:09:00</div>
     <div class="teaser"><span class="ic">⏳</span><span class="tx">Stay 1 more min to earn <span class="amt">+₹18</span></span></div>
@@ -211,7 +218,7 @@
 
   <!-- payout at 10 min -->
   <figure><div class="ph-wrap"><div class="phone video">
-    <div class="notch"></div><div class="remote"></div><div class="pip"></div>
+    <div class="notch"></div><div class="remote"></div><div class="pip hl"></div>
     <div class="topbar"><span class="sig"></span><span class="ctype">Video call</span></div>
     <div class="timer"><span class="clk"></span>00:10:00</div>
     <div class="scrim"></div>
@@ -230,7 +237,7 @@
 
   <!-- intro on video for completeness -->
   <figure><div class="ph-wrap"><div class="phone video">
-    <div class="notch"></div><div class="remote"></div><div class="pip"></div>
+    <div class="notch"></div><div class="remote"></div><div class="pip hl"></div>
     <div class="topbar"><span class="sig"></span><span class="ctype">Video call</span></div>
     <div class="timer"><span class="clk"></span>00:00:10</div>
     <div class="bonus-intro"><span class="ic">🎁</span><span class="tx">Bonuses coming up — stay longer to earn more</span></div>
