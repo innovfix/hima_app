@@ -986,6 +986,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                         val settingsData = settingsList[0]
                         blockWords = settingsData.blockWords
                         Log.d("BlockWords", "$blockWords")
+                        // Persist fresh settings so all cached reads on this screen stay current.
+                        BaseApplication.getInstance()?.getPrefs()?.setSettingsData(settingsData)
                         // Fresh settings arrived — re-evaluate the icebreaker button so it
                         // appears even if the cache was stale when onCreate first ran.
                         setupIcebreakerIfFemale(settingsData)

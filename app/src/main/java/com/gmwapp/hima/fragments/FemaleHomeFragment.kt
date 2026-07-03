@@ -577,6 +577,9 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     Log.d("settinglist","$settingsList")
                     if (settingsList.isNotEmpty()) {
                         val settingsData = settingsList[0]
+                        // Persist the freshly-fetched settings so cached reads on the
+                        // call screens (icebreaker toggles, call_bonus) are never stale.
+                        BaseApplication.getInstance()?.getPrefs()?.setSettingsData(settingsData)
                         settingsData.auto_disable_info?.let { auto_disable_info ->
                             binding.tvDisclaimer.setText(auto_disable_info)
                         }
