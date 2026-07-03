@@ -1444,6 +1444,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         switchDialog?.dismiss()
         switchDialog = null
         BaseApplication.getInstance()?.markCallEnded()
+        // GHOST_CALL_TTL_2026_07_03 — the no-arg markCallEnded() above only flips
+        // isCallActive; stamp THIS call_id as ended too so the 5-min recently-ended
+        // window restarts from actual hang-up (not from answer). Without this, a
+        // call that ran >5 min lets its call_id expire mid-call, and a late/retried
+        // duplicate "incoming call" push for it could slip past wasCallRecentlyEnded
+        // and ghost-ring after the call ended. markCallEnded(id) no-ops when id<=0.
+        BaseApplication.getInstance()?.markCallEnded(call_Id)
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
