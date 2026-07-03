@@ -17,6 +17,8 @@ import android.view.LayoutInflater
 import android.view.Gravity
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewTreeObserver
+import android.graphics.Rect
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
@@ -338,13 +340,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 binding.bottomNavigationView.paddingRight,
                 systemBars.bottom
             )
-            // RM_010: with adjustResize the window shrinks when the soft keyboard opens, so the
-            // bottom-anchored nav rides UP and floats above the keyboard (e.g. Recent search).
-            // Hide it while the IME is visible; it returns the instant the keyboard closes.
-            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            binding.bottomNavigationView.visibility = if (imeVisible) View.GONE else View.VISIBLE
+            // RM_010/RM_010b: hiding the nav while the keyboard is open is handled by
+            // keyboardNavListener (a global-layout detector registered below) so it works
+            // identically on EVERY Android version. WindowInsets Type.ime() visibility is
+            // only reliable on API 30+, so relying on it here left the nav floating above
+            // the keyboard on Android 7–10 phones (e.g. POCO on Recent search).
             insets
         }
+        // RM_010b 2026-07-03 — version-agnostic keyboard detector for the bottom nav.
+        findViewById<View>(R.id.main)?.viewTreeObserver
+            ?.addOnGlobalLayoutListener(keyboardNavListener)
         
         // Double-check visibility after layout
         binding.bottomNavigationView.post {
@@ -1513,9 +1518,37 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     }
 
+    // RM_010b 2026-07-03 — universal keyboard detector. WindowInsets Type.ime()
+    // visibility is only reliably reported on API 30+, so on Android 7–10 the
+    // inset-based nav-hide never fired and the bottom nav floated above the
+    // keyboard (e.g. Recent search) on those phones — reported on a POCO device.
+    // getWindowVisibleDisplayFrame works on every version: if the gap between the
+    // full screen height and the visible bottom exceeds 15% of the screen, the
+    // keyboard is open → hide the nav; otherwise show it. Guarded + idempotent
+    // (only touches visibility on change) so the frequent layout passes stay cheap.
+    private val keyboardNavListener = ViewTreeObserver.OnGlobalLayoutListener {
+        runCatching {
+            if (!::binding.isInitialized) return@runCatching
+            val root = findViewById<View>(R.id.main) ?: return@runCatching
+            val visible = Rect()
+            root.getWindowVisibleDisplayFrame(visible)
+            val screenHeight = root.rootView.height
+            if (screenHeight <= 0) return@runCatching
+            val keyboardOpen = screenHeight - visible.bottom > screenHeight * 0.15
+            val target = if (keyboardOpen) View.GONE else View.VISIBLE
+            if (binding.bottomNavigationView.visibility != target) {
+                binding.bottomNavigationView.visibility = target
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         appUpdateManager.unregisterListener(listener)
+        runCatching {
+            findViewById<View>(R.id.main)?.viewTreeObserver
+                ?.removeOnGlobalLayoutListener(keyboardNavListener)
+        }
     }
 
 
