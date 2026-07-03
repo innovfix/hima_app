@@ -62,6 +62,66 @@ class MaleCallAcceptActivity : AppCompatActivity() {
     private var prefetchedAgoraToken: String? = null
     private var prefetchedAgoraAppId: String? = null
 
+    // ── TC-HMA-002 (male port): callee-side liveness poll ───────────────────
+    // 1:1 port of the mechanism already shipping on FemaleCallAcceptActivity —
+    // NOT a new implementation. When a CREATOR (female) initiates and cancels,
+    // this MALE ring banner is the receiver, and the caller's cancel reaches it
+    // only via a best-effort FCM "callDeclined"/"callEnded" relay. When that push
+    // is dropped/delayed (Doze, battery optimization, stale token) the banner
+    // would ring forever — the exact ghost-ring seen only on creator-initiated
+    // calls, because a male-initiated call rings a FEMALE screen that already has
+    // this poll. While still RINGING (not yet accepted/declined), ping the
+    // authoritative server state every few seconds and tear the banner down the
+    // instant the backend reports the call ended. One PK lookup per tick (cheap);
+    // checkConnectingDead only fires on an ACTIVE end (end_reason set), so a
+    // legitimately-ringing call is never cut.
+    private val aliveHandler = Handler(Looper.getMainLooper())
+    private val aliveIntervalMs = 2500L
+    private var peerEndedHandled = false
+    private var terminalStarted = false // accept/decline tapped → stop self-heal
+    private val alivePollRunnable = object : Runnable {
+        override fun run() {
+            if (peerEndedHandled || terminalStarted || isFinishing || isDestroyed) return
+            // No usable call id → checkConnectingDead can't query; bail without rescheduling.
+            if (call_Id <= 0) return
+            com.gmwapp.hima.utils.CallAliveChecker.checkConnectingDead(call_Id) {
+                if (!peerEndedHandled && !terminalStarted && !isFinishing && !isDestroyed) {
+                    Log.d("CreatorCallDiag", "MAccept.alivePoll -> backend says call ended, dismissing ring banner callId=$call_Id")
+                    exitBecausePeerEnded()
+                }
+            }
+            aliveHandler.postDelayed(this, aliveIntervalMs)
+        }
+    }
+
+    private fun startAlivePolling() {
+        if (call_Id <= 0) return
+        // removeCallbacks before postDelayed makes this idempotent in both directions.
+        aliveHandler.removeCallbacks(alivePollRunnable)
+        aliveHandler.postDelayed(alivePollRunnable, aliveIntervalMs)
+    }
+
+    private fun stopAlivePolling() {
+        aliveHandler.removeCallbacks(alivePollRunnable)
+    }
+
+    /**
+     * The caller already ended the call server-side (cancel / not-answered) and we
+     * learned it from the liveness poll rather than the FCM relay. Tear the ring
+     * banner down the same way a dropped "callDeclined" push would — but do NOT post
+     * a "rejected" status (the caller already stamped the terminal state). Idempotent.
+     */
+    private fun exitBecausePeerEnded() {
+        if (peerEndedHandled || terminalStarted) return
+        peerEndedHandled = true
+        stopAlivePolling()
+        try { HimaTelecomManager.endActiveCall(DisconnectCause.REMOTE) } catch (_: Throwable) {}
+        BaseApplication.getInstance()?.stopRingtone()
+        BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+        BaseApplication.getInstance()?.clearIncomingCall()
+        finish()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // B024: this activity is the call UI; any system heads-up banner is
@@ -206,7 +266,14 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
         Log.d("MaleCallAccept_CallID","$call_Id")
 
+        // TC-HMA-002 (male port): start the callee-side liveness poll now that the
+        // ring banner is up, so a dropped/delayed caller-cancel push can't leave it
+        // ringing forever. Stopped on accept/decline and in onDestroy.
+        startAlivePolling()
+
         binding.accpet.setOnClickListener {
+            terminalStarted = true      // user is answering — stop the self-heal poll
+            stopAlivePolling()
             if (receiverId != -1 && CallChannel.isJoinable(channelName) && !callType.isNullOrEmpty()) {
                 // Check if male has enough coins (minimum 10 coins required)
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
@@ -306,6 +373,8 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         }
 
         binding.reject.setOnClickListener {
+            terminalStarted = true      // user is declining — stop the self-heal poll
+            stopAlivePolling()
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
                 // Call reject count API
                 userId?.let { maleUserId ->
@@ -578,6 +647,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopAlivePolling() // TC-HMA-002 (male port): never leak the ring poll past teardown
         // Stop animations
         try {
             binding.pulseRingOuter.clearAnimation()
