@@ -811,14 +811,16 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     // Icebreaker: female-only hint button during a call, gated by admin toggles
     // (master + video) delivered via cached settings. On tap, fetch 5 rotating
     // questions from the server and show them in the dialog.
-    private fun setupIcebreakerIfFemale() {
+    private fun setupIcebreakerIfFemale(
+        settings: com.gmwapp.hima.retrofit.responses.SettingsResponseData? =
+            BaseApplication.getInstance()?.getPrefs()?.getSettingsData()
+    ) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         if (!userData.gender.equals("female", ignoreCase = true)) {
             icebreakerActive = false
             binding.icebreakerHintButton.visibility = View.GONE
             return
         }
-        val settings = BaseApplication.getInstance()?.getPrefs()?.getSettingsData()
         val enabled = (settings?.icebreaker_enabled ?: 0) == 1 &&
             (settings?.icebreaker_video_enabled ?: 1) == 1
         if (!enabled) {
@@ -984,6 +986,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                         val settingsData = settingsList[0]
                         blockWords = settingsData.blockWords
                         Log.d("BlockWords", "$blockWords")
+                        // Fresh settings arrived — re-evaluate the icebreaker button so it
+                        // appears even if the cache was stale when onCreate first ran.
+                        setupIcebreakerIfFemale(settingsData)
                     }
                 }
             }
