@@ -654,6 +654,19 @@ class ChatActivityInHouse : AppCompatActivity() {
         val inputContainer = findViewById<View>(R.id.message_input_container)
         val baseTopPad = topBarContent.paddingTop
         val baseInputBottomPad = inputContainer.paddingBottom
+        // Bottom-pinned lock bars that REPLACE the input row when the chat is
+        // gated (never-subscribed subscribe CTA, autopay-failed lock, friends
+        // gate). Like the composer they sit on constraintBottom_toBottomOf=parent,
+        // but they weren't getting the nav-bar inset — so on 3-button-nav phones
+        // the system bar covered the "Subscribe to unlock…" pill. Pad each by the
+        // nav gap too (no IME here — these bars have no text field). Views are GONE
+        // by default; padding is harmless until they're shown.
+        val bottomLockBars = listOf(
+            R.id.subscribe_lock_container,
+            R.id.autopay_failed_lock_container,
+            R.id.friendship_lock_container
+        ).mapNotNull { findViewById<View>(it) }
+        val baseLockBottomPads = bottomLockBars.associateWith { it.paddingBottom }
         // Single source of truth for the bar/keyboard padding. Reused by both the
         // resting inset pass and the per-frame keyboard-animation callback so the
         // composer lift stays identical whether the keyboard is settled or mid-slide.
@@ -676,6 +689,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 inputContainer.paddingLeft, inputContainer.paddingTop,
                 inputContainer.paddingRight, baseInputBottomPad + maxOf(bars.bottom, ime.bottom)
             )
+            bottomLockBars.forEach { bar ->
+                val basePad = baseLockBottomPads[bar] ?: bar.paddingBottom
+                bar.setPadding(bar.paddingLeft, bar.paddingTop, bar.paddingRight, basePad + bars.bottom)
+            }
         }
         // API<30 (Android 10 and below) never reports the ime() inset, and
         // installing the WindowInsetsAnimationCompat callback there hijacks the
