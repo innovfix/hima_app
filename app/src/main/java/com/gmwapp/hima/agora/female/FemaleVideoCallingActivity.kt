@@ -142,6 +142,44 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var callBonusPresenter: com.gmwapp.hima.utils.CallBonusPresenter? = null
     private var bonusInitDone = false
     private var bonusStartMillis: Long = 0L
+
+    /**
+     * F1 Call Duration Bonus — (re)anchor the on-screen popups to a single call leg of
+     * [callType], starting the milestone clock NOW. Called at first connect and again at
+     * each video↔audio switch, because the server bills every switch as a SEPARATE call
+     * row (its own type + its own started_time reset to the switch instant). Anchoring the
+     * popups the same way keeps them honest: no stale video amount lingers over an audio
+     * leg, and no payout flashes for a milestone the server won't credit.
+     * Display only — never credits money. [showIntro]=false suppresses the T+10s intro on
+     * the switched leg (it already played on the first leg).
+     */
+    private fun anchorBonusForLeg(callType: String, showIntro: Boolean) = runOnUiThread {
+        // View work must run on the UI thread: the initial call comes from Agora's
+        // onUserJoined (worker thread); the switch calls are already on the UI thread
+        // (runOnUiThread executes inline there, preserving order).
+        bonusStartMillis = System.currentTimeMillis()
+        com.gmwapp.hima.utils.CallBonusViews.clear(binding.bonusOverlay) // drop any in-flight popup from the old leg
+        val bonusCfg = BaseApplication.getInstance()?.getPrefs()?.getSettingsData()?.call_bonus
+        val lead = bonusCfg?.teaser_lead_seconds ?: 60
+        val presenter = com.gmwapp.hima.utils.CallBonusPresenter(
+            onIntro = { com.gmwapp.hima.utils.CallBonusViews.showIntro(binding.bonusOverlay) },
+            onTeaser = { tier -> com.gmwapp.hima.utils.CallBonusViews.showTeaser(binding.bonusOverlay, tier, lead) },
+            onPayout = { tier -> com.gmwapp.hima.utils.CallBonusViews.showPayout(binding.bonusOverlay, tier) }
+        )
+        callBonusPresenter = if (presenter.configure(bonusCfg, callType)) {
+            if (!showIntro) presenter.skipIntro()
+            // Video leg shows the self-preview (top-right) — drop the intro/teaser below it so the
+            // toast never overlaps her own preview. Audio leg has no preview → reset to top.
+            val topDp = if (callType == "video") (205 * resources.displayMetrics.density).toInt() else 0
+            listOf(binding.bonusOverlay.bonusIntro, binding.bonusOverlay.bonusTeaser).forEach { v ->
+                (v.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { lp ->
+                    lp.topMargin = topDp
+                    v.layoutParams = lp
+                }
+            }
+            presenter
+        } else null
+    }
     private var isMuted = false
     private var isSpeakerOn = true
 
@@ -1604,28 +1642,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             // so reconnect doesn't replay the intro). Display only; server credits money.
             if (!bonusInitDone) {
                 bonusInitDone = true
-                bonusStartMillis = System.currentTimeMillis()
-                val bonusCfg = BaseApplication.getInstance()?.getPrefs()?.getSettingsData()?.call_bonus
-                val lead = bonusCfg?.teaser_lead_seconds ?: 60
-                val presenter = com.gmwapp.hima.utils.CallBonusPresenter(
-                    onIntro = { com.gmwapp.hima.utils.CallBonusViews.showIntro(binding.bonusOverlay) },
-                    onTeaser = { tier -> com.gmwapp.hima.utils.CallBonusViews.showTeaser(binding.bonusOverlay, tier, lead) },
-                    onPayout = { tier -> com.gmwapp.hima.utils.CallBonusViews.showPayout(binding.bonusOverlay, tier) }
-                )
-                callBonusPresenter = if (presenter.configure(bonusCfg, "video")) presenter else null
-
-                // Video only: the self-preview (localCardView, ~190dp tall, top-right) sits where
-                // the top-anchored bonus pills would be. Drop the intro/teaser below it so the
-                // toast never overlaps her own preview. Audio has no preview → left as-is.
-                if (callBonusPresenter != null) {
-                    val topDp = (205 * resources.displayMetrics.density).toInt()
-                    listOf(binding.bonusOverlay.bonusIntro, binding.bonusOverlay.bonusTeaser).forEach { v ->
-                        (v.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { lp ->
-                            lp.topMargin = topDp
-                            v.layoutParams = lp
-                        }
-                    }
-                }
+                anchorBonusForLeg("video", showIntro = true)
             }
 
             startCallingService()
@@ -3589,6 +3606,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
+            // F1 — switched back to a NEW video leg (server bills it as a separate video row
+            // clocked from here). Re-anchor the popups to the video tiers + fresh clock.
+            anchorBonusForLeg("video", showIntro = false)
+
             binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
 
             femaleUsersViewModel.femaleCallAttend(receiverId,
@@ -3704,6 +3725,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
+
+            // F1 — this is a NEW audio leg: the server bills it as a separate row against the
+            // AUDIO tiers, clocked from this same instant. Re-anchor the popups to match
+            // (fresh clock + audio tier table, no intro replay) so they stop showing stale
+            // video amounts and never flash a payout the server won't credit.
+            anchorBonusForLeg("audio", showIntro = false)
 
             femaleUsersViewModel.femaleCallAttend(receiverId,
                 switchCallID,

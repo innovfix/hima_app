@@ -58,6 +58,15 @@ class CallBonusPresenter(
         return true
     }
 
+    /**
+     * Suppress the T+10s intro toast for this leg. Used when re-anchoring after an
+     * audio↔video switch — the intro already played on the first leg, so replaying
+     * it on the new leg would just be noise. Teasers/payouts still fire normally.
+     */
+    fun skipIntro() {
+        introShown = true
+    }
+
     /** Call once per second with elapsed seconds since the peer joined (T+0). */
     fun onTick(elapsedSeconds: Long) {
         if (!enabled) return
