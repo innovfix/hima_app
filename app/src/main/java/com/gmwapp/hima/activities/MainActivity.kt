@@ -1823,29 +1823,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
         })
 
-        apiManager.getMyChatGeneral(userData.id, null, 100, 0, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
-            override fun onResponse(
-                call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>,
-                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
-            ) {
-                chatGeneralUnread = if (response.isSuccessful && response.body()?.success == true) {
-                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
-                } else {
-                    0
-                }
-                updateChatBadge()
-            }
-
-            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
-                chatGeneralUnread = 0
-                updateChatBadge()
-            }
-
-            override fun onNoNetwork() {
-                chatGeneralUnread = 0
-                updateChatBadge()
-            }
-        })
+        // NOTE: the `my_chat/general` bucket is deliberately NOT counted here.
+        // The female Chats screen only shows Friends / Requests / Sent tabs —
+        // there is no "General" tab (TYPE_CHAT_GENERAL is never instantiated), so
+        // any unread in the general bucket is invisible and un-openable. Counting
+        // it made the home badge read higher (e.g. 5) than what she sees the moment
+        // she opens Chats (e.g. 1), which CreatorChatFragment computes without it.
+        // Keep both paths honest: badge = friends unread + received friend-requests.
+        chatGeneralUnread = 0
 
         // Pending received friend-requests also surface on the Chat icon — from any tab,
         // not only while the Chat fragment is in front.
@@ -1884,8 +1869,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             hideBadge(chatUnreadDotTag)
             return
         }
-        // Chat icon badge = unread messages + pending received friend-requests.
-        val total = (chatFriendsUnread.coerceAtLeast(0) + chatGeneralUnread.coerceAtLeast(0) + chatRequestsUnread.coerceAtLeast(0))
+        // Chat icon badge = friends-chat unread + pending received friend-requests.
+        // The general bucket is intentionally excluded — it has no tab in the female
+        // Chats UI, so counting it would over-report vs. what she can actually open.
+        val total = (chatFriendsUnread.coerceAtLeast(0) + chatRequestsUnread.coerceAtLeast(0))
 
         binding.bottomNavigationView.removeBadge(R.id.chat)
 
