@@ -493,7 +493,8 @@
             android:layout_height="26dp"
             android:layout_gravity="center"
             android:indeterminate="true"
-            android:visibility="gone" android:indeterminateDrawable="@drawable/heart_loader_white" />
+            android:indeterminateTint="@color/white"
+            android:visibility="gone" />
     </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

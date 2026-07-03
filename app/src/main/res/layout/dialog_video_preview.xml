@@ -55,7 +55,8 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="center"
-            android:visibility="visible" android:indeterminateDrawable="@drawable/heart_loader" />
+            android:indeterminateTint="@color/colorAccent"
+            android:visibility="visible" />
     </FrameLayout>
 
     <!-- Controls -->

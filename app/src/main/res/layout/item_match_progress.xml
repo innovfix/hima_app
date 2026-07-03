@@ -68,7 +68,8 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_gravity="center"
-                android:indeterminate="true" android:indeterminateDrawable="@drawable/heart_loader" />
+                android:indeterminate="true"
+                android:indeterminateTint="@color/colorAccent" />
 
             <ImageView
                 android:id="@+id/iv_progress_check"

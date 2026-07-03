@@ -111,7 +111,8 @@
                 android:layout_gravity="center"
                 android:layout_marginTop="80dp"
                 android:indeterminate="true"
-                android:visibility="gone" android:indeterminateDrawable="@drawable/heart_loader" />
+                android:indeterminateTint="@color/colorAccent"
+                android:visibility="gone" />
 
             <!-- ===== CURRENT WARNING SUMMARY CARD (has-warning state) ===== -->
             <com.google.android.material.card.MaterialCardView

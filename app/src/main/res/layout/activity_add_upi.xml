@@ -249,7 +249,8 @@
                         <ProgressBar
                             android:layout_width="32dp"
                             android:layout_height="32dp"
-                            android:indeterminate="true" android:indeterminateDrawable="@drawable/heart_loader" />
+                            android:indeterminate="true"
+                            android:indeterminateTint="@color/pink" />
 
                         <TextView
                             android:layout_width="wrap_content"

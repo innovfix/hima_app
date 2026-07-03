@@ -203,7 +203,8 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
                                     android:indeterminate="true"
-                                    android:visibility="gone" android:indeterminateDrawable="@drawable/heart_loader" />
+                                    android:indeterminateTint="@color/colorAccent"
+                                    android:visibility="gone" />
 
                                 <ImageView
                                     android:id="@+id/iv_warning"
@@ -427,10 +428,11 @@
         android:layout_width="26dp"
         android:layout_height="26dp"
         android:indeterminate="true"
+        android:indeterminateTint="#FFFFFF"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@+id/btn_update"
         app:layout_constraintEnd_toEndOf="@+id/btn_update"
         app:layout_constraintStart_toStartOf="@+id/btn_update"
-        app:layout_constraintTop_toTopOf="@+id/btn_update" android:indeterminateDrawable="@drawable/heart_loader_white" />
+        app:layout_constraintTop_toTopOf="@+id/btn_update" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

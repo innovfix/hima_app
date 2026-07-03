@@ -479,7 +479,7 @@
                                 <ProgressBar
                                     android:layout_width="40dp"
                                     android:layout_height="40dp"
-                                    android:indeterminate="true" android:indeterminateDrawable="@drawable/heart_loader" />
+                                    android:indeterminate="true" />
 
                             </LinearLayout>
 

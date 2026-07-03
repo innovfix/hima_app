@@ -435,7 +435,8 @@
 
             <ProgressBar
                 android:layout_width="48dp"
-                android:layout_height="48dp" android:indeterminateDrawable="@drawable/heart_loader" />
+                android:layout_height="48dp"
+                android:indeterminateTint="@color/colorAccent" />
 
             <TextView
                 android:id="@+id/tv_loading_text"

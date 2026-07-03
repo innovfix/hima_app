@@ -91,7 +91,8 @@
                     android:layout_width="14dp"
                     android:layout_height="14dp"
                     android:layout_marginStart="6dp"
-                    android:visibility="gone" android:indeterminateDrawable="@drawable/heart_loader" />
+                    android:indeterminateTint="@color/chat_time_sent"
+                    android:visibility="gone" />
 
                 <ImageView
                     android:id="@+id/iv_send_delivery"
