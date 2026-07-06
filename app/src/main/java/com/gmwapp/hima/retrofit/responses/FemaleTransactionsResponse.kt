@@ -18,5 +18,6 @@ data class FemaleTransactionsResponseData(
     val title: String?, // Full string for audio/video sessions (e.g., "Audio session with username")
     val description: String?, // Additional description or duration info
     val started_time: String? = null, // FI_05: actual call start time (for call_income rows)
+    val bonus: Double? = null, // F1: duration bonus credited for this call (₹, 0/null if none) — shown inline as "+₹X"
 )
 

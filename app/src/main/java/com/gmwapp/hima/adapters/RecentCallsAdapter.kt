@@ -160,7 +160,22 @@ class RecentCallsAdapter(
             holder.binding.ivVideo.visibility = View.VISIBLE
             // Per-call earnings pill, centred under the call buttons.
             holder.binding.tvAmount.visibility = View.VISIBLE
-            holder.binding.tvAmount.text = activity.getString(R.string.rupee_text, call.income)
+            // F1: show the duration bonus inline in the same pill, e.g. "₹6 +₹3"
+            // (base green, bonus gold). No bonus → just the base amount.
+            val baseAmount = activity.getString(R.string.rupee_text, call.income)
+            val callBonus = call.bonus ?: 0
+            if (callBonus > 0) {
+                val bonusPart = "  +₹$callBonus"
+                val full = android.text.SpannableString(baseAmount + bonusPart)
+                full.setSpan(
+                    android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#C08A00")),
+                    baseAmount.length, full.length,
+                    android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                holder.binding.tvAmount.text = full
+            } else {
+                holder.binding.tvAmount.text = baseAmount
+            }
 
             // Female viewer calling back a male — audio_status / video_status
             // on the male peer is always 0 (no male UI to opt in, no seed in

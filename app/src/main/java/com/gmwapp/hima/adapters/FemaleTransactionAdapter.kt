@@ -35,6 +35,10 @@ class FemaleTransactionAdapter(
         holder.binding.ivTransactionIcon.visibility = android.view.View.VISIBLE
         holder.binding.cvIconBackground.visibility = android.view.View.VISIBLE
 
+        // F1: reset the inline duration-bonus each bind (recycled rows). Only call
+        // rows with a positive bonus turn it back on below.
+        holder.binding.tvBonus.visibility = android.view.View.GONE
+
         // Handle call_income type (should be mapped to audio/video by backend, but handle as fallback)
         val transactionType = when (transaction.type.lowercase()) {
             "call_income" -> {
@@ -79,6 +83,7 @@ class FemaleTransactionAdapter(
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_audio_expense)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
+                showBonusInline(holder, rupeeSymbol, transaction.bonus, ::formatDouble)
                 Log.d("femaleTrasactionLog", "onBindViewHolder: Set audio icon, amount=+₹$formattedCoins")
             }
             "video" -> {
@@ -93,6 +98,7 @@ class FemaleTransactionAdapter(
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_video_expense)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
+                showBonusInline(holder, rupeeSymbol, transaction.bonus, ::formatDouble)
                 Log.d("femaleTrasactionLog", "onBindViewHolder: Set video icon, amount=+₹$formattedCoins")
             }
             "referral" -> {
@@ -159,6 +165,15 @@ class FemaleTransactionAdapter(
     // the real call started_time (time-only), falling back to the transaction
     // datetime on older rows; duration is recovered from the description string
     // ("Jan 03 · 7 sec"). See DateTimeUtils.buildTxnSubtitle.
+    // F1: show the inline duration-bonus ("+₹X" gold) on a call row when it's > 0.
+    private fun showBonusInline(holder: ItemHolder, rupeeSymbol: String, bonus: Double?, fmt: (Double) -> String) {
+        val b = bonus ?: 0.0
+        if (b > 0.0) {
+            holder.binding.tvBonus.text = "+$rupeeSymbol${fmt(b)}"
+            holder.binding.tvBonus.visibility = android.view.View.VISIBLE
+        }
+    }
+
     private fun buildCallSubtitle(transaction: FemaleTransactionsResponseData): CharSequence {
         val durationPart = transaction.description?.let { desc ->
             if (desc.contains("·")) desc.substringAfter("·").trim().takeIf { it.isNotEmpty() }

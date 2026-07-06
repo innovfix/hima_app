@@ -113,12 +113,27 @@
             android:textStyle="bold"
             android:fontFamily="@font/poppins_bold"
             android:textColor="#EF4444"
-            android:minWidth="50dp"
             android:gravity="end"
             android:maxLines="1"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/tv_bonus"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- F1: inline duration-bonus for a call row, e.g. "+₹3" (gold). Gone unless bonus>0. -->
+        <TextView
+            android:id="@+id/tv_bonus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/poppins_bold"
+            android:textColor="#C08A00"
+            android:maxLines="1"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBaseline_toBaselineOf="@+id/tv_coins"
+            tools:text="+₹3" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

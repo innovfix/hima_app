@@ -17,6 +17,8 @@ data class CallsListResponseData(
     val started_time: String,
     val duration: String,
     val income: String,
+    // F1: duration bonus credited for this call (₹, 0/null if none) — shown inline as "+₹X".
+    val bonus: Int? = null,
     val audio_status: Int,
     val video_status: Int,
     val blocked: Int,
