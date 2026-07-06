@@ -631,12 +631,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 loop(android.animation.ObjectAnimator.ofFloat(v, "scaleY", 1.28f), durY + 1500)
                 loop(android.animation.ObjectAnimator.ofFloat(v, "alpha", 0.45f, 1f), durX)
             }
-            android.animation.ObjectAnimator.ofFloat(binding.peerGradientRing, "rotation", 0f, 360f).apply {
-                duration = 3400
-                repeatCount = android.animation.ObjectAnimator.INFINITE
-                interpolator = android.view.animation.LinearInterpolator()
-                start()
-            }
+            // Avatar rim is now a subtle static brand gradient (matched on both
+            // avatars), so no rotation — it sits calm behind the photo.
             driftGlow(binding.glowTl, 85f * d, 95f * d, 6200, 8000)
             driftGlow(binding.glowBr, -82f * d, -90f * d, 7000, 9200)
         }

@@ -387,6 +387,14 @@
                     android:visibility="gone"
                     android:background="@drawable/bg_team_circle" />
 
+                <!-- Subtle static brand rim — matches the male side. -->
+                <View
+                    android:id="@+id/female_gradient_ring"
+                    android:layout_width="112dp"
+                    android:layout_height="112dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_avatar_ring_brand" />
+
                 <androidx.cardview.widget.CardView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -480,6 +488,14 @@
                     android:layout_gravity="center"
                     android:visibility="gone"
                     android:background="@drawable/bg_team_circle" />
+
+                <!-- Subtle static brand rim — matches the male side. -->
+                <View
+                    android:id="@+id/male_gradient_ring"
+                    android:layout_width="112dp"
+                    android:layout_height="112dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_avatar_ring_brand" />
 
                 <androidx.cardview.widget.CardView
                     android:layout_width="wrap_content"
