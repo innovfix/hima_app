@@ -51,6 +51,17 @@ object DeletedChatsPrefsHelper {
         return upto > 0L && lastMessageMillis <= upto
     }
 
+    /**
+     * Removes the delete watermark for a single (owner, peer) pair so the conversation
+     * reappears in the chat list. Used on UNBLOCK: a block+deleted chat comes back into
+     * the list (empty — [ClearedChatsPrefsHelper] still hides the old messages).
+     */
+    fun clearForPeer(context: Context, ownerId: Int, peerId: Int) {
+        if (ownerId <= 0 || peerId <= 0) return
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().remove(keyFor(ownerId, peerId)).apply()
+    }
+
     /** Wipes only the watermarks belonging to [ownerId] (call on logout). */
     fun clearForUser(context: Context, ownerId: Int) {
         if (ownerId <= 0) return

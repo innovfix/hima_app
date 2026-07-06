@@ -374,6 +374,13 @@ class UserProfileDetailActivity : AppCompatActivity() {
             if (response != null) {
                 showAppToast(response.message, Toast.LENGTH_SHORT)
                 isUserBlocked = false
+                // BUG-004 / WhatsApp-style: if this chat was block+deleted, unblocking brings
+                // the row back into the chat list — but only the delete watermark is cleared,
+                // so it comes back EMPTY (the Cleared watermark keeps old messages hidden).
+                val me = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+                if (me > 0 && userId > 0) {
+                    com.gmwapp.hima.utils.DeletedChatsPrefsHelper.clearForPeer(this, me, userId)
+                }
                 updateBlockButtonUI()
                 checkBlockStatus()
             }
@@ -982,7 +989,21 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block)
             .setOnClickListener {
+                // BUG-004: honour "Also delete chat for me" from the PROFILE block too — it
+                // was previously ignored here (only the chat-screen block acted on it). Same
+                // WhatsApp-style behaviour: empty the messages + remove the row; unblock
+                // restores the (empty) chat.
+                val alsoDelete = dialogView
+                    .findViewById<android.widget.CheckBox>(R.id.cb_also_delete_chat)?.isChecked == true
                 blockUser()
+                if (alsoDelete) {
+                    val me = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+                    if (me > 0 && userId > 0) {
+                        val now = System.currentTimeMillis()
+                        com.gmwapp.hima.utils.ClearedChatsPrefsHelper.setClearedUpto(this, me, userId, now)
+                        com.gmwapp.hima.utils.DeletedChatsPrefsHelper.setDeletedUpto(this, me, userId, now)
+                    }
+                }
                 dialog.dismiss()
             }
 

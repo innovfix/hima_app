@@ -4674,21 +4674,21 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun clearChatLocally() {
         val sizeBefore = messages.size
-        // TC_017: persist a device-local "cleared upto" watermark (newest currently-loaded
-        // message's time, fallback now) so the cleared messages don't reappear after a
-        // later history re-fetch / reopen / relaunch. Without this, the empty snapshot below
-        // is only in-memory and the next getChatHistory() re-pulls everything from the server.
-        val clearedUpto = messages.asSequence()
-            .filterNot { it.isDateHeader }
-            .mapNotNull { it.date?.time }
-            .maxOrNull() ?: System.currentTimeMillis()
-        ClearedChatsPrefsHelper.setClearedUpto(this, myUserId, peerUserId, clearedUpto)
+        // BUG-004 / WhatsApp-style "block + also delete chat": cover EVERYTHING up to now
+        // (not just the newest loaded message — a blocked peer can't send anymore, so now
+        // is a safe hard watermark) and record BOTH device-local watermarks:
+        //  - ClearedChatsPrefsHelper → empties the messages inside the conversation
+        //  - DeletedChatsPrefsHelper → removes the conversation row from the chat list
+        // On UNBLOCK we clear only the Deleted watermark, so the chat reappears EMPTY.
+        val deletedUpto = System.currentTimeMillis()
+        ClearedChatsPrefsHelper.setClearedUpto(this, myUserId, peerUserId, deletedUpto)
+        DeletedChatsPrefsHelper.setDeletedUpto(this, myUserId, peerUserId, deletedUpto)
         messages.clear()
         chatAdapter.notifyDataSetChanged()
         runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }
         Log.d(
             "ChatActivityInHouse",
-            "🧹 Cleared local chat for peer=$peerUserId messagesBefore=$sizeBefore clearedUpto=$clearedUpto"
+            "🧹 Block+delete chat for peer=$peerUserId messagesBefore=$sizeBefore deletedUpto=$deletedUpto"
         )
         showAppToast(getString(R.string.chat_clearchat_toast), Toast.LENGTH_SHORT)
     }
@@ -4843,6 +4843,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                         val responseBody = response.body()
                         if (responseBody?.success == true) {
                             iHaveBlockedThisUser = false
+                            // BUG-004 / WhatsApp-style: if this chat was block+deleted, bring
+                            // the row back into the list on unblock — but leave the Cleared
+                            // watermark so it comes back EMPTY (old messages stay deleted).
+                            DeletedChatsPrefsHelper.clearForPeer(this@ChatActivityInHouse, myUserId, peerUserId)
                             // Unlock the composer immediately so the user isn't left
                             // staring at the Unblock lock until history returns.
                             applyComposerGate()
