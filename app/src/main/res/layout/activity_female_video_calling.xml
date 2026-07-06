@@ -304,23 +304,23 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
 
-    <!-- Peer-mute badge sits on the peer's video (the full-screen remote feed),
-         top-left corner. The peer has no thumbnail, so it's pinned here rather
-         than floating at top-center. Self-mute badge lives on the local PiP.
-         Same id as before so updateMuteBadge() wiring is unchanged. -->
+    <!-- Peer-mute badge floats at top-CENTER over the full-screen remote feed
+         (the remote surface is media-overlay=false, so a regular view draws on
+         top of it). Self-mute badge lives on the local PiP instead. Same id as
+         before so updateMuteBadge() wiring is unchanged. -->
     <ImageView
         android:id="@+id/iv_remote_mic_muted"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_marginStart="16dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:layout_marginTop="8dp"
         android:elevation="10dp"
         android:background="@drawable/professional_control_button_bg"
         android:contentDescription="Other person muted"
-        android:padding="7dp"
+        android:padding="10dp"
         android:scaleType="fitCenter"
         android:src="@drawable/mute_img"
         android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/top_bar" />
 

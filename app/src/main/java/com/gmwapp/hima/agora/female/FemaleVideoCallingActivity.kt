@@ -2398,6 +2398,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // releaseEngineSync is idempotent. See MaleAudioCallingActivity twin
         // for full comment.
         stopCountdown()
+        stopBonusTicker() // F1: freeze the bonus clock the instant the call ends (no late payout flash)
         stopMicRevokeWatcher()
         try {
             agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(

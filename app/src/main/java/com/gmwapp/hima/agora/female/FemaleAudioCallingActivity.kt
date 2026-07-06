@@ -194,6 +194,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             }
             presenter
         } else null
+        // Start (or restart, on an audio<->video switch re-anchor) the independent
+        // bonus clock only when bonuses actually apply to this leg; otherwise stop it.
+        if (callBonusPresenter != null) startBonusTicker() else stopBonusTicker()
     }
     private companion object {
         private const val TIMER_RESYNC_INTERVAL_MS = 30_000L
@@ -318,6 +321,31 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private var bonusInitDone = false
     // Own anchor (callStartMillis resets on reconnect; this stays fixed at first join).
     private var bonusStartMillis: Long = 0L
+    // Dedicated 1s ticker for the bonus popups. The remaining-time CountDownTimer
+    // used to be the only driver, but it is cancelled/recreated on every
+    // get_remaining_time refresh and stalls on a transient "00:00:00" — a stall
+    // spanning a teaser's 60s window silently swallowed the "coming up" popup
+    // while the milestone payout (open-ended >= check) still fired. This ticker
+    // is anchored to bonusStartMillis and runs independently so the popups never
+    // miss their window. UI-thread Handler because onTeaser/onPayout touch views.
+    private val bonusTickHandler = Handler(Looper.getMainLooper())
+    private val bonusTickRunnable = object : Runnable {
+        override fun run() {
+            callBonusPresenter?.let { p ->
+                if (bonusStartMillis > 0L) {
+                    p.onTick((System.currentTimeMillis() - bonusStartMillis) / 1000L)
+                }
+            }
+            bonusTickHandler.postDelayed(this, 1000L)
+        }
+    }
+    private fun startBonusTicker() {
+        bonusTickHandler.removeCallbacks(bonusTickRunnable)
+        bonusTickHandler.post(bonusTickRunnable)
+    }
+    private fun stopBonusTicker() {
+        bonusTickHandler.removeCallbacks(bonusTickRunnable)
+    }
     private var isSwitchRequestPending = false
 
 //    private lateinit var model: Model
@@ -1881,6 +1909,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // (see MaleAudioCallingActivity twin for full comment). releaseEngineSync
         // is idempotent so it's safe to call even when !isJoined.
         stopCountdown()
+        stopBonusTicker() // F1: freeze the bonus clock the instant the call ends (no late payout flash)
         stopMicRevokeWatcher()
         try {
             agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
@@ -2053,13 +2082,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 binding.tvRemainingTime?.text = String.format("%02d:%02d:%02d", hours, minutes, secs)
                 Log.d("timechanging","${String.format("%02d:%02d:%02d", hours, minutes, secs)}")
 
-                // F1 Call Duration Bonus — tick the display popups off elapsed-since-join.
-                // Skip when remaining time is 0 (call is ending) to avoid a stale teaser.
-                callBonusPresenter?.let { p ->
-                    if (bonusStartMillis > 0L && millisUntilFinished > 0L) {
-                        p.onTick((System.currentTimeMillis() - bonusStartMillis) / 1000L)
-                    }
-                }
+                // F1 Call Duration Bonus popups are now driven by the dedicated
+                // bonusTickRunnable (started in anchorBonusForLeg), not by this
+                // remaining-time timer — it stalls on refresh/transient-zero and
+                // was swallowing the "coming up" teaser window. See startBonusTicker().
             }
 
             override fun onFinish() {
@@ -2077,6 +2103,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
+        stopBonusTicker() // F1: stop the independent bonus clock so it can't leak past the call
         com.gmwapp.hima.utils.CallBonusViews.clear(binding.bonusOverlay) // F1: drop any bonus popups
         stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
         com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats

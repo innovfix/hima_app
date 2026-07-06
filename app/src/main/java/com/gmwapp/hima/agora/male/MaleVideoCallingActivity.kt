@@ -2089,7 +2089,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private fun setupLocalVideo() {
         localSurfaceView = SurfaceView(baseContext)
-        binding.localVideoViewContainer.addView(localSurfaceView)
+        // Insert the surface at index 0 (below the overlay children). A
+        // below-window SurfaceView punches a transparent hole where it draws;
+        // if it were added on top of iv_self_mic_muted that hole would erase
+        // the self-mute badge. Keeping it at the bottom lets the badge show.
+        binding.localVideoViewContainer.addView(localSurfaceView, 0)
         localSurfaceView!!.setZOrderMediaOverlay(true)
         // B124: forward touches from the SurfaceView (which lives on a
         // separate compositor layer due to setZOrderMediaOverlay) into the
@@ -3739,7 +3743,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             val localView = SurfaceView(this)
             localView.setZOrderMediaOverlay(true)
             localView.visibility = View.VISIBLE
-            binding.localVideoViewContainer.addView(localView)
+            // index 0: keep the surface below iv_self_mic_muted so its
+            // hole-punch doesn't erase the self-mute badge.
+            binding.localVideoViewContainer.addView(localView, 0)
 
             // Attach local video feed
             agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
@@ -4022,6 +4028,14 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
             binding.localVideoViewContainer.addView(localView, params)
+
+            // removeAllViews() above also stripped the XML self-mute badge.
+            // Re-attach it on top of the freshly added surface so the badge
+            // still shows when muted (and isn't erased by the surface's
+            // hole-punch), then restore its current visibility.
+            (binding.ivSelfMicMuted.parent as? ViewGroup)?.removeView(binding.ivSelfMicMuted)
+            binding.localVideoViewContainer.addView(binding.ivSelfMicMuted)
+            updateMuteBadge(selfMutedOverride = isMuted)
 
             agoraEngine?.setupLocalVideo(
                 VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0)
