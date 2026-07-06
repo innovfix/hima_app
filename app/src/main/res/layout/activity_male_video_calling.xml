@@ -52,6 +52,22 @@
                 android:scaleType="fitCenter"
                 android:visibility="gone"
                 android:src="@drawable/ic_camera_flip" />
+
+            <!-- Self-mute badge lives ON the preview: as a child of the PiP it
+                 drags with the preview automatically (no extra drag code).
+                 Same id as before so updateMuteBadge() wiring is unchanged. -->
+            <ImageView
+                android:id="@+id/iv_self_mic_muted"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="bottom|start"
+                android:layout_margin="6dp"
+                android:background="@drawable/professional_control_button_bg"
+                android:contentDescription="You are muted"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/mute_img"
+                android:visibility="gone" />
         </FrameLayout>
     </androidx.cardview.widget.CardView>
     
@@ -247,47 +263,25 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
 
-    <!-- Mute indicators: peer (left) + self (right), shown independently so BOTH
-         appear when both sides are muted — parity with the audio→video switch
-         screen (was a single shared badge that only ever showed one icon). -->
-    <LinearLayout
-        android:id="@+id/ll_video_mute_top"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:elevation="10dp"
+    <!-- Peer-mute badge sits on the peer's video (the full-screen remote feed),
+         top-left corner. The peer has no thumbnail, so it's pinned here rather
+         than floating at top-center. Self-mute badge lives on the local PiP.
+         Same id as before so updateMuteBadge() wiring is unchanged. -->
+    <ImageView
+        android:id="@+id/iv_remote_mic_muted"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:elevation="10dp"
+        android:background="@drawable/professional_control_button_bg"
+        android:contentDescription="Other person muted"
+        android:padding="7dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/mute_img"
+        android:visibility="gone"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/on_hold_banner">
-
-        <!-- Peer muted. Keeps id iv_remote_mic_muted so existing wiring stays valid. -->
-        <ImageView
-            android:id="@+id/iv_remote_mic_muted"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="10dp"
-            android:background="@drawable/professional_control_button_bg"
-            android:contentDescription="Other person muted"
-            android:padding="10dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/mute_img"
-            android:visibility="gone" />
-
-        <!-- Self muted. New second icon. -->
-        <ImageView
-            android:id="@+id/iv_self_mic_muted"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/professional_control_button_bg"
-            android:contentDescription="You are muted"
-            android:padding="10dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/mute_img"
-            android:visibility="gone" />
-
-    </LinearLayout>
+        app:layout_constraintTop_toBottomOf="@id/top_bar" />
 
     <!-- B055 — see activity_male_audio_calling.xml for rationale. -->
     <View
