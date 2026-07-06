@@ -1528,12 +1528,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             agoraEngine, "FemaleVideoCalling", hasVideo = true
         )
         if (isRemoteUserJoined==true){
-            // B1: when the call-duration bonus feature is on, show the creator her
-            // real server-credited earnings first, then RatingActivity. Otherwise
-            // keep the original direct-to-rating flow. EarningsHonourActivity forwards
-            // these same extras onward to RatingActivity.
-            val bonusOn = (BaseApplication.getInstance()?.getPrefs()?.getSettingsData()
-                ?.call_bonus?.master ?: 0) == 1
+            // B1: show the earnings honour screen only when the bonus feature applies
+            // to THIS call type (master + video switch + tiers) — the same gate the
+            // in-call popups use, so a bonus-off type no longer pops the sheet. It
+            // forwards these extras onward to RatingActivity; else go direct to rating.
+            val bonusOn = com.gmwapp.hima.utils.CallBonusPresenter.isEnabledForType(
+                BaseApplication.getInstance()?.getPrefs()?.getSettingsData()?.call_bonus, DConstants.VIDEO
+            )
             val target = if (bonusOn) EarningsHonourActivity::class.java else RatingActivity::class.java
             val intent = Intent(this@FemaleVideoCallingActivity, target)
             intent.putExtra(DConstants.RECEIVER_NAME, receiverName)

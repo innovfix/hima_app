@@ -2128,16 +2128,19 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         )
 
         if (isRemoteUserJoined==true){
-            // B1: route through the earnings honour screen when the bonus feature is
-            // on (it forwards these extras to RatingActivity); else direct to rating.
-            val bonusOn = (BaseApplication.getInstance()?.getPrefs()?.getSettingsData()
-                ?.call_bonus?.master ?: 0) == 1
+            // B1: route through the earnings honour screen only when the bonus feature
+            // applies to THIS call type (master + audio/video switch + tiers) — the same
+            // gate the in-call popups use, so a bonus-off type no longer pops the sheet.
+            // It forwards these extras to RatingActivity; else go direct to rating.
+            val callType = if (isVideoCallGoing) DConstants.VIDEO else DConstants.AUDIO
+            val bonusOn = com.gmwapp.hima.utils.CallBonusPresenter.isEnabledForType(
+                BaseApplication.getInstance()?.getPrefs()?.getSettingsData()?.call_bonus, callType
+            )
             val target = if (bonusOn) EarningsHonourActivity::class.java else RatingActivity::class.java
             val intent = Intent(this@FemaleAudioCallingActivity, target)
             intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
             intent.putExtra(DConstants.RECEIVER_ID, receiverId)
             intent.putExtra(DConstants.CALL_ID, call_Id)
-            val callType = if (isVideoCallGoing) DConstants.VIDEO else DConstants.AUDIO
             intent.putExtra(DConstants.CALL_TYPE, callType)
             startActivity(intent)
             Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")

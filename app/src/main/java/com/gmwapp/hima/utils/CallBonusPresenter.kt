@@ -37,13 +37,7 @@ class CallBonusPresenter(
      * @return true if bonuses are enabled for this call (master + type on and tiers exist)
      */
     fun configure(config: CallBonusConfig?, callType: String): Boolean {
-        if (config == null || (config.master ?: 0) != 1) return false
-        val typeOn = when (callType) {
-            "audio" -> (config.audio_enabled ?: 0) == 1
-            "video" -> (config.video_enabled ?: 0) == 1
-            else -> false
-        }
-        if (!typeOn) return false
+        if (config == null || !isEnabledForType(config, callType)) return false
 
         val raw = when (callType) {
             "audio" -> config.audio_tiers
@@ -51,7 +45,6 @@ class CallBonusPresenter(
         } ?: emptyList()
         // Keep only sane, positive tiers, sorted by minute.
         tiers = raw.filter { it.min > 0 && it.amt > 0 }.sortedBy { it.min }
-        if (tiers.isEmpty()) return false
 
         leadSeconds = (config.teaser_lead_seconds ?: 60).coerceIn(5, 600)
         enabled = true
@@ -101,5 +94,28 @@ class CallBonusPresenter(
 
     companion object {
         private const val INTRO_AT_SECONDS = 10L
+
+        /**
+         * Single source of truth for "does the Call Duration Bonus apply to THIS call
+         * type": master switch on, the per-type (audio/video) switch on, and at least one
+         * usable tier. Used by [configure] for the in-call popups AND by the call-end
+         * routing that decides whether to show the B1 earnings/bonus sheet, so the two can
+         * never disagree (previously the sheet was master-only, so it still popped on an
+         * audio call even when audio bonus was switched off).
+         */
+        fun isEnabledForType(config: CallBonusConfig?, callType: String): Boolean {
+            if (config == null || (config.master ?: 0) != 1) return false
+            val typeOn = when (callType) {
+                "audio" -> (config.audio_enabled ?: 0) == 1
+                "video" -> (config.video_enabled ?: 0) == 1
+                else -> false
+            }
+            if (!typeOn) return false
+            val raw = when (callType) {
+                "audio" -> config.audio_tiers
+                else -> config.video_tiers
+            } ?: emptyList()
+            return raw.any { it.min > 0 && it.amt > 0 }
+        }
     }
 }
