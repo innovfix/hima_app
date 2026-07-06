@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<androidx.core.widget.NestedScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
+    android:fillViewport="true"
     android:background="@color/grey_extra_light">
+
+    <!-- fillViewport keeps the design pixel-identical on normal/tall phones;
+         on short screens the content grows past the viewport and scrolls
+         instead of clipping the logo cluster or the Send OTP button. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/rootLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
     <!-- ===== Hidden compatibility views (kept for ViewBinding) ===== -->
     <View
@@ -290,7 +298,7 @@
     <LinearLayout
         android:id="@+id/ll_logo_section"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center"
         android:paddingHorizontal="24dp"
@@ -1029,4 +1037,5 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>
