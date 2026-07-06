@@ -113,14 +113,27 @@ class DndController(
     fun refresh() {
         if (!fragment.isAdded) return
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val enabled = (userData?.dnd_enabled ?: 0) == 1
+        // DND is "on" only when GENUINELY active — the same expiry-aware truth every
+        // enforcement path uses (isDndActiveStatic). Reading dnd_enabled alone left the
+        // switch green on an already-past dnd_until ("DND until <past date>") while calls
+        // and chats flowed through, because the flag can linger at 1 after its window ends.
+        val active = BaseApplication.isDndActiveStatic(userData)
+        // Self-heal a stale/expired flag locally so it can't keep re-displaying as on
+        // (belt-and-braces alongside the server-side expiry normalization).
+        if ((userData?.dnd_enabled ?: 0) == 1 && !active) {
+            userData?.let {
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(
+                    it.copy(dnd_enabled = 0, dnd_until = null)
+                )
+            }
+        }
         Log.d(
             TAG,
-            "refresh userId=${userData?.id} enabled=$enabled dnd_enabled=${userData?.dnd_enabled} " +
+            "refresh userId=${userData?.id} active=$active dnd_enabled=${userData?.dnd_enabled} " +
                 "dnd_until=${userData?.dnd_until}"
         )
-        switchDnd.isChecked = enabled
-        tvDndStatus.text = if (enabled && !userData?.dnd_until.isNullOrBlank()) {
+        switchDnd.isChecked = active
+        tvDndStatus.text = if (active && !userData?.dnd_until.isNullOrBlank()) {
             fragment.getString(R.string.dnd_until_fmt, formatDndUntil(userData!!.dnd_until!!))
         } else {
             fragment.getString(R.string.dnd_title)
