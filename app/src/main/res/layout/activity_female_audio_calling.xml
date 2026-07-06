@@ -897,11 +897,13 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
-    <!-- F1 Call Duration Bonus overlay (intro / teaser / payout) -->
+    <!-- F1 Call Duration Bonus overlay (intro / teaser / payout).
+         elevation keeps the payout card in front of the centred avatars. -->
     <include
         android:id="@+id/bonusOverlay"
         layout="@layout/overlay_call_bonus"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent"
+        android:elevation="50dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
