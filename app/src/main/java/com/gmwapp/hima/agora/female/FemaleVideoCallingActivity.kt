@@ -142,6 +142,31 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var callBonusPresenter: com.gmwapp.hima.utils.CallBonusPresenter? = null
     private var bonusInitDone = false
     private var bonusStartMillis: Long = 0L
+    // Dedicated 1s ticker for the bonus popups. The remaining-time CountDownTimer
+    // used to be the only driver, but it is cancelled/recreated on every
+    // get_remaining_time refresh and stalls on a transient "00:00:00" — a stall
+    // spanning a teaser's 60s window silently swallowed the "coming up" popup
+    // while the milestone payout (open-ended >= check) still fired. This ticker
+    // is anchored to bonusStartMillis and runs independently so the popups never
+    // miss their window. UI-thread Handler because onTeaser/onPayout touch views.
+    private val bonusTickHandler = Handler(Looper.getMainLooper())
+    private val bonusTickRunnable = object : Runnable {
+        override fun run() {
+            callBonusPresenter?.let { p ->
+                if (bonusStartMillis > 0L) {
+                    p.onTick((System.currentTimeMillis() - bonusStartMillis) / 1000L)
+                }
+            }
+            bonusTickHandler.postDelayed(this, 1000L)
+        }
+    }
+    private fun startBonusTicker() {
+        bonusTickHandler.removeCallbacks(bonusTickRunnable)
+        bonusTickHandler.post(bonusTickRunnable)
+    }
+    private fun stopBonusTicker() {
+        bonusTickHandler.removeCallbacks(bonusTickRunnable)
+    }
 
     /**
      * F1 Call Duration Bonus — (re)anchor the on-screen popups to a single call leg of
@@ -179,6 +204,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             }
             presenter
         } else null
+        // Start (or restart, on an audio<->video switch re-anchor) the independent
+        // bonus clock only when bonuses actually apply to this leg; otherwise stop it.
+        if (callBonusPresenter != null) startBonusTicker() else stopBonusTicker()
     }
     private var isMuted = false
     private var isSpeakerOn = true
@@ -829,9 +857,22 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             return
         }
         icebreakerActive = true
-        binding.icebreakerHintButton.visibility = View.VISIBLE
         binding.icebreakerHintButton.setOnSingleClickListener {
             requestAndShowIcebreakerQuestions(userData.id)
+        }
+        // Respect the current auto-hide chrome state instead of force-showing.
+        // This runs again when fresh settings arrive from the server, which can
+        // land AFTER the 10s chrome auto-hide already fired (common on the caller
+        // side, where the ring/connect delay makes settings resolve late). Forcing
+        // VISIBLE there left the button orphaned on-screen forever — the reason it
+        // "never disappeared" on creator->user calls but was fine on male->female.
+        // Only show it when chrome is currently visible; otherwise it re-appears
+        // with the rest of the controls on the next tap, so both directions match.
+        if (videoChromeVisible) {
+            binding.icebreakerHintButton.alpha = 1f
+            binding.icebreakerHintButton.visibility = View.VISIBLE
+        } else {
+            binding.icebreakerHintButton.visibility = View.INVISIBLE
         }
     }
 
@@ -1479,6 +1520,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopBonusTicker() // F1: stop the independent bonus clock so it can't leak past the call
         com.gmwapp.hima.utils.CallBonusViews.clear(binding.bonusOverlay) // F1: drop any bonus popups
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
         stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
@@ -1933,7 +1975,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private fun setupLocalVideo() {
         localSurfaceView = SurfaceView(baseContext)
-        binding.localVideoViewContainer.addView(localSurfaceView)
+        // Insert the surface at index 0 (below the overlay children). A
+        // below-window SurfaceView punches a transparent hole where it draws;
+        // if it were added on top of iv_self_mic_muted that hole would erase
+        // the self-mute badge. Keeping it at the bottom lets the badge show.
+        binding.localVideoViewContainer.addView(localSurfaceView, 0)
         localSurfaceView!!.setZOrderMediaOverlay(true)
         // B124: forward touches from the SurfaceView (which lives on a
         // separate compositor layer due to setZOrderMediaOverlay) into the
@@ -2488,13 +2534,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 binding.tvRemainingTime?.text = String.format("%02d:%02d:%02d", hours, minutes, secs)
                 Log.d("timechanging","${String.format("%02d:%02d:%02d", hours, minutes, secs)}")
 
-                // F1 Call Duration Bonus — tick display popups off elapsed-since-join.
-                // Skip when remaining time is 0 (call ending) to avoid a stale teaser.
-                callBonusPresenter?.let { p ->
-                    if (bonusStartMillis > 0L && millisUntilFinished > 0L) {
-                        p.onTick((System.currentTimeMillis() - bonusStartMillis) / 1000L)
-                    }
-                }
+                // F1 Call Duration Bonus popups are now driven by the dedicated
+                // bonusTickRunnable (started in anchorBonusForLeg), not by this
+                // remaining-time timer — it stalls on refresh/transient-zero and
+                // was swallowing the "coming up" teaser window. See startBonusTicker().
             }
 
             override fun onFinish() {
@@ -3560,7 +3603,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 val localView = SurfaceView(this)
                 localView.setZOrderMediaOverlay(true)
                 localView.visibility = View.VISIBLE
-                binding.localVideoViewContainer.addView(localView)
+                // index 0: keep the surface below iv_self_mic_muted so its
+                // hole-punch doesn't erase the self-mute badge.
+                binding.localVideoViewContainer.addView(localView, 0)
 
                 // Attach local video feed
                 agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
@@ -3981,7 +4026,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
             binding.localVideoViewContainer.addView(localView, layoutParams)
-            
+
+            // removeAllViews() above also stripped the XML self-mute badge.
+            // Re-attach it on top of the freshly added surface so the badge
+            // still shows when muted (and isn't erased by the surface's
+            // hole-punch), then restore its current visibility.
+            (binding.ivSelfMicMuted.parent as? ViewGroup)?.removeView(binding.ivSelfMicMuted)
+            binding.localVideoViewContainer.addView(binding.ivSelfMicMuted)
+            updateMuteBadge(selfMutedOverride = isMuted)
+
             agoraEngine?.setupLocalVideo(
                 VideoCanvas(
                     localView,
@@ -3989,7 +4042,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     0
                 )
             )
-            
+
             binding.localVideoViewContainer.visibility = View.VISIBLE
             binding.localCardView.visibility = View.VISIBLE
             applySavedLocalPreviewPosition()
