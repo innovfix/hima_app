@@ -32,6 +32,13 @@ class CallBonusPresenter(
     private val teaserShown = HashSet<Int>()
     private val payoutShown = HashSet<Int>()
 
+    // Collision guard: when a payout fires, its celebration (scrim + card) owns the
+    // screen for a few seconds. A teaser due in that same window (happens when the
+    // milestone gap ≤ teaser lead, e.g. video tiers 1/2/3 min with a 60s lead) would
+    // be drowned by the payout. So hold any teaser until the payout has cleared, then
+    // let it fire — as long as its own window hasn't closed. 0 = no hold active.
+    private var teaserHoldUntilSec = 0L
+
     /**
      * @param callType "audio" or "video"
      * @return true if bonuses are enabled for this call (master + type on and tiers exist)
@@ -73,10 +80,14 @@ class CallBonusPresenter(
             val milestoneSec = tier.min.toLong() * 60L
             val teaserAtSec = milestoneSec - leadSeconds
 
-            // Teaser: only within its window [teaserAt, milestone). If we joined past the
-            // milestone already, skip the teaser entirely (no misleading "coming up").
+            // Teaser: only within its window [teaserAt, milestone), AND not while a
+            // just-fired payout still owns the screen. If we joined past the milestone
+            // already, skip the teaser entirely (no misleading "coming up"). If the hold
+            // pushes past the milestone, the payout below fires instead and the teaser is
+            // dropped — better a missing heads-up than one buried under the celebration.
             if (!teaserShown.contains(tier.min) &&
-                elapsedSeconds >= teaserAtSec && elapsedSeconds < milestoneSec
+                elapsedSeconds >= teaserAtSec && elapsedSeconds < milestoneSec &&
+                elapsedSeconds >= teaserHoldUntilSec
             ) {
                 teaserShown.add(tier.min)
                 onTeaser(tier)
@@ -87,6 +98,9 @@ class CallBonusPresenter(
                 payoutShown.add(tier.min)
                 // Ensure a teaser for this tier never fires afterwards.
                 teaserShown.add(tier.min)
+                // Hold any not-yet-shown teaser (e.g. the next milestone's) until the
+                // payout celebration has cleared, so the two don't fire on the same tick.
+                teaserHoldUntilSec = elapsedSeconds + POST_PAYOUT_HOLD_SECONDS
                 onPayout(tier)
             }
         }
@@ -94,6 +108,11 @@ class CallBonusPresenter(
 
     companion object {
         private const val INTRO_AT_SECONDS = 10L
+
+        // How long a teaser waits after a payout fires. Must exceed the payout card's
+        // on-screen time (CallBonusViews.PAYOUT_MS = 3s) so the teaser lands on a clear
+        // screen right after "you earned ₹X", reading as "…now stay for the next one".
+        private const val POST_PAYOUT_HOLD_SECONDS = 4L
 
         /**
          * Single source of truth for "does the Call Duration Bonus apply to THIS call
