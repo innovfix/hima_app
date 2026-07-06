@@ -39,6 +39,22 @@ class CallBonusPresenter(
     // let it fire — as long as its own window hasn't closed. 0 = no hold active.
     private var teaserHoldUntilSec = 0L
 
+    // Cap-awareness: how much bonus the creator can still earn today (server-provided,
+    // refreshed via get_remaining_time). -1 = unlimited/unknown → show everything;
+    // 0 = daily cap already reached → show nothing (else the popup would promise a
+    // bonus the server won't credit); >0 = only show popups that still fit the room.
+    private var remainingToday: Double = -1.0
+    private var cumulativeShown: Double = 0.0
+
+    /** Server tells us the creator's remaining daily bonus room (rupees). */
+    fun setRemainingToday(remaining: Int?) {
+        if (remaining != null) remainingToday = remaining.toDouble()
+    }
+
+    // Unlimited/unknown, or this amount still fits under today's remaining cap.
+    private fun roomFor(amt: Double): Boolean =
+        remainingToday < 0.0 || cumulativeShown + amt <= remainingToday + 0.001
+
     /**
      * @param callType "audio" or "video"
      * @return true if bonuses are enabled for this call (master + type on and tiers exist)
@@ -71,7 +87,9 @@ class CallBonusPresenter(
     fun onTick(elapsedSeconds: Long) {
         if (!enabled) return
 
-        if (!introShown && elapsedSeconds >= INTRO_AT_SECONDS) {
+        // Suppress the intro when the creator has no bonus room left today — no point
+        // saying "bonuses coming up" if the cap is already reached.
+        if (!introShown && elapsedSeconds >= INTRO_AT_SECONDS && remainingToday != 0.0) {
             introShown = true
             onIntro()
         }
@@ -87,21 +105,25 @@ class CallBonusPresenter(
             // dropped — better a missing heads-up than one buried under the celebration.
             if (!teaserShown.contains(tier.min) &&
                 elapsedSeconds >= teaserAtSec && elapsedSeconds < milestoneSec &&
-                elapsedSeconds >= teaserHoldUntilSec
+                elapsedSeconds >= teaserHoldUntilSec &&
+                roomFor(tier.amt)   // don't tease a bonus the daily cap won't allow
             ) {
                 teaserShown.add(tier.min)
                 onTeaser(tier)
             }
 
-            // Payout: at/after the milestone, once.
+            // Payout: at/after the milestone, once — but only if it still fits the
+            // creator's remaining daily cap (else the server credits nothing and the
+            // popup would be a lie). Mark it shown either way so it never re-evaluates.
             if (!payoutShown.contains(tier.min) && elapsedSeconds >= milestoneSec) {
                 payoutShown.add(tier.min)
-                // Ensure a teaser for this tier never fires afterwards.
                 teaserShown.add(tier.min)
-                // Hold any not-yet-shown teaser (e.g. the next milestone's) until the
-                // payout celebration has cleared, so the two don't fire on the same tick.
-                teaserHoldUntilSec = elapsedSeconds + POST_PAYOUT_HOLD_SECONDS
-                onPayout(tier)
+                if (roomFor(tier.amt)) {
+                    cumulativeShown += tier.amt
+                    // Hold any not-yet-shown teaser until the payout celebration clears.
+                    teaserHoldUntilSec = elapsedSeconds + POST_PAYOUT_HOLD_SECONDS
+                    onPayout(tier)
+                }
             }
         }
     }

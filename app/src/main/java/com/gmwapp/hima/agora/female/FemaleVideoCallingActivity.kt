@@ -2456,7 +2456,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                         storedVideoRemainingTime = newTime // Store first-time value
                     }
 
-                    startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                    startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                 }
             }
 
@@ -2578,7 +2578,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                         // at 00:00 (pairs with B184 fix).
                         storedRemainingTime = newTime
                         stopCountdown()
-                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                     }
                 }
             }) }
@@ -2601,7 +2601,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     // can recover if initial getRemainingTime failed.
                     storedVideoRemainingTime = newTime
                     stopCountdown()
-                    startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                    startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                 }
             }
         }) }}
@@ -2638,7 +2638,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                     }
                 }
 
@@ -2676,7 +2676,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedVideoRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                     }
                 }
 

@@ -2003,7 +2003,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         storedRemainingTime = newTime // Store first-time value
                     }
 
-                    startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                    startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                 }
             }
 
@@ -2192,14 +2192,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         Log.d("resumedtag","videocalltime - $newTime")
                         if (storedVideoRemainingTime == null) {
                             storedVideoRemainingTime = newTime // Store first-time value
-                            startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                            startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
 
                         }
 
                         if (storedVideoRemainingTime != null) {
                             storedVideoRemainingTime = newTime // Update stored value
                             stopCountdown()
-                            startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                            startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                         }
 
 
@@ -2231,7 +2231,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     // coin allowance (paired with B184 fix).
                     storedRemainingTime = newTime
                     stopCountdown()
-                    startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                    startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                 }
             }
         }) }}
@@ -3519,7 +3519,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                     }
                 }
 
@@ -3557,7 +3557,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedVideoRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms); callBonusPresenter?.setRemainingToday(data.bonus_remaining_today)
                     }
                 }
 

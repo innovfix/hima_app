@@ -16,4 +16,8 @@ data class GetRemainingTimeData(
     // backends that haven't deployed the v2 response yet.
     val server_now_ms: Long? = null,
     val ends_at_ms: Long? = null,
+    // F1: creator's remaining Call Duration Bonus room today (rupees). -1 = unlimited,
+    // 0 = daily cap reached → app hides the payout popup so it can't promise a bonus
+    // the server won't credit. Null on backends that predate this field.
+    val bonus_remaining_today: Int? = null,
 )
