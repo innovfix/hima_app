@@ -102,7 +102,17 @@ object CallAliveChecker {
             client.newCall(req).execute().use { resp ->
                 val raw = resp.body?.string() ?: return false
                 Log.d(TAG, "isRingingNow callId=$callId resp=$raw")
-                raw.contains("\"alive\":true") || raw.contains("\"alive\": true")
+                // Use `ringable` (unanswered + fresh), NOT `alive`. `alive` only means
+                // "not ended", which is true forever for started-but-never-ended orphan
+                // rows (update_connected_call sets started_time on channel-connect even
+                // when the receiver never answered) — that made a reconnect-redelivered
+                // push re-ring a long-dead call. Falls back to `alive` only if the server
+                // is old and doesn't send `ringable` yet (keeps clock-skew recovery working).
+                when {
+                    raw.contains("\"ringable\":true") || raw.contains("\"ringable\": true") -> true
+                    raw.contains("\"ringable\":false") || raw.contains("\"ringable\": false") -> false
+                    else -> raw.contains("\"alive\":true") || raw.contains("\"alive\": true")
+                }
             }
         } catch (t: Throwable) {
             Log.w(TAG, "isRingingNow failed (fail-closed → drop): ${t.message}")
