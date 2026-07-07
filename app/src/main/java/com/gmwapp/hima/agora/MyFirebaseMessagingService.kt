@@ -190,6 +190,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 return
             }
 
+            // Account verified by admin. The backend also sends a notification payload
+            // (auto-shown by the OS when backgrounded/killed), but onMessageReceived is
+            // the ONLY path when the app is in the FOREGROUND — build the tray
+            // notification ourselves so the creator sees it immediately either way.
+            if (type == "account_verified") {
+                showAccountVerifiedNotification(
+                    remoteMessage.data["title"]?.takeIf { it.isNotBlank() }
+                        ?: "Your Hima account has been Verified!",
+                    remoteMessage.data["message"]?.takeIf { it.isNotBlank() }
+                        ?: "Now you can Enable Audio Call and Video Call Button."
+                )
+                return
+            }
+
             if (type == "ludo_invite" ||
                 type == "ludo_invite_accepted" ||
                 type == "ludo_invite_rejected" ||
@@ -1287,6 +1301,47 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
         }
+    }
+
+    // Heads-up channel so an account-update push pops immediately, even while the
+    // creator is actively using the app (foreground).
+    private fun createAccountUpdatesChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "account_updates",
+                "Account updates",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
+    }
+
+    private fun showAccountVerifiedNotification(title: String, body: String) {
+        createAccountUpdatesChannel()
+
+        val intent = Intent(this, com.gmwapp.hima.activities.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            9902,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        )
+
+        val notification = NotificationCompat.Builder(this, "account_updates")
+            .setSmallIcon(R.drawable.notification_icon)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        NotificationManagerCompat.from(this).notify(9902, notification)
     }
 
 
