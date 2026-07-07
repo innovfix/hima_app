@@ -4752,6 +4752,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         messageTextView?.text = getString(R.string.chat_unblock_user_message)
         btnBlock?.text = getString(R.string.chat_unblock_action)
 
+        // The shared layout carries the "Also delete chat for me" checkbox for the
+        // BLOCK flow. Unblock never reads it, so hide it here so it doesn't show on
+        // the Unblock dialog.
+        dialogView.findViewById<android.widget.CheckBox>(R.id.cb_also_delete_chat)?.visibility =
+            android.view.View.GONE
+
         // Find the ImageView (icon) and change its background to dark pink
         fun findImageView(parent: android.view.ViewGroup): android.widget.ImageView? {
             for (i in 0 until parent.childCount) {
