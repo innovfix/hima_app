@@ -324,6 +324,17 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private var bonusInitDone = false
     // Own anchor (callStartMillis resets on reconnect; this stays fixed at first join).
     private var bonusStartMillis: Long = 0L
+    // F1: make admin bonus-config edits reflect on THIS call. onUserJoined kicks off a
+    // fresh getSettings() and defers the popup anchor until that live config is cached
+    // (or a short fallback fires) — so a change saved in the panel shows on the very next
+    // call instead of only after the app re-fetches settings on some other screen.
+    private var bonusPeerJoined = false
+    private var bonusAnchoredFirstLeg = false
+    private val bonusAnchorFallbackHandler = Handler(Looper.getMainLooper())
+    // How long to wait for the fresh settings fetch before anchoring with cached config.
+    // The first teaser window is 60s wide, so a couple seconds' skew is invisible; this
+    // only guards against a slow/failed network swallowing the popups entirely.
+    private val BONUS_SETTINGS_WAIT_MS = 2000L
     // Dedicated 1s ticker for the bonus popups. The remaining-time CountDownTimer
     // used to be the only driver, but it is cancelled/recreated on every
     // get_remaining_time refresh and stalls on a transient "00:00:00" — a stall
@@ -348,6 +359,19 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     }
     private fun stopBonusTicker() {
         bonusTickHandler.removeCallbacks(bonusTickRunnable)
+    }
+
+    /**
+     * Anchor the first-leg bonus popups exactly once — from the settings observer the
+     * moment fresh config is cached, or from the fallback timer if the network is slow.
+     * Cancels the pending fallback so the two paths can never double-anchor, and no-ops
+     * if the screen is tearing down (the fallback could fire after finish()).
+     */
+    private fun anchorBonusFirstLegOnce(callType: String) {
+        if (bonusAnchoredFirstLeg || isFinishing || isDestroyed) return
+        bonusAnchoredFirstLeg = true
+        bonusAnchorFallbackHandler.removeCallbacksAndMessages(null)
+        anchorBonusForLeg(callType, showIntro = true)
     }
     private var isSwitchRequestPending = false
 
@@ -1225,6 +1249,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         Log.d("BlockWords", "$blockWords")
                         // Persist fresh settings so all cached reads on this screen stay current.
                         BaseApplication.getInstance()?.getPrefs()?.setSettingsData(settingsData)
+                        // F1: peer already here → anchor the bonus popups now that LIVE
+                        // config is cached, so admin edits reflect on this call not the next.
+                        if (bonusPeerJoined) anchorBonusFirstLegOnce("audio")
                         // Fresh settings arrived — re-evaluate the icebreaker button so it
                         // appears even if the cache was stale when onCreate first ran.
                         setupIcebreakerIfFemale(settingsData)
@@ -1738,11 +1765,21 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             getRemainingTime()
             startTimerResync()
 
-            // F1 Call Duration Bonus — configure once per call (guarded so reconnect
-            // doesn't replay the intro). Display only; server credits the money.
+            // F1 Call Duration Bonus — pull the LATEST config before popups start so admin
+            // edits reflect on THIS call, then anchor once (guarded so reconnect doesn't
+            // replay the intro). The anchor fires from the settings observer when fresh
+            // config lands, or from the fallback timer if the network is slow/failed (using
+            // cached config — a slow fetch can't swallow the popups). Marshaled to the UI
+            // thread (this is a worker-thread callback) so it can't race the observer.
             if (!bonusInitDone) {
                 bonusInitDone = true
-                anchorBonusForLeg("audio", showIntro = true)
+                runOnUiThread {
+                    bonusPeerJoined = true
+                    accountViewModel.getSettings()
+                    bonusAnchorFallbackHandler.postDelayed(
+                        { anchorBonusFirstLegOnce("audio") }, BONUS_SETTINGS_WAIT_MS
+                    )
+                }
             }
 
 
@@ -2122,6 +2159,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         super.onDestroy()
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
         stopBonusTicker() // F1: stop the independent bonus clock so it can't leak past the call
+        bonusAnchorFallbackHandler.removeCallbacksAndMessages(null) // F1: cancel any pending anchor
         com.gmwapp.hima.utils.CallBonusViews.clear(binding.bonusOverlay) // F1: drop any bonus popups
         stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
         com.gmwapp.hima.utils.CallHeartbeat.stop() // TC-NET-005: end liveness heartbeats
