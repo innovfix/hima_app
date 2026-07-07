@@ -144,6 +144,14 @@ object IncomingCallRecovery {
             Log.d(TAG, "surface skip: call_id=$callId recently ended / busy-rejected")
             return
         }
+        // FORCE_CLOSE_REJECT_2026_07_07 — she rejected this call by closing the app
+        // during the ring. The in-memory guards above are wiped by that process
+        // kill, but the persisted set survives, so a recovery fetch that races the
+        // 30s server-pending TTL can't resurrect an already-rejected ring.
+        if (app.wasForceRejectedCallId(callId)) {
+            Log.d(TAG, "surface skip: call_id=$callId was force-close rejected")
+            return
+        }
         val current = app.getCurrentActivity()
         if (current is FemaleCallAcceptActivity ||
             current is FemaleAudioCallingActivity ||

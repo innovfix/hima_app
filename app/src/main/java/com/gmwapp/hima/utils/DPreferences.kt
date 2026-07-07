@@ -283,11 +283,62 @@ class DPreferences(context: Context) {
         return mPrefsRead.getString(SELECTED_IPL_TEAM, null)
     }
 
+    // FORCE_CLOSE_REJECT_2026_07_07 — call_ids the recipient terminated by closing
+    // the app (swipe-from-recents / back-out) during an incoming ring. Persisted
+    // because that close KILLS the process, wiping BaseApplication's in-memory
+    // recentlyEndedCalls guard — so a redelivered/late incoming FCM after the cold
+    // restart would otherwise re-ring an already-rejected call (the duplicate ghost
+    // ring). Stored as "id:endedAtMs" CSV; entries older than the TTL are pruned on
+    // every read/write, and callIds are unique auto-increment so this can never
+    // block a genuinely new call.
+    fun addForceRejectedCallId(callId: Int) {
+        if (callId <= 0) return
+        try {
+            val now = System.currentTimeMillis()
+            val kept = parseForceRejected(now).toMutableMap()
+            kept[callId] = now
+            mPrefsWrite.putString(FORCE_REJECTED_CALLS, encodeForceRejected(kept)).apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
+
+    fun wasForceRejectedCallId(callId: Int): Boolean {
+        if (callId <= 0) return false
+        return try {
+            parseForceRejected(System.currentTimeMillis()).containsKey(callId)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun parseForceRejected(now: Long): Map<Int, Long> {
+        val raw = mPrefsRead.getString(FORCE_REJECTED_CALLS, "") ?: ""
+        if (raw.isBlank()) return emptyMap()
+        val out = HashMap<Int, Long>()
+        for (part in raw.split(",")) {
+            val kv = part.split(":")
+            if (kv.size != 2) continue
+            val id = kv[0].toIntOrNull() ?: continue
+            val at = kv[1].toLongOrNull() ?: continue
+            if (now - at <= FORCE_REJECTED_TTL_MS) out[id] = at
+        }
+        return out
+    }
+
+    private fun encodeForceRejected(map: Map<Int, Long>): String =
+        map.entries.joinToString(",") { "${it.key}:${it.value}" }
+
     companion object {
         private const val AUTHENTICATION_TOKEN: String = "authentication_token"
         private const val SETTINGS_DATA: String = "settings_data"
         private const val USER_DATA = "user_data"
         private const val PREFS = "Hima"
         private const val SELECTED_IPL_TEAM = "selected_ipl_team"
+        private const val FORCE_REJECTED_CALLS = "force_rejected_call_ids"
+        // 5 min matches BaseApplication.RECENTLY_ENDED_TTL_MS — long enough to
+        // outlive a redelivered push after a cold restart, short enough that the
+        // CSV stays tiny.
+        private const val FORCE_REJECTED_TTL_MS = 5 * 60_000L
     }
 }

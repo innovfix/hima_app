@@ -312,6 +312,13 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 
                 // Sufficient coins - proceed with call
                 Log.d("MaleCallAccept", "Sufficient coins: $currentCoins. Accepting call.")
+                // FORCE_CLOSE_REJECT_2026_07_07 — mark THIS caller's ring accepted so
+                // FcmCallService.onTaskRemoved's wasRingAcceptedFor() guard skips the
+                // reject if the app is swiped in the brief window before
+                // clearIncomingCall() stops the service. Mirrors FemaleCallAccept:365
+                // and the two CallActionReceiver accept branches; set only after the
+                // coins gate passes (never on the insufficient-coins reject above).
+                if (receiverId > 0) BaseApplication.getInstance()?.markRingAccepted(receiverId)
                 Log.d(
                     "VideoCallFlow",
                     "MaleAccept.acceptClick channel=$channelName callId=$call_Id callType=$callType " +

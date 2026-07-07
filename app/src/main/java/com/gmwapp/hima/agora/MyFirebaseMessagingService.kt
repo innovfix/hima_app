@@ -256,8 +256,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     val appGuard = BaseApplication.getInstance()
                     if (callIdInt > 0 &&
                         (appGuard?.wasCallRecentlyEnded(callIdInt) == true ||
-                            appGuard?.wasCallBusyRejected(callIdInt) == true)) {
-                        Log.d("FCM", "Incoming call_id=$callIdInt recently ended or busy-rejected — ignoring stale/retried push")
+                            appGuard?.wasCallBusyRejected(callIdInt) == true ||
+                            // FORCE_CLOSE_REJECT_2026_07_07 — persisted, so a push
+                            // redelivered AFTER the app was force-closed (which wipes
+                            // the in-memory guards) can't re-ring a call she already
+                            // rejected by closing the app.
+                            appGuard?.wasForceRejectedCallId(callIdInt) == true)) {
+                        Log.d("FCM", "Incoming call_id=$callIdInt recently ended / busy-rejected / force-close rejected — ignoring stale/retried push")
                         return
                     }
                     val receiverImg = parts.getOrNull(3).orEmpty()           // avatar URL (single token)

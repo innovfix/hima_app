@@ -78,6 +78,15 @@ class CallActionReceiver : BroadcastReceiver() {
                     return
                 }
 
+                // FORCE_CLOSE_REJECT_2026_07_07 — record that THIS caller's ring was
+                // accepted, so if the app is swiped from recents during the
+                // notification-accept cold-start window (before the calling activity's
+                // onCreate flips the in-call state), FcmCallService.onTaskRemoved reads
+                // wasRingAcceptedFor()==true and does NOT mistake it for a force-close
+                // reject. The full-screen Accept button already does this; the heads-up
+                // Answer action did not.
+                if (senderId > 0) BaseApplication.getInstance()?.markRingAccepted(senderId)
+
                 val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
                 sendAcceptedFcmFireAndForget(
                     context,
@@ -279,6 +288,11 @@ class CallActionReceiver : BroadcastReceiver() {
                     context.applicationContext.startActivity(mainIntent)
                     return
                 }
+
+                // FORCE_CLOSE_REJECT_2026_07_07 — mark THIS caller's ring accepted
+                // (coins gate passed) so a swipe-away during the cold-start window
+                // isn't mistaken for a force-close reject. See the female branch.
+                if (senderId > 0) BaseApplication.getInstance()?.markRingAccepted(senderId)
 
                 sendAcceptedFcmFireAndForget(
                     context,

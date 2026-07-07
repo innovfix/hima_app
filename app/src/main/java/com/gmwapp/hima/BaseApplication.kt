@@ -43,6 +43,12 @@ import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.CallStatusRepository
 import com.gmwapp.hima.repositories.FcmNotificationRepository
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
+import com.gmwapp.hima.retrofit.responses.CallStatusRequest
+import com.gmwapp.hima.retrofit.responses.CallStatusResponse
+import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.OneSignalDiag
@@ -2602,6 +2608,92 @@ class BaseApplication : Application(), Configuration.Provider {
         if (System.currentTimeMillis() - t > RECENTLY_ENDED_TTL_MS) { recentlyEndedCalls.remove(callId); return false }
         return true
     }
+
+    /**
+     * FORCE_CLOSE_REJECT_2026_07_07 — the recipient closed the app (swiped Hima
+     * from recents) or backed out of the ring while a call was still RINGING and
+     * NOT accepted. Treat that exactly like a Decline: stamp the server call row
+     * rejected (the backend now also clears ended_time on a never-connected
+     * reject, so pending_incoming_call can't resurrect the ring on reopen) and
+     * relay a "rejected" push so the caller's Connecting screen tears down instead
+     * of ringing into a dead call.
+     *
+     * SAFETY: callers MUST have already confirmed the ring was not accepted /
+     * the call is not active (see FcmCallService.onTaskRemoved) — this method does
+     * NOT re-check, so it must never be invoked for an accepted/live call. Records
+     * the id as ended both in-memory ([markCallEnded]) and persisted
+     * ([DPreferences.addForceRejectedCallId]) so a late/redelivered incoming push
+     * after the cold restart is suppressed too. Fully best-effort and
+     * exception-guarded — a failure here must never crash the teardown.
+     */
+    fun rejectCallOnAppClose(
+        selfUserId: Int?,
+        peerUserId: Int,
+        callId: Int,
+        callType: String?,
+        channelName: String?,
+    ) {
+        if (callId <= 0) return
+        // A single swipe can fire BOTH FcmCallService.onTaskRemoved and the accept
+        // activity's onDestroy. Dedupe the network reject on the persisted marker so
+        // we don't post call_status / the "rejected" push twice for one close. The
+        // local "ended" markers are refreshed regardless (cheap, idempotent).
+        val alreadyRejected = wasForceRejectedCallId(callId)
+        markCallEnded(callId)
+        runCatching { getPrefs()?.addForceRejectedCallId(callId) }
+        if (alreadyRejected) return
+        if (selfUserId == null || selfUserId <= 0 || peerUserId <= 0) return
+
+        // Stamp the server row rejected (idempotent server-side — never overwrites
+        // an already-recorded reason, so a caller-cancel that raced in is honoured).
+        runCatching {
+            callStatusRepository.callStatus(
+                CallStatusRequest(
+                    userId = selfUserId,
+                    receivedUserId = peerUserId,
+                    callId = callId,
+                    endReason = CallEndReason.REJECTED,
+                    endedBy = CallEndedBy.RECEIVER,
+                    endedByUserId = selfUserId,
+                    durationSeconds = 0,
+                ),
+                object : NetworkCallback<CallStatusResponse> {
+                    override fun onResponse(
+                        call: retrofit2.Call<CallStatusResponse>,
+                        response: retrofit2.Response<CallStatusResponse>
+                    ) { Log.d("CallStatus", "ForceCloseReject posted callId=$callId body=${response.body()}") }
+                    override fun onFailure(call: retrofit2.Call<CallStatusResponse>, t: Throwable) {
+                        Log.w("CallStatus", "ForceCloseReject call_status failed callId=$callId: ${t.message}")
+                    }
+                    override fun onNoNetwork() { Log.w("CallStatus", "ForceCloseReject — no network callId=$callId") }
+                }
+            )
+        }
+
+        // Relay the "rejected" push so the caller stops ringing. Skip if we have no
+        // usable routing info (would send a malformed push).
+        if (!callType.isNullOrEmpty() && !channelName.isNullOrEmpty()) {
+            runCatching {
+                fcmNotificationRepository.sendFcmNotification(
+                    selfUserId, peerUserId, callType, channelName, "rejected",
+                    object : NetworkCallback<FcmNotificationResponse> {
+                        override fun onResponse(
+                            call: retrofit2.Call<FcmNotificationResponse>,
+                            response: retrofit2.Response<FcmNotificationResponse>
+                        ) { Log.d("FCMNotification", "ForceCloseReject push sent callId=$callId") }
+                        override fun onFailure(call: retrofit2.Call<FcmNotificationResponse>, t: Throwable) {
+                            Log.w("FCMNotification", "ForceCloseReject push failed callId=$callId: ${t.message}")
+                        }
+                        override fun onNoNetwork() { Log.w("FCMNotification", "ForceCloseReject push — no network callId=$callId") }
+                    }
+                )
+            }
+        }
+    }
+
+    /** True if [callId] was rejected by an app-close/back-out (persisted; survives process death). */
+    fun wasForceRejectedCallId(callId: Int): Boolean =
+        runCatching { getPrefs()?.wasForceRejectedCallId(callId) == true }.getOrDefault(false)
 
     /** Mark that the FCM (primary) path owns the incoming call from [senderId]. */
     fun markCallOwnedByFcm(senderId: Int) {

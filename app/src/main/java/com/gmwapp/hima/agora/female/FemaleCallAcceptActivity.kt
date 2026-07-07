@@ -773,6 +773,24 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             val pendingTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
             val ourTag = if (call_Id != 0) call_Id.toString() else null
             if (pendingTag == null || ourTag == null || pendingTag == ourTag) {
+                // FORCE_CLOSE_REJECT_2026_07_07 — she left the ring WITHOUT
+                // accepting or declining (task swipe / system finish). Treat it as
+                // a Decline so the server row is stamped rejected (clears pending so
+                // the ring can't be resurrected on reopen) and the caller stops
+                // ringing. Secondary catch to FcmCallService.onTaskRemoved.
+                // callButtonsLocked is set by BOTH Accept and Decline taps, so this
+                // fires only for a genuine no-action exit; acceptInFlight/
+                // acceptLaunchHandled/peerEndedHandled add belt-and-braces so a real
+                // accept or peer-end never mis-rejects.
+                if (!callButtonsLocked && !peerEndedHandled &&
+                    !acceptInFlight && !acceptLaunchHandled &&
+                    call_Id > 0 && receiverId != -1) {
+                    val selfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                    Log.d("CallStatus", "FemaleAccept.onDestroy no-action exit → force-close reject callId=$call_Id")
+                    BaseApplication.getInstance()?.rejectCallOnAppClose(
+                        selfId, receiverId, call_Id, callType, channelName
+                    )
+                }
                 BaseApplication.getInstance()?.clearIncomingCall()
             }
         }
