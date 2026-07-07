@@ -57,7 +57,27 @@
             android:id="@+id/local_video_view_container"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@android:color/black"/>
+            android:background="@android:color/black">
+
+            <!-- Self-mute badge ON the preview (child of the PiP) — parity with
+                 activity_male_video_calling.xml so an audio→video switch shows the
+                 mute exactly like a direct video call. Same id as the video layout
+                 so updateMuteIndicators() drives it. The switch/local-video setup
+                 adds the surface at index 0 (below this badge) + re-attaches the
+                 badge after removeAllViews so the hole-punch can't erase it. -->
+            <ImageView
+                android:id="@+id/iv_self_mic_muted"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="bottom|start"
+                android:layout_margin="6dp"
+                android:background="@drawable/professional_control_button_bg"
+                android:contentDescription="You are muted"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/mute_img"
+                android:visibility="gone" />
+        </FrameLayout>
     </androidx.cardview.widget.CardView>
     
     <FrameLayout
@@ -67,6 +87,25 @@
         android:visibility="gone"
         android:layout_centerHorizontal="true"
         android:background="@android:color/darker_gray" />
+
+    <!-- Peer-mute badge floats top-CENTER over the full-screen remote feed —
+         parity with activity_male_video_calling.xml. Same id so
+         updateMuteIndicators() drives it across an audio→video switch. -->
+    <ImageView
+        android:id="@+id/iv_remote_mic_muted"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:elevation="10dp"
+        android:background="@drawable/professional_control_button_bg"
+        android:contentDescription="Other person muted"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/mute_img"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_bar" />
 
     <!-- Top Bar Container -->
     <LinearLayout

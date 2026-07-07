@@ -2792,8 +2792,16 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 // Set up the local video view
                 val localContainer = binding.localVideoViewContainer
                 val localView = SurfaceView(this)
+                // Insert the surface at index 0 (BELOW iv_self_mic_muted). A below-window
+                // SurfaceView punches a transparent hole where it draws; adding it on top
+                // of the badge would erase the self-mute icon on the preview (the exact
+                // audio→video-switch bug). Then bring the badge to front to be safe.
+                localContainer.addView(localView, 0)
                 localView.setZOrderMediaOverlay(true)
-                localContainer.addView(localView)
+                // Re-attach the self-mute badge ON TOP (a prior switch-to-audio
+                // removeAllViews may have detached it from the container).
+                (binding.ivSelfMicMuted.parent as? android.view.ViewGroup)?.removeView(binding.ivSelfMicMuted)
+                localContainer.addView(binding.ivSelfMicMuted)
 
                 // Attach local video feed
                 agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
@@ -2982,20 +2990,27 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     /**
      * Single source of truth for the mute badges. In AUDIO mode the per-avatar
      * center badges (femaleMute = self, maleMute = peer) are used. In VIDEO mode
-     * the avatars are hidden, so we show small icon-only badges at the TOP
-     * (iv_self_mute_top / iv_peer_mute_top) instead of letting the center badges
-     * float over the remote video at the old avatar positions.
+     * (including an audio→video switch) we mirror the dedicated video screen:
+     * self-mute on the local preview PiP (iv_self_mic_muted) and peer-mute
+     * top-center (iv_remote_mic_muted), so placement is identical in all cases.
      */
     private fun updateMuteIndicators() {
         runOnUiThread {
             if (isVideoCallGoing) {
+                // Video mode (incl. audio→video switch): match the dedicated video
+                // screen — self-mute on the local preview PiP, peer-mute top-center.
+                // Retired the old top-row (ll_video_mute_top) so placement is identical
+                // in all cases. bringToFront keeps the preview badge above the surface.
                 binding.femaleMute.visibility = View.INVISIBLE
                 binding.maleMute.visibility = View.INVISIBLE
-                binding.ivSelfMuteTop.visibility = if (isMuted) View.VISIBLE else View.GONE
-                binding.ivPeerMuteTop.visibility = if (isPeerAudioMuted) View.VISIBLE else View.GONE
-                binding.llVideoMuteTop.visibility = View.VISIBLE
+                binding.llVideoMuteTop.visibility = View.GONE
+                binding.ivSelfMicMuted.visibility = if (isMuted) View.VISIBLE else View.GONE
+                binding.ivRemoteMicMuted.visibility = if (isPeerAudioMuted) View.VISIBLE else View.GONE
+                if (isMuted) binding.ivSelfMicMuted.bringToFront()
             } else {
                 binding.llVideoMuteTop.visibility = View.GONE
+                binding.ivSelfMicMuted.visibility = View.GONE
+                binding.ivRemoteMicMuted.visibility = View.GONE
                 binding.femaleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
                 binding.maleMute.visibility = if (isPeerAudioMuted) View.VISIBLE else View.INVISIBLE
             }
@@ -3802,6 +3817,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
             binding.localVideoViewContainer.addView(localView, params)
+            // removeAllViews above detached the self-mute badge (an XML child of this
+            // container); re-attach it ON TOP of the surface so it stays visible on the
+            // preview after a face-detection re-setup. It keeps its XML layout params.
+            (binding.ivSelfMicMuted.parent as? android.view.ViewGroup)?.removeView(binding.ivSelfMicMuted)
+            binding.localVideoViewContainer.addView(binding.ivSelfMicMuted)
 
             agoraEngine?.setupLocalVideo(
                 VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0)
