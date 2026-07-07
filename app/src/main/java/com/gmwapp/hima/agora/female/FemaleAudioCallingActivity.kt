@@ -218,6 +218,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     // B18 (switch-to-video parity): auto-hide the video-mode chrome after 10s idle.
     // Only active while isVideoCallGoing; normal audio mode is unaffected.
     private var videoChromeVisible = true
+    // Whether the female-only icebreaker hint button is active for this call;
+    // when true it rides the video-mode chrome auto-hide instead of being pinned.
+    private var icebreakerActive = false
     private val CHROME_AUTOHIDE_MS = 10_000L
     private val chromeAutoHideHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val chromeAutoHideRunnable = Runnable { setVideoChromeVisible(false) }
@@ -862,18 +865,33 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     ) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         if (!userData.gender.equals("female", ignoreCase = true)) {
+            icebreakerActive = false
             binding.icebreakerHintButton.visibility = View.GONE
             return
         }
         val enabled = (settings?.icebreaker_enabled ?: 0) == 1 &&
             (settings?.icebreaker_audio_enabled ?: 1) == 1
         if (!enabled) {
+            icebreakerActive = false
             binding.icebreakerHintButton.visibility = View.GONE
             return
         }
-        binding.icebreakerHintButton.visibility = View.VISIBLE
+        icebreakerActive = true
         binding.icebreakerHintButton.setOnSingleClickListener {
             requestAndShowIcebreakerQuestions(userData.id)
+        }
+        // In video mode the button rides the 10s chrome auto-hide, so honour the
+        // current chrome state instead of force-showing. This setup re-runs when
+        // fresh settings arrive from the server, which on the caller side can land
+        // AFTER the auto-hide already fired — force-setting VISIBLE there left the
+        // button orphaned on-screen forever (why it "never disappeared" on
+        // creator->user calls but was fine the other way). In plain audio mode
+        // there is no auto-hide, so the button simply stays visible.
+        if (isVideoCallGoing && !videoChromeVisible) {
+            binding.icebreakerHintButton.visibility = View.INVISIBLE
+        } else {
+            binding.icebreakerHintButton.alpha = 1f
+            binding.icebreakerHintButton.visibility = View.VISIBLE
         }
     }
 
@@ -3310,7 +3328,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private fun setVideoChromeVisible(visible: Boolean) {
         if (!isVideoCallGoing || !::binding.isInitialized) return
         videoChromeVisible = visible
-        listOf(binding.topBar, binding.controlsContainer).forEach { v ->
+        // Include the icebreaker hint button only when it's active for this call,
+        // so a hidden/disabled button isn't force-shown when chrome re-appears.
+        val chrome = mutableListOf<View>(binding.topBar, binding.controlsContainer)
+        if (icebreakerActive) chrome.add(binding.icebreakerHintButton)
+        chrome.forEach { v ->
             v.animate().cancel()
             if (visible) {
                 v.visibility = View.VISIBLE
@@ -3341,6 +3363,13 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             v.animate().cancel()
             v.alpha = 1f
             v.visibility = View.VISIBLE
+        }
+        // Returning to audio mode: un-orphan the icebreaker button (plain audio
+        // has no auto-hide, so it should be visible again if active for this call).
+        if (icebreakerActive) {
+            binding.icebreakerHintButton.animate().cancel()
+            binding.icebreakerHintButton.alpha = 1f
+            binding.icebreakerHintButton.visibility = View.VISIBLE
         }
     }
 
