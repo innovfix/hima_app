@@ -97,7 +97,21 @@ class VoiceIdentificationActivity : BaseActivity(), OnItemSelectionListener<Stri
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 val gender = it.data?.gender
                 val status = it.data?.status
-                
+
+                // CMO request: fire female_voice_submitted once per user the moment
+                // her registration voice upload succeeds (funnel step BEFORE the
+                // later voice_verified/admin-approval event). Fail-open helper.
+                if (gender.equals(DConstants.FEMALE, ignoreCase = true)) {
+                    it.data?.id?.let { uid ->
+                        com.gmwapp.hima.utils.HimaAnalytics.logFemaleVoiceSubmitted(
+                            ctx = this,
+                            userId = uid,
+                            gender = it.data?.gender ?: "",
+                            language = intent.getStringExtra(DConstants.LANGUAGE) ?: ""
+                        )
+                    }
+                }
+
                 if (gender.equals(DConstants.MALE, ignoreCase = true)) {
                     val intent = Intent(this, MainActivity::class.java)
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)

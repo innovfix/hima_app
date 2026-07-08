@@ -48,6 +48,7 @@ object AdjustTracker {
         "complete_registration"        to "TODO_complete_registration",
         "hindi_registration_completed" to "TODO_hindi_registration",
         "voice_verified"               to "TODO_voice_verified",
+        "female_voice_submitted"       to "TODO_female_voice_submitted",
         "first_call"                   to "TODO_first_call",
         "call_started"                 to "TODO_call_started",
         "two_min_duration_completed"   to "TODO_two_min_duration",

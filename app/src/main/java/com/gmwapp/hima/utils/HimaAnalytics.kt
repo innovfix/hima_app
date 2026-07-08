@@ -6,6 +6,8 @@ import android.util.Log
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.mmp.AdjustTracker
+import com.gmwapp.hima.mmp.MmpClient
 import com.google.firebase.analytics.FirebaseAnalytics
 import java.util.concurrent.TimeUnit
 
@@ -32,6 +34,8 @@ object HimaAnalytics {
     private const val KEY_SIGNUP_AT = "signup_at_ms"
     private const val KEY_FIRST_PURCHASE_AT = "first_purchase_at_ms"
     private const val KEY_DAY1_PURCHASE_COUNT = "day1_purchase_count"
+    private const val PREFS_VOICE_SUBMITTED = "hima_voice_submitted_prefs"
+    private const val KEY_VOICE_SUBMITTED_PREFIX = "female_voice_submitted_"
 
     // Standard Meta event names not in AppEventsConstants (Facebook hasn't
     // exposed them all). Source: Marketing's email + Facebook Events Manager.
@@ -176,6 +180,97 @@ object HimaAnalytics {
             Log.d(TAG, "hindi_registration_completed fired: userId=$userId gender=$gender")
         } catch (t: Throwable) {
             Log.w(TAG, "logHindiRegistration failed: ${t.message}")
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Female voice submitted (CMO request)
+    // -----------------------------------------------------------------
+    /**
+     * Fired ONCE per user when a female successfully SUBMITS her registration
+     * voice recording (the upload succeeds, status becomes pending review) — the
+     * funnel step BEFORE [checkAndLogVoiceVerified]'s voice_verified, which only
+     * fires later when admin APPROVES (status == 2).
+     *
+     * Idempotent per user: a SharedPreferences guard committed SYNCHRONOUSLY and
+     * BEFORE emitting ensures a re-record after rejection, or a rapid re-entry,
+     * cannot double-count the funnel (same rationale as the voice_verified guard).
+     * A rare lost event is preferable to a double-counted one, so the guard stays
+     * set regardless of individual platform emit failures.
+     *
+     * Mirrored to ALL platforms (Firebase, Meta, MMP/AppsFlyer, backend, Adjust)
+     * per the always-mirror policy above.
+     *
+     * @param userId   the female UserData.id
+     * @param gender   "Female" (passed through for marketing parity with voice_verified)
+     * @param language the registration language selected on this screen
+     */
+    fun logFemaleVoiceSubmitted(ctx: Context, userId: Int, gender: String, language: String) {
+        try {
+            val prefs = ctx.getSharedPreferences(PREFS_VOICE_SUBMITTED, Context.MODE_PRIVATE)
+            val key = "$KEY_VOICE_SUBMITTED_PREFIX$userId"
+            if (prefs.getBoolean(key, false)) {
+                Log.d(TAG, "female_voice_submitted already logged for user $userId — skip")
+                return
+            }
+            // Persist the idempotency guard SYNCHRONOUSLY and BEFORE emitting so a
+            // process kill mid-registration can't re-fire on next launch.
+            prefs.edit().putBoolean(key, true).commit()
+
+            val params = mapOf(
+                "user_id" to "$userId",
+                "gender" to gender,
+                "language" to language
+            )
+
+            // 1. Firebase Analytics
+            val fbBundle = Bundle().apply {
+                putString("user_id", "$userId")
+                putString("gender", gender)
+                putString("language", language)
+            }
+            runCatching {
+                BaseApplication.firebaseAnalytics.logEvent("female_voice_submitted", fbBundle)
+            }.onFailure { Log.w(TAG, "female_voice_submitted Firebase emit failed: ${it.message}") }
+
+            // 2. Meta/Facebook Analytics
+            val metaParams = Bundle().apply {
+                putString("user_id", "$userId")
+                putString("gender", gender)
+                putString("language", language)
+            }
+            runCatching {
+                AppEventsLogger.newLogger(ctx).logEvent("female_voice_submitted", metaParams)
+            }.onFailure { Log.w(TAG, "female_voice_submitted Meta emit failed: ${it.message}") }
+
+            // 3. MMP / AppsFlyer
+            runCatching {
+                MmpClient.trackEvent(
+                    eventName = "female_voice_submitted",
+                    params = params,
+                    customerUserId = "$userId"
+                )
+            }.onFailure { Log.w(TAG, "female_voice_submitted MMP emit failed: ${it.message}") }
+
+            // 4. Backend (so it appears in the admin /app-events viewer)
+            runCatching {
+                AppEventLogger.logEvent(
+                    context = ctx,
+                    eventName = "female_voice_submitted",
+                    platform = "firebase",
+                    userId = userId,
+                    params = params
+                )
+            }.onFailure { Log.w(TAG, "female_voice_submitted backend emit failed: ${it.message}") }
+
+            // 5. Adjust
+            runCatching {
+                AdjustTracker.trackEvent("female_voice_submitted", params = params)
+            }.onFailure { Log.w(TAG, "female_voice_submitted Adjust emit failed: ${it.message}") }
+
+            Log.d(TAG, "female_voice_submitted fired: userId=$userId gender=$gender language=$language")
+        } catch (t: Throwable) {
+            Log.w(TAG, "logFemaleVoiceSubmitted failed: ${t.message}")
         }
     }
 
