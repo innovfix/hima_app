@@ -262,11 +262,9 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             insets
         }
 
-        // In design-only mode, avoid touching global call state
-        if (!designOnly) {
-            FcmUtils.isUserAvailable = 1
-            Log.d("FcmUtils.isUserAvailable","${FcmUtils.isUserAvailable}")
-        }
+        // isUserAvailable is now set inside startFemaleCallSetup() (i.e. only once the
+        // DND gate proceeds), mirroring MaleCallConnectingActivity.startCallSetup(). This
+        // keeps a DND-cancel from leaving the incoming-call FCM race-guard stuck at 1.
 
         // Read intent extras early for both modes
         callType = intent.getStringExtra(DConstants.CALL_TYPE)
@@ -286,26 +284,18 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 finish()
             }, 2000)
         } else {
-            lifecycleScope.launch {
-                FcmUtils.clearCallStatus()
-
-                Log.d("callStatusValueLog", "${FcmUtils.callStatus.value}")
-                val callStatusValue = FcmUtils.callStatus.value
-                if (callStatusValue?.first == "accepted") {
-                    Log.d("NavigationDebug", "Redirecting to MainActivity due to call accepted.")
-                    val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
-                    finish()
-                }
-
-                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                userData?.id?.let { userId = userData?.id }
-
-                getCallId()
-                initUI()
-                observeCallAcceptance()
-            }
+            // DND parity with the male call flow (MaleCallConnectingActivity:252): if this
+            // creator has DND active, block her outgoing call behind the same "turn off DND"
+            // dialog instead of silently dialing. Cancel backs out to the caller with zero
+            // side effects (no call API, no FCM); proceed runs the normal setup. All female
+            // call entry points (chat, recent, favourite, chat-list, profile) route through
+            // this activity, so they all inherit the gate from here.
+            com.gmwapp.hima.utils.DndCallGate.gate(
+                activity = this,
+                apiManager = apiManager,
+                onProceed = { startFemaleCallSetup() },
+                onCancel = { finish() }
+            )
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -374,6 +364,38 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             }
         })
 
+    }
+
+    /**
+     * Real (non-preview) outgoing-call bootstrap, extracted from onCreate so the
+     * [com.gmwapp.hima.utils.DndCallGate] can defer it behind the DND dialog.
+     * Runs only after the gate proceeds; [FcmUtils.isUserAvailable] is set here
+     * (not in onCreate) so a DND-cancel never leaves the incoming-call race-guard
+     * stuck at 1. Mirrors MaleCallConnectingActivity.startCallSetup().
+     */
+    private fun startFemaleCallSetup() {
+        FcmUtils.isUserAvailable = 1
+        Log.d("FcmUtils.isUserAvailable", "${FcmUtils.isUserAvailable}")
+        lifecycleScope.launch {
+            FcmUtils.clearCallStatus()
+
+            Log.d("callStatusValueLog", "${FcmUtils.callStatus.value}")
+            val callStatusValue = FcmUtils.callStatus.value
+            if (callStatusValue?.first == "accepted") {
+                Log.d("NavigationDebug", "Redirecting to MainActivity due to call accepted.")
+                val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                startActivity(intent)
+                finish()
+            }
+
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            userData?.id?.let { userId = userData?.id }
+
+            getCallId()
+            initUI()
+            observeCallAcceptance()
+        }
     }
 
     fun initUI(){
