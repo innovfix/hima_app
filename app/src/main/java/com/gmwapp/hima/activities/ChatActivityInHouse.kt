@@ -4674,15 +4674,17 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun clearChatLocally() {
         val sizeBefore = messages.size
-        // BUG-004 / WhatsApp-style "block + also delete chat": cover EVERYTHING up to now
-        // (not just the newest loaded message — a blocked peer can't send anymore, so now
-        // is a safe hard watermark) and record BOTH device-local watermarks:
+        // B_002/B_003/B_008: "block + also delete chat" clears the MESSAGES but must KEEP
+        // the conversation row in the chat list as an empty thread (with the blocked badge,
+        // per TC_022) — a blocked peer can never send a new message, so setting the Deleted
+        // watermark here would remove the row forever (that was the reported defect).
+        // Cover EVERYTHING up to now (a blocked peer can't send anymore, so now is a safe
+        // hard watermark) and record ONLY the Cleared watermark:
         //  - ClearedChatsPrefsHelper → empties the messages inside the conversation
-        //  - DeletedChatsPrefsHelper → removes the conversation row from the chat list
-        // On UNBLOCK we clear only the Deleted watermark, so the chat reappears EMPTY.
+        // We deliberately do NOT set DeletedChatsPrefsHelper here (that is only for the
+        // standalone "Delete chat" action in deleteChatLocally()).
         val deletedUpto = System.currentTimeMillis()
         ClearedChatsPrefsHelper.setClearedUpto(this, myUserId, peerUserId, deletedUpto)
-        DeletedChatsPrefsHelper.setDeletedUpto(this, myUserId, peerUserId, deletedUpto)
         messages.clear()
         chatAdapter.notifyDataSetChanged()
         runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }

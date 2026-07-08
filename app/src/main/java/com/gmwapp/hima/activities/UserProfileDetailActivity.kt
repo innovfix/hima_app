@@ -989,10 +989,12 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block)
             .setOnClickListener {
-                // BUG-004: honour "Also delete chat for me" from the PROFILE block too — it
-                // was previously ignored here (only the chat-screen block acted on it). Same
-                // WhatsApp-style behaviour: empty the messages + remove the row; unblock
-                // restores the (empty) chat.
+                // B_002/B_003/B_008: honour "Also delete chat for me" from the PROFILE block.
+                // Clear the MESSAGES but KEEP the conversation row as an empty thread (with the
+                // blocked badge, per TC_022). We set ONLY the Cleared watermark — NOT the Deleted
+                // watermark — because a blocked peer can never send a new message, so removing the
+                // row would delete it forever (the reported defect). Standalone "Delete chat"
+                // (deleteChatLocally) still removes the row WhatsApp-style.
                 val alsoDelete = dialogView
                     .findViewById<android.widget.CheckBox>(R.id.cb_also_delete_chat)?.isChecked == true
                 blockUser()
@@ -1001,7 +1003,6 @@ class UserProfileDetailActivity : AppCompatActivity() {
                     if (me > 0 && userId > 0) {
                         val now = System.currentTimeMillis()
                         com.gmwapp.hima.utils.ClearedChatsPrefsHelper.setClearedUpto(this, me, userId, now)
-                        com.gmwapp.hima.utils.DeletedChatsPrefsHelper.setDeletedUpto(this, me, userId, now)
                     }
                 }
                 dialog.dismiss()

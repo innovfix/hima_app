@@ -67,7 +67,7 @@ android {
         //   don't leave the Agora channel live for free talk time.
         minSdk = 24
         targetSdk = 35
-        versionCode = 1111
+        versionCode = 1114
         versionName = "1111"
 
 
