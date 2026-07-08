@@ -130,6 +130,11 @@ android {
             buildConfigField("String", "MMP_BASE_URL", "\"https://mmp.himaofficial.in\"")
             buildConfigField("String", "MMP_SDK_KEY", "\"mmp_sFcODEe0e1DgS9IlAFBRxMQ9aPMG\"")
             buildConfigField("String", "MMP_SDK_SECRET", "\"G5V0J8qvP2aN64XXdJs4DYXzzwHd6eDi1kwwCo5UJdsMjUREUJUbkzHpN7GK4c0a\"")
+            // Adjust: same app token for every flavor; only the environment differs.
+            // Dev flavor reports to Adjust's Sandbox so test installs/events stay
+            // out of the live campaign data.
+            buildConfigField("String", "ADJUST_APP_TOKEN", "\"uxaozpr15jpc\"")
+            buildConfigField("String", "ADJUST_ENVIRONMENT", "\"sandbox\"")
         }
         create("production") {
             dimension = "hima"
@@ -145,6 +150,10 @@ android {
             buildConfigField("String", "MMP_BASE_URL", "\"https://mmp.himaofficial.in\"")
             buildConfigField("String", "MMP_SDK_KEY", "\"mmp_sFcODEe0e1DgS9IlAFBRxMQ9aPMG\"")
             buildConfigField("String", "MMP_SDK_SECRET", "\"G5V0J8qvP2aN64XXdJs4DYXzzwHd6eDi1kwwCo5UJdsMjUREUJUbkzHpN7GK4c0a\"")
+            // Adjust: same app token as dev; prod flavor reports to the live
+            // Adjust environment so real installs/events count for attribution.
+            buildConfigField("String", "ADJUST_APP_TOKEN", "\"uxaozpr15jpc\"")
+            buildConfigField("String", "ADJUST_ENVIRONMENT", "\"production\"")
         }
     }
     compileOptions {
@@ -315,6 +324,14 @@ dependencies {
 
     //Snapchat SDK - Install Tracking (App Ads Kit)
     implementation("com.snap.appadskit:appadskit:2.1.0")
+
+    // Adjust MMP — attribution + event tracking. Runs ALONGSIDE the in-house
+    // MmpClient, Meta AppEventsLogger and Firebase Analytics (does NOT replace
+    // them). Install + session tracking is automatic once Adjust.initSdk runs in
+    // BaseApplication; custom events need their 6-char event tokens filled into
+    // AdjustTracker.EVENT_TOKENS from the Adjust dashboard (Hima App). Transitive
+    // deps (play-services-ads-identifier, installreferrer) are already declared above.
+    implementation("com.adjust.sdk:adjust-android:5.4.1")
 
 
     //Cashfree

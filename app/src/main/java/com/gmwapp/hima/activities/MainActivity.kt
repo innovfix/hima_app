@@ -1159,6 +1159,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             value = priceDouble
         )
 
+        // Adjust (mirrors alongside Meta + MMP + Firebase).
+        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+            "initial_checkout",
+            revenueInr = af_price.toDouble(),
+            params = mapOf("user_id" to "$userId", "coin_id" to "$pointsId")
+        )
+
         BaseApplication.getInstance()?.getPrefs()?.apply {
             setString("last_coin_id", pointsId)
             setString("last_coin_amount", amount.toString())
@@ -2354,6 +2361,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             value = coinAmount
         )
 
+        // Adjust (mirrors alongside Meta + MMP + Firebase).
+        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+            "purchase",
+            revenueInr = coinAmount,
+            params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+        )
+
         // Check rating prompt after successful purchase
         userId?.let {
             ratingPromptHelper.forceCheckRatingPrompt(this, it)
@@ -2390,7 +2404,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 params = AppEventLogger.bundleToMap(newUserPurchaseBundle),
                 value = coinAmount
             )
-            
+
+            // Adjust (mirrors alongside Meta + Firebase + backend).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "new_user_purchase",
+                revenueInr = coinAmount,
+                params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+            )
+
             Log.d("NewUserPurchase", "✅ new_user_purchase event logged for user $userId (created: ${userData?.created_at})")
             
             // Log new_user_first_purchase event - only once per user
@@ -2424,7 +2445,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     params = AppEventLogger.bundleToMap(firstPurchaseBundle),
                     value = coinAmount
                 )
-                
+
+                // Adjust (mirrors alongside Meta + Firebase + backend).
+                com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                    "new_user_first_purchase",
+                    revenueInr = coinAmount,
+                    params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+                )
+
                 // Mark first purchase as logged
                 markFirstPurchaseLogged(userId)
                 
@@ -2497,6 +2525,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     customerUserId = "${prefs?.getUserData()?.id}"
                 )
             }
+
+            // Adjust (mirrors alongside Firebase + backend; all genders).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "daily_active_user",
+                params = mapOf("user_id" to "${prefs?.getUserData()?.id}")
+            )
         }
 
     }

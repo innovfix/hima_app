@@ -1055,6 +1055,13 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             value = coinAmount
         )
 
+        // Adjust (mirrors alongside Meta + MMP + Firebase).
+        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+            "purchase",
+            revenueInr = coinAmount,
+            params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+        )
+
         // Log new_user_purchase event if user registered today
         if (isNewUser(userData?.created_at)) {
             // Firebase Analytics - new_user_purchase
@@ -1086,7 +1093,14 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 params = AppEventLogger.bundleToMap(newUserPurchaseBundle),
                 value = coinAmount
             )
-            
+
+            // Adjust (mirrors alongside Meta + Firebase + backend).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "new_user_purchase",
+                revenueInr = coinAmount,
+                params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+            )
+
             Log.d("NewUserPurchase", "✅ new_user_purchase event logged for user $userId (created: ${userData?.created_at})")
             
             // Log new_user_first_purchase event - only once per user
@@ -1120,7 +1134,14 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     params = AppEventLogger.bundleToMap(firstPurchaseBundle),
                     value = coinAmount
                 )
-                
+
+                // Adjust (mirrors alongside Meta + Firebase + backend).
+                com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                    "new_user_first_purchase",
+                    revenueInr = coinAmount,
+                    params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+                )
+
                 // Mark first purchase as logged
                 markFirstPurchaseLogged(userId)
                 
@@ -1504,6 +1525,13 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 userId = userId,
                 params = AppEventLogger.bundleToMap(firebaseBundle),
                 value = checkoutAmount
+            )
+
+            // Adjust (mirrors alongside Meta + MMP + Firebase).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "initial_checkout",
+                revenueInr = priceDouble,
+                params = mapOf("user_id" to "$userId", "coin_id" to "$pointsId")
             )
         } else {
             Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")

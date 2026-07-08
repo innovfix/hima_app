@@ -92,6 +92,14 @@ class SelectLanguageActivity : BaseActivity() {
                 // + EVENT_NAME_COMPLETED_REGISTRATION + SIGN_UP + backend log.)
                 MmpClient.trackSignup(customerUserId = "${it.data.id}")
 
+                // Adjust — mirror registration alongside MMP/Meta/Firebase. Link
+                // the Adjust device to this user first, then fire the event.
+                com.gmwapp.hima.mmp.AdjustTracker.setUserId("${it.data.id}")
+                com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                    "complete_registration",
+                    params = mapOf("user_id" to "${it.data.id}", "gender" to (it.data.gender ?: ""))
+                )
+
                 val params = Bundle()
                 params.putString("user_id", "${it.data.id}")
                 params.putString("gender", it.data.gender ?: "")

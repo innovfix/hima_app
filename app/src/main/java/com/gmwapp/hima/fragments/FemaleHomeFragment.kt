@@ -791,6 +791,12 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                             params = AppEventLogger.bundleToMap(bundle)
                         )
 
+                        // Adjust (mirrors alongside Firebase + Meta + backend).
+                        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                            "first_call",
+                            params = mapOf("user_id" to "$femaleuserid", "first_call_status" to "Received")
+                        )
+
                         if (femaleuserid != null) {
                             firstCallUpdateViewModel.updateFirstCallStatus(femaleuserid, 2)
                         }
@@ -1271,6 +1277,18 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     )
                 }.onFailure { Log.w("FemaleHomeFragment", "voice_verified backend emit failed: ${it.message}") }
 
+                // 5. Adjust - voice_verified (mirrors alongside the emits above)
+                runCatching {
+                    com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                        "voice_verified",
+                        params = mapOf(
+                            "user_id" to "$userId",
+                            "gender" to (userData.gender ?: ""),
+                            "status" to "${userData.status}"
+                        )
+                    )
+                }.onFailure { Log.w("FemaleHomeFragment", "voice_verified Adjust emit failed: ${it.message}") }
+
                 // Idempotency guard already persisted above (commit) BEFORE emit.
 
                 Log.d("FemaleHomeFragment", "✅ voice_verified event logged to Firebase, Meta, AppsFlyer, and backend for user $userId")
@@ -1370,6 +1388,16 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             platform = "firebase",
             userId = userId,
             params = AppEventLogger.bundleToMap(firebaseBundle)
+        )
+
+        // 5. Adjust - two_min_duration_completed (mirrors alongside the above)
+        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+            "two_min_duration_completed",
+            params = mapOf(
+                "user_id" to "$userId",
+                "total_talk_duration_minutes" to totalMinutes,
+                "gender" to (userData.gender ?: "")
+            )
         )
 
         // Bug #7 fix (2026-05-25): persist that we've fired this event for

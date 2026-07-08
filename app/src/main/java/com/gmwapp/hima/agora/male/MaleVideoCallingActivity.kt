@@ -1666,6 +1666,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 params = AppEventLogger.bundleToMap(bundle)
             )
 
+            // Adjust (mirrors alongside Firebase + MMP + backend).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "call_started",
+                params = mapOf("user_id" to maleUserId, "call_type" to "Video")
+            )
+
             // Notification conversion: caller actually connected a video call (engagement).
             if (!callStartedConversionFired) {
                 callStartedConversionFired = true

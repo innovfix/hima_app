@@ -144,6 +144,17 @@ object SubscriptionStateCache {
             Log.w("StartTrialCache", "Firebase start_trial failed: ${t.message}")
         }
 
+        try {
+            // Adjust (mirrors alongside Meta + MMP + Firebase).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "start_trial",
+                revenueInr = priceForPlan,
+                params = mapOf("plan_type" to planType, "language" to (language ?: ""))
+            )
+        } catch (t: Throwable) {
+            Log.w("StartTrialCache", "Adjust start_trial failed: ${t.message}")
+        }
+
         prefs.edit().putBoolean(firedKey, true).apply()
     }
 

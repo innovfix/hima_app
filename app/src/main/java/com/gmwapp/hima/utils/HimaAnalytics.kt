@@ -122,6 +122,16 @@ object HimaAnalytics {
             }
             BaseApplication.firebaseAnalytics.logEvent("2min_call", fbBundle)
 
+            // Adjust (mirrors alongside Meta + Firebase).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "2min_call",
+                params = mapOf(
+                    "content_type" to contentType,
+                    "call_id" to callId.toString(),
+                    "duration_seconds" to durationSec
+                )
+            )
+
             Log.d(TAG, "2min_call fired: callId=$callId type=$contentType dur=${durationSec}s")
         } catch (t: Throwable) {
             Log.w(TAG, "log2MinCall failed: ${t.message}")
@@ -157,6 +167,12 @@ object HimaAnalytics {
             }
             BaseApplication.firebaseAnalytics.logEvent("hindi_registration_completed", fbBundle)
 
+            // Adjust (mirrors alongside Meta + Firebase).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "hindi_registration_completed",
+                params = mapOf("user_id" to userId, "gender" to gender, "language" to "Hindi")
+            )
+
             Log.d(TAG, "hindi_registration_completed fired: userId=$userId gender=$gender")
         } catch (t: Throwable) {
             Log.w(TAG, "logHindiRegistration failed: ${t.message}")
@@ -180,6 +196,13 @@ object HimaAnalytics {
                 if (value > 0.0) putDouble(FirebaseAnalytics.Param.VALUE, value)
             }
             BaseApplication.firebaseAnalytics.logEvent("subscribe", fbBundle)
+
+            // Adjust (mirrors alongside Meta + Firebase).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "subscribe",
+                revenueInr = value.takeIf { it > 0.0 },
+                params = mapOf("plan_id" to planId, "currency" to currency)
+            )
         } catch (t: Throwable) {
             Log.w(TAG, "logSubscribe failed: ${t.message}")
         }
@@ -237,6 +260,13 @@ object HimaAnalytics {
                     putLong("purchase_count", newCount.toLong())
                 }
                 BaseApplication.firebaseAnalytics.logEvent(META_EVENT_D1MP, fbBundle)
+
+                // Adjust (mirrors alongside Meta + Firebase).
+                com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                    "d1mp",
+                    revenueInr = cumulativeValue.toDouble(),
+                    params = mapOf("currency" to currency, "purchase_count" to newCount)
+                )
 
                 Log.d(TAG, "d1mp fired: count=$newCount cumulative=$cumulativeValue $currency")
             }

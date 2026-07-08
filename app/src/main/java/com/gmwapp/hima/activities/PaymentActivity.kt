@@ -627,8 +627,14 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         }
         AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
 
-        // Note: PaymentActivity only logs to Meta, so no backend logging here
-        // Backend logging happens in WalletActivity and MainActivity when Firebase events are triggered
+        // Adjust — mirror the Meta purchase here too so this payment path is not
+        // missed on Adjust. (PaymentActivity only logs to Meta; backend/Firebase
+        // logging happens in WalletActivity and MainActivity.)
+        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+            "purchase",
+            revenueInr = coinAmount,
+            params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+        )
     }
 
     private fun checkOrderStatus(orderId: String) {

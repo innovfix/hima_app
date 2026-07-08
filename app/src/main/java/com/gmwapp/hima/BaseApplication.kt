@@ -403,9 +403,14 @@ class BaseApplication : Application(), Configuration.Provider {
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
 
         MmpClient.init(this)
+        // Adjust MMP — runs ALONGSIDE MmpClient/Meta/Firebase. init here enables
+        // automatic install + session tracking; custom events are mirrored at
+        // each existing event site via AdjustTracker.trackEvent(...).
+        com.gmwapp.hima.mmp.AdjustTracker.init(this)
         // Re-identify returning users so MMP can link their GAID to their account.
         getPrefs()?.getUserData()?.id?.let { uid ->
             MmpClient.identify(uid.toString())
+            com.gmwapp.hima.mmp.AdjustTracker.setUserId(uid.toString())
         }
 
         // 2026-05-25 v1075 — Meta SDK v18 defaults AutoInit/AutoLog to FALSE for
