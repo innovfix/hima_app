@@ -44,6 +44,17 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class FemaleCallAcceptActivity : AppCompatActivity() {
+    companion object {
+        // FORCE_CLOSE_REJECT regression guard (2026-07-08) — identity of the
+        // CURRENT ring instance. When a duplicate incoming surface recreates this
+        // screen, the newer onCreate overwrites this BEFORE the older instance's
+        // onDestroy runs, so onDestroy force-close-rejects ONLY while it is still
+        // the live instance (liveInstance === this). A superseded duplicate can
+        // therefore never reject the call the newer instance is actively ringing.
+        @Volatile
+        private var liveInstance: FemaleCallAcceptActivity? = null
+    }
+
     private lateinit var binding: ActivityFemaleCallAcceptBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
@@ -101,6 +112,10 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     // ACTIVE end (end_reason set), so a legitimately-ringing call is never cut.
     private val aliveHandler = Handler(Looper.getMainLooper())
     private val aliveIntervalMs = 2500L
+    // @Volatile: also written by markRemoteEnded() from the FCM background thread
+    // (callEnded/callDeclined teardown); read on the main thread in onDestroy and
+    // the alive-poll, so the cross-thread write must be visible without a barrier.
+    @Volatile
     private var peerEndedHandled = false
     private val alivePollRunnable = object : Runnable {
         override fun run() {
@@ -155,6 +170,18 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         finish()
     }
 
+    /**
+     * FORCE_CLOSE_REJECT regression guard (2026-07-08) — a REMOTE end (the caller
+     * cancelled before she answered, arriving as a callEnded/callDeclined push)
+     * tears this ring screen down with a bare finish(). In onDestroy that is
+     * indistinguishable from a genuine user swipe-away, so the force-close-reject
+     * there would wrongly stamp the call "rejected" and re-notify the caller — for
+     * a call the peer already ended server-side. The FCM teardown paths call this
+     * FIRST so onDestroy's `!peerEndedHandled` guard suppresses that reject.
+     * Idempotent; only flips the same latch exitBecausePeerEnded() uses.
+     */
+    fun markRemoteEnded() { peerEndedHandled = true }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // B024: this activity is the call UI; any system heads-up banner is
@@ -164,6 +191,10 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         // to roughly the FSI->process-start latency instead of ~300ms of
         // onCreate setup. Cleared early on every entry, including cold-start.
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+        // FORCE_CLOSE_REJECT regression guard (2026-07-08) — claim "live instance"
+        // as early as possible so a duplicate surface that recreates this screen
+        // supersedes us, and our onDestroy won't reject the newer instance's call.
+        liveInstance = this
         // Route the volume rocker to STREAM_RING while this activity is on
         // screen so volume up/down adjusts the incoming ringtone (B027).
         // Without this the default STREAM_MUSIC is targeted and the rocker
@@ -782,7 +813,11 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 // fires only for a genuine no-action exit; acceptInFlight/
                 // acceptLaunchHandled/peerEndedHandled add belt-and-braces so a real
                 // accept or peer-end never mis-rejects.
-                if (!callButtonsLocked && !peerEndedHandled &&
+                // liveInstance === this: a duplicate surface that recreated this
+                // screen has NOT superseded us, so this is a genuine abandon — not
+                // us being torn down while a newer instance rings the same call.
+                if (liveInstance === this &&
+                    !callButtonsLocked && !peerEndedHandled &&
                     !acceptInFlight && !acceptLaunchHandled &&
                     call_Id > 0 && receiverId != -1) {
                     val selfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
@@ -809,6 +844,10 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("PulseAnimation", "Error clearing animations: ${e.message}")
         }
+        // FORCE_CLOSE_REJECT regression guard (2026-07-08) — only relinquish the
+        // "live instance" claim if we still hold it; a newer instance that took
+        // over must keep its claim so ITS onDestroy can still act.
+        if (liveInstance === this) liveInstance = null
     }
 
 }

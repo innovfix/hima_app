@@ -851,6 +851,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     BaseApplication.getInstance()?.clearIncomingCall()
 
                     val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
+                    // FORCE_CLOSE_REJECT regression guard (2026-07-08) — the caller
+                    // cancelled (remote end). Mark the ring screen so whichever
+                    // teardown finishes it below (bg/locked finish() OR the
+                    // foreground MainActivity CLEAR_TOP) isn't mistaken by onDestroy
+                    // for a user swipe-away → spurious "rejected".
+                    (currentActivity as? FemaleCallAcceptActivity)?.markRemoteEnded()
                     if (isScreenLocked || isAppInBackground(applicationContext)) {
                         // B126 — when the caller cancels while we're in the
                         // background (or screen-locked), don't yank Hima to
@@ -1006,6 +1012,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     // → a ghost ring screen. The missed-call payload was already captured
                     // into locals above, so clearing the incoming-call state first is safe.
                     try { BaseApplication.getInstance()?.clearIncomingCall() } catch (_: Throwable) {}
+                    // FORCE_CLOSE_REJECT regression guard (2026-07-08) — this is a
+                    // REMOTE end (caller cancelled before answer). Tell the ring
+                    // screen so its onDestroy doesn't mistake this finish() for a
+                    // user swipe-away and post a spurious "rejected".
+                    (currentActivity as? FemaleCallAcceptActivity)?.markRemoteEnded()
                     currentActivity?.finish()
                     // TC_026: now (after teardown) replace the dismissed ring notification
                     // with a missed-call one. If the process is killed during the avatar
