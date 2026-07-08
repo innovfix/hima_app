@@ -861,6 +861,25 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     pendingVideoStatus = null
                 }
                 setupSwitchListeners(data)
+
+                // TOGGLE_FLICKER_FIX — the bottom-nav rebuilds Home via replace(), so a
+                // fresh FemaleHomeFragment paints the switch synchronously from cached
+                // UserData (initUI). The B075 merge freezes cached audio_status /
+                // video_status at their first non-null value (prev ?: fresh), so the cache
+                // can stay 0 while the server (and this observer) show 1 — the next Home
+                // entry then paints OFF, then this getUsers() reply flips it ON ~½s later:
+                // a visible OFF→ON blink. When no toggle is in-flight (the shouldSet path),
+                // the value we just painted IS the truth, so persist it. This only realigns
+                // the cache with what's already on screen — no updateCallStatus, so no
+                // ghost-online — and the pending guard still lets a just-tapped intent win.
+                prefsLocal.getUserData()?.let { cached ->
+                    prefsLocal.setUserData(
+                        cached.copy(
+                            audio_status = if (shouldSetAudio) effectiveAudio else cached.audio_status,
+                            video_status = if (shouldSetVideo) effectiveVideo else cached.video_status
+                        )
+                    )
+                }
             }
         })
 
