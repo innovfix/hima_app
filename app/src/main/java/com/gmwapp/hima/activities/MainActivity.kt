@@ -228,15 +228,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private var cashfreeLastOrderId: String = ""
     private var recentMissedCount: Int = 0
-    private val recentMissedDotTag = "recent_missed_dot"
     private var chatFriendsUnread: Int = 0
     private var chatGeneralUnread: Int = 0
     // Pending received friend-requests — shown on the female Chat icon alongside unread messages.
     private var chatRequestsUnread: Int = 0
-    private val chatUnreadDotTag = "chat_unread_dot"
     // Male "Friends" hub (favourite tab) — pending received friend-requests badge.
     private var friendsRequestsUnread: Int = 0
-    private val friendsRequestDotTag = "friends_request_dot"
     private val paywallVideoContentPrefsKey = "paywall_video_content_response"
     private val showPaywallInsufficientIntentKey = "show_paywall_insufficient"
 
@@ -1717,100 +1714,32 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         })
     }
 
+    /**
+     * Attach a count badge to a bottom-nav item using Material's BadgeDrawable.
+     * It anchors to the item's icon and is clipped to the nav bar, so a badge can
+     * NEVER strand mid-screen the way the old hand-positioned content-root dots did
+     * (e.g. the "3" that landed on Profile ▸ Terms & Condition). Safe no-op when the
+     * item is hidden for this gender — Material won't render a badge on a GONE item,
+     * and a genuinely-absent id is swallowed rather than crashing.
+     */
+    private fun setNavBadge(itemId: Int, count: Int, @androidx.annotation.ColorRes colorRes: Int) {
+        val nav = binding.bottomNavigationView
+        runCatching {
+            if (count <= 0) {
+                nav.removeBadge(itemId)
+                return
+            }
+            nav.getOrCreateBadge(itemId).apply {
+                backgroundColor = ContextCompat.getColor(this@MainActivity, colorRes)
+                maxCharacterCount = 3
+                number = count
+                isVisible = true
+            }
+        }
+    }
+
     private fun updateRecentBadge() {
-        val displayCount = recentMissedCount.coerceAtLeast(0)
-
-        // Always remove native Material badge — we use a custom overlay for pixel-perfect placement.
-        binding.bottomNavigationView.removeBadge(R.id.recent)
-
-        if (displayCount > 0) {
-            placeRecentBadge(displayCount, R.color.chat_recording_red)
-        } else {
-            hideBadge(recentMissedDotTag)
-        }
-    }
-
-    private fun getRecentBottomNavItemView(): BottomNavigationItemView? {
-        val menuView = binding.bottomNavigationView.getChildAt(0) as? BottomNavigationMenuView ?: return null
-        for (i in 0 until menuView.childCount) {
-            val item = menuView.getChildAt(i)
-            if (item is BottomNavigationItemView && item.itemData?.itemId == R.id.recent) {
-                return item
-            }
-        }
-        return null
-    }
-
-    private fun makeBadgeDot(tag: String): TextView {
-        val dp = resources.displayMetrics.density
-        val dotSize = (18 * dp).toInt()
-        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
-        return TextView(this).apply {
-            this.tag = tag
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
-            textSize = 9f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            // Start hidden — visibility flips on only after the post-runnable
-            // positions the dot. Otherwise it briefly flashes at (0,0) of the
-            // content root, which sits over the Home tab area.
-            visibility = View.INVISIBLE
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(ContextCompat.getColor(this@MainActivity, R.color.colorAccent))
-            }
-            rootView.addView(this, FrameLayout.LayoutParams(dotSize, dotSize))
-        }
-    }
-
-    // Single badge on Recent tab — top-right of icon; reuses recentMissedDotTag TextView.
-    private fun placeRecentBadge(count: Int, @androidx.annotation.ColorRes badgeColorRes: Int = R.color.colorAccent) {
-        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
-        val dp = resources.displayMetrics.density
-        val dotSize = (18 * dp).toInt()
-
-        val dot = rootView.findViewWithTag<TextView>(recentMissedDotTag)
-            ?: makeBadgeDot(recentMissedDotTag)
-        dot.text = count.coerceAtMost(99).toString()
-        (dot.background as? GradientDrawable)?.setColor(
-            ContextCompat.getColor(this, badgeColorRes)
-        )
-
-        binding.bottomNavigationView.post {
-            val itemView = getRecentBottomNavItemView()
-            val iconView = itemView?.findViewById<View>(
-                com.google.android.material.R.id.navigation_bar_item_icon_view
-            )
-            if (iconView == null) {
-                // Tab not on screen — keep the dot hidden so it doesn't sit at (0,0).
-                dot.visibility = View.GONE
-                return@post
-            }
-
-            val iconPos = IntArray(2)
-            iconView.getLocationInWindow(iconPos)
-            val rootPos = IntArray(2)
-            rootView.getLocationInWindow(rootPos)
-
-            val iconLeft = iconPos[0] - rootPos[0]
-            val iconRight = iconLeft + iconView.width
-            val iconTop = iconPos[1] - rootPos[1]
-            val topMargin = iconTop - dotSize / 2
-
-            (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
-                it.leftMargin = iconRight - dotSize / 2
-                it.topMargin = topMargin
-                dot.layoutParams = it
-            }
-            // Now that the dot is correctly positioned, reveal it.
-            dot.visibility = View.VISIBLE
-        }
-    }
-
-    private fun hideBadge(tag: String) {
-        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
-        rootView.findViewWithTag<TextView>(tag)?.visibility = View.GONE
+        setNavBadge(R.id.recent, recentMissedCount.coerceAtLeast(0), R.color.chat_recording_red)
     }
 
     fun refreshChatUnreadCountBadge() {
@@ -1900,77 +1829,18 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     private fun updateChatBadge() {
-        // The Chat tab exists only for female users. For males it's hidden, but its
-        // BottomNavigationItemView still lives in the view tree, so placeChatBadge's
-        // icon-null guard doesn't catch them and the dot lands at a bogus spot
-        // (the stray red dot at the bottom-left). Skip the chat badge entirely when
-        // the tab isn't visible — males surface friend-requests on the Friends badge.
+        // The Chat tab exists only for female users. Skip entirely when it isn't the
+        // visible tab so a male never gets a chat badge; friend-requests surface on the
+        // Friends (Favourite) badge instead.
         if (binding.bottomNavigationView.menu.findItem(R.id.chat)?.isVisible != true) {
-            hideBadge(chatUnreadDotTag)
+            binding.bottomNavigationView.removeBadge(R.id.chat)
             return
         }
         // Chat icon badge = friends-chat unread + pending received friend-requests.
         // The general bucket is intentionally excluded — it has no tab in the female
         // Chats UI, so counting it would over-report vs. what she can actually open.
         val total = (chatFriendsUnread.coerceAtLeast(0) + chatRequestsUnread.coerceAtLeast(0))
-
-        binding.bottomNavigationView.removeBadge(R.id.chat)
-
-        if (total > 0) {
-            placeChatBadge(total)
-        } else {
-            hideBadge(chatUnreadDotTag)
-        }
-    }
-
-    private fun getChatBottomNavItemView(): BottomNavigationItemView? {
-        val menuView = binding.bottomNavigationView.getChildAt(0) as? BottomNavigationMenuView ?: return null
-        for (i in 0 until menuView.childCount) {
-            val item = menuView.getChildAt(i)
-            if (item is BottomNavigationItemView && item.itemData?.itemId == R.id.chat) {
-                return item
-            }
-        }
-        return null
-    }
-
-    private fun placeChatBadge(count: Int) {
-        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
-        val dp = resources.displayMetrics.density
-        val dotSize = (18 * dp).toInt()
-
-        val dot = rootView.findViewWithTag<TextView>(chatUnreadDotTag)
-            ?: makeBadgeDot(chatUnreadDotTag)
-        dot.text = count.coerceAtMost(99).toString()
-
-        binding.bottomNavigationView.post {
-            val itemView = getChatBottomNavItemView()
-            val iconView = itemView?.findViewById<View>(
-                com.google.android.material.R.id.navigation_bar_item_icon_view
-            )
-            if (iconView == null) {
-                // Chat tab is hidden (e.g. male user) — don't leave a stray dot at (0,0).
-                dot.visibility = View.GONE
-                return@post
-            }
-
-            val iconPos = IntArray(2)
-            iconView.getLocationInWindow(iconPos)
-            val rootPos = IntArray(2)
-            rootView.getLocationInWindow(rootPos)
-
-            val iconLeft = iconPos[0] - rootPos[0]
-            val iconRight = iconLeft + iconView.width
-            val iconTop = iconPos[1] - rootPos[1]
-            val topMargin = iconTop - dotSize / 2
-
-            (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
-                it.leftMargin = iconRight - dotSize / 2
-                it.topMargin = topMargin
-                dot.layoutParams = it
-            }
-            dot.visibility = View.VISIBLE
-        }
+        setNavBadge(R.id.chat, total, R.color.colorAccent)
     }
 
     // Female Chat tab pushes its freshly-fetched received-request count so the
@@ -2021,63 +1891,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     private fun updateFriendsBadge() {
-        val total = friendsRequestsUnread.coerceAtLeast(0)
-        binding.bottomNavigationView.removeBadge(R.id.favourite)
-        if (total > 0) {
-            placeFavouriteBadge(total)
-        } else {
-            hideBadge(friendsRequestDotTag)
-        }
-    }
-
-    private fun getFavouriteBottomNavItemView(): BottomNavigationItemView? {
-        val menuView = binding.bottomNavigationView.getChildAt(0) as? BottomNavigationMenuView ?: return null
-        for (i in 0 until menuView.childCount) {
-            val item = menuView.getChildAt(i)
-            if (item is BottomNavigationItemView && item.itemData?.itemId == R.id.favourite) {
-                return item
-            }
-        }
-        return null
-    }
-
-    private fun placeFavouriteBadge(count: Int) {
-        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
-        val dp = resources.displayMetrics.density
-        val dotSize = (18 * dp).toInt()
-
-        val dot = rootView.findViewWithTag<TextView>(friendsRequestDotTag)
-            ?: makeBadgeDot(friendsRequestDotTag)
-        dot.text = count.coerceAtMost(99).toString()
-
-        binding.bottomNavigationView.post {
-            val itemView = getFavouriteBottomNavItemView()
-            val iconView = itemView?.findViewById<View>(
-                com.google.android.material.R.id.navigation_bar_item_icon_view
-            )
-            if (iconView == null) {
-                // Favourite tab hidden (e.g. female user) — don't strand a dot at (0,0).
-                dot.visibility = View.GONE
-                return@post
-            }
-
-            val iconPos = IntArray(2)
-            iconView.getLocationInWindow(iconPos)
-            val rootPos = IntArray(2)
-            rootView.getLocationInWindow(rootPos)
-
-            val iconLeft = iconPos[0] - rootPos[0]
-            val iconRight = iconLeft + iconView.width
-            val iconTop = iconPos[1] - rootPos[1]
-            val topMargin = iconTop - dotSize / 2
-
-            (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
-                it.leftMargin = iconRight - dotSize / 2
-                it.topMargin = topMargin
-                dot.layoutParams = it
-            }
-            dot.visibility = View.VISIBLE
-        }
+        setNavBadge(R.id.favourite, friendsRequestsUnread.coerceAtLeast(0), R.color.colorAccent)
     }
 
     fun getSkuListID() {
