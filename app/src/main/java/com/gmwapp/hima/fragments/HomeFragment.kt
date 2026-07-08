@@ -448,60 +448,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         startActivity(Intent(ctx, WalletActivity::class.java))
     }
 
+    // Insufficient talktime on a call tap now routes straight to Wallet — the
+    // welcome-offer / ₹1-trial card and the coin top-up both live there, so the
+    // old BottomSheetOldUserSubscribe recharge+subscribe sheet is retired
+    // (mirrors showTrialOfferSheet). No call ever starts without coins.
     private fun showInsufficientFundsSheet() {
         if (!isAdded) return
         val ctx = context ?: return
-
-        // Non-autopay language → no subscribe sheet ever. Route to Wallet
-        // for coin top-up (legacy flow).
-        if (!com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)) {
-            startActivity(Intent(ctx, WalletActivity::class.java))
-            return
-        }
-
-        // Per-language re-enable prevention: when admin has disabled
-        // re-subscription for this language (LanguageFeatureCache says
-        // re_subscription_enabled=false), lapsed users (everActive &&
-        // !isActive) are routed to Wallet for coin-pack purchase instead of
-        // the subscribe sheet. When the toggle is ON (default) lapsed users
-        // see BottomSheetOldUserSubscribe and re-subscribe via
-        // AutopayCheckoutActivity → PLAN_DIRECT_OLD (₹299 direct charge).
-        if (SubscriptionStateCache.everActive(ctx)
-            && !SubscriptionStateCache.isActive(ctx)
-            && !com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(ctx)
-        ) {
-            startActivity(Intent(ctx, WalletActivity::class.java))
-            return
-        }
-
-        val tag = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG
-        val existing = childFragmentManager.findFragmentByTag(tag)
-        if (existing is com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe && existing.isAdded) return
-        // Insufficient-talktime is a mid-call-flow popup; the user wants to
-        // call right now, so we keep the coin grid (low-friction recharge)
-        // but still surface the right subscribe price. Never-ever-active →
-        // ₹1 trial; lapsed/cancelled → ₹299 direct. The ₹1 path skips the
-        // explainer video here on purpose — the video is already shown at
-        // the primary entry points (chat lock, top-right coin pill, wallet),
-        // and a video gate would block users in their moment of urgency.
-        val isNeverSubscribed = !SubscriptionStateCache.everActive(ctx)
-        val planType = if (isNeverSubscribed)
-            com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
-        else
-            com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_DIRECT_OLD
-        val subscribeButtonText = if (isNeverSubscribed) "₹1 only" else "₹299 only"
-        com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
-            bannerOnly = false,
-            title = "You have insufficient talktime balance to make this call. Please recharge",
-            subscribeButtonText = subscribeButtonText
-        ).apply {
-            setOnSubscribeClickListener {
-                val c = context ?: return@setOnSubscribeClickListener
-                startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
-                    c, planType
-                ))
-            }
-        }.show(childFragmentManager, tag)
+        startActivity(Intent(ctx, WalletActivity::class.java))
     }
 
     private fun refreshCoinsDisplayFromCache() {
