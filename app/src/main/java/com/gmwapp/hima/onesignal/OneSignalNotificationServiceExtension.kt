@@ -218,6 +218,19 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         val userData = com.gmwapp.hima.BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val isMale = userData?.gender == com.gmwapp.hima.constants.DConstants.MALE
 
+        // B-lockcall — set the accept-screen state BEFORE posting our FSI banner.
+        // showIncoming's full-screen intent can launch MaleCallAcceptActivity /
+        // FemaleCallAcceptActivity before FCM's data message (the only other path
+        // that sets this state) arrives; without the state set, the screen's
+        // stale-launch guard finishes it and the locked device shows only the
+        // unlock screen. Skip when FCM already owns this call (it set the state
+        // itself and showIncoming will dedup-skip below). Does NOT claim FCM
+        // ownership — see setIncomingCallStateForFallback.
+        if (app?.isCallOwnedByFcm(senderId) != true) {
+            app?.setIncomingCallStateForFallback(senderId, callType ?: "audio", channelName, callId)
+            app?.setIncomingCallerInfo(callerName, callerImage)
+        }
+
         // Defer preventDefault until our custom CallStyle has actually posted.
         // Otherwise a throw inside showIncoming would leave the user with NO
         // notification at all.

@@ -517,7 +517,40 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        adoptUpgradedChannel(intent)
         maybeAutoAccept(intent)
+    }
+
+    /**
+     * B-lockcall channel upgrade: the OneSignal ring can create this screen with
+     * the non-joinable `default_channel` placeholder (OneSignal pushes carry no
+     * Agora channel — see [CallChannel]). The FCM channel relay then re-launches
+     * this singleTop activity with the REAL joinable channel. Adopt it so Accept
+     * joins the correct Agora channel instead of refusing with "unusable channel".
+     */
+    private fun adoptUpgradedChannel(intent: Intent) {
+        val newChannel = intent.getStringExtra("CHANNEL_NAME")
+        // Only upgrade: a real channel replacing an unusable placeholder. Never
+        // downgrade a channel we already consider joinable.
+        if (!CallChannel.isJoinable(newChannel) || CallChannel.isJoinable(channelName)) return
+        // Only adopt when the upgrade is for THIS call (the FCM guard already
+        // enforces callId match; re-check here so channelName and call_Id can
+        // never drift out of sync). If a mismatched CALL_ID somehow arrives,
+        // keep our channel/call_Id rather than grafting a foreign channel.
+        val newCallId = intent.getIntExtra("CALL_ID", 0)
+        if (call_Id != 0 && newCallId != 0 && newCallId != call_Id) {
+            Log.w("HimaIncomingCall", "FemaleCallAcceptActivity.onNewIntent: callId mismatch (have=$call_Id new=$newCallId) — ignoring channel upgrade")
+            return
+        }
+        channelName = newChannel
+        if (newCallId != 0) call_Id = newCallId
+        intent.getStringExtra("CALL_TYPE")?.takeIf { it.isNotBlank() }?.let { callType = it }
+        intent.getIntExtra("SENDER_ID", -1).takeIf { it != -1 }?.let { receiverId = it }
+        intent.getStringExtra("Caller_NAME")?.takeIf { it.isNotBlank() }?.let { callerName = it }
+        intent.getStringExtra("Caller_Image")?.takeIf { it.isNotBlank() }?.let { callerImage = it }
+        Log.d("HimaIncomingCall", "FemaleCallAcceptActivity.onNewIntent: channel upgraded → $channelName")
+        // Prefetch the Agora token for the real channel now so Accept is instant.
+        prefetchAgoraToken(newChannel)
     }
 
     private fun maybeAutoAccept(intent: Intent?) {

@@ -320,6 +320,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     // or awaiting accept). A different caller arriving now would replace the
                     // notification and cause two rings, so auto-reject them as busy. Same-sender
                     // duplicate FCMs are also ignored to avoid double ringtone/notification.
+                    // Set true when THIS FCM is the channel relay that upgrades a
+                    // channel-less OneSignal ring (default_channel placeholder) to the
+                    // real joinable channel for the SAME already-ringing caller. The
+                    // busy guards below must not auto-reject it — the "busy" signal is
+                    // just this call's own ringing accept screen. See B-lockcall.
+                    var isChannelRelayUpgrade = false
                     val appForBusy = BaseApplication.getInstance()
                     if (appForBusy?.isIncomingCallFresh() == true) {
                         val pendingSenderId = appForBusy.getSenderIdForSplashActivity()
@@ -344,13 +350,42 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             // until the cleanup cron. Stamp it not_answered/receiver via the
                             // authenticated call_status endpoint (idempotent PK write).
                             stampConcurrentBusyReject(userData?.id, senderId, callIdInt)
-                        } else {
+                            return
+                        }
+                        // Same sender. Normally a duplicate FCM to ignore — EXCEPT when
+                        // this is the FCM "channel relay" upgrading a channel-less ring.
+                        // The OneSignal incoming-call push carries NO Agora channel (see
+                        // [CallChannel]), so the ring path registers the call with the
+                        // non-joinable `default_channel` placeholder. The REAL joinable
+                        // channel arrives ONLY via this FCM. If we drop it as a duplicate,
+                        // the accept screen stays stuck on default_channel and answering
+                        // fails ("call gone" — B-lockcall regression). So when the stored
+                        // channel is NOT joinable but this FCM carries a joinable one, fall
+                        // through to deliver the real channel + re-launch the accept screen
+                        // (singleTop → onNewIntent adopts the upgraded channel). Otherwise
+                        // it's a genuine duplicate and we drop it as before.
+                        // Guarded on callId match so we only upgrade the SAME call: if
+                        // the same caller places a genuinely NEW call while the first
+                        // ring is still "fresh" (its real channel was lost), its callId
+                        // differs and we must NOT graft the new channel onto the old
+                        // call_Id — that would corrupt call-status/billing attribution.
+                        // A mismatched callId falls through to the duplicate-drop below.
+                        val channelUpgrade = callIdInt > 0 &&
+                            callIdInt == appForBusy.getCallIdForSplashActivity() &&
+                            !CallChannel.isJoinable(appForBusy.getChannelName()) &&
+                            CallChannel.isJoinable(channelName)
+                        if (!channelUpgrade) {
                             Log.d(
                                 "FCM",
                                 "Duplicate incoming FCM from same sender $senderId — ignoring"
                             )
+                            return
                         }
-                        return
+                        isChannelRelayUpgrade = true
+                        Log.d(
+                            "FCM",
+                            "FCM channel relay: upgrading placeholder → real channel '$channelName' for sender $senderId (proceeding)"
+                        )
                     }
 
 
@@ -382,7 +417,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             BaseApplication.getInstance()?.isInActiveCall() == true ||
                             FcmUtils.isUserAvailable == 1
 
-                        if (inCallActivityShown || femaleOnAnotherAppCall) {
+                        // Channel relay for the SAME ringing call: the only "busy"
+                        // signal is this call's own FemaleCallAcceptActivity (the ring
+                        // screen). Don't auto-reject — proceed to deliver the real
+                        // channel and re-launch the accept screen (onNewIntent adopts
+                        // the upgraded channel). Still auto-reject if genuinely on
+                        // another app's call. See B-lockcall.
+                        val ringingScreenForThisCallFemale = isChannelRelayUpgrade &&
+                            currentActivity is FemaleCallAcceptActivity &&
+                            !femaleOnAnotherAppCall
+
+                        if ((inCallActivityShown || femaleOnAnotherAppCall) && !ringingScreenForThisCallFemale) {
 
                             // B134 — Connecting Activity instance counts as busy.
                             // B156a — FcmUtils.isUserAvailable closes the race window
@@ -585,7 +630,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             BaseApplication.getInstance()?.isInActiveCall() == true ||
                             FcmUtils.isUserAvailable == 1
 
-                        if (inCallActivityShownMale || maleOnAnotherAppCall) {
+                        // Channel relay for the SAME ringing call: the only "busy"
+                        // signal is this call's own MaleCallAcceptActivity (the ring
+                        // screen). Don't auto-reject — proceed to deliver the real
+                        // channel and re-launch the accept screen (onNewIntent adopts
+                        // the upgraded channel). Still auto-reject if genuinely on
+                        // another app's call. See B-lockcall.
+                        val ringingScreenForThisCallMale = isChannelRelayUpgrade &&
+                            currentActivity is MaleCallAcceptActivity &&
+                            !maleOnAnotherAppCall
+
+                        if ((inCallActivityShownMale || maleOnAnotherAppCall) && !ringingScreenForThisCallMale) {
 
                             // B134 + B156a (symmetric, male side) — same rationale
                             // as the female branch: FcmUtils.isUserAvailable is the

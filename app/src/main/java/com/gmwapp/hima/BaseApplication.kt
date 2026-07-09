@@ -767,6 +767,21 @@ class BaseApplication : Application(), Configuration.Provider {
                     }
                     val incoming = parseOneSignalIncomingCallPayload(additional, event.notification)
                     if (incoming != null) {
+                        // B-lockcall — set accept-screen state before the FSI banner
+                        // so the full-screen intent's launch of the accept activity
+                        // survives its stale-launch guard even if FCM's data message
+                        // is late/absent. Skip when FCM already owns the call (it set
+                        // this itself). Does NOT claim FCM ownership. Mirrors the NSE
+                        // path fix in OneSignalNotificationServiceExtension.
+                        if (!isCallOwnedByFcm(incoming.senderId)) {
+                            setIncomingCallStateForFallback(
+                                incoming.senderId,
+                                incoming.callType ?: "audio",
+                                incoming.channelName,
+                                incoming.callId
+                            )
+                            setIncomingCallerInfo(incoming.callerName, incoming.callerImage)
+                        }
                         val posted = runCatching {
                             com.gmwapp.hima.utils.CallNotifications.showIncoming(
                                 applicationContext,
@@ -2428,6 +2443,37 @@ class BaseApplication : Application(), Configuration.Provider {
             (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
                 ?.cancel(callId.toString(), INCOMING_CALL_NOTIFICATION_ID)
         }
+    }
+
+    /**
+     * B-lockcall — OneSignal is the DELIVERY FALLBACK for incoming calls: it
+     * posts its own full-screen-intent CallStyle banner via
+     * [CallNotifications.showIncoming]. When that push wins the delivery race
+     * over FCM (common on locked/dozing devices), its FSI launches the accept
+     * screen BEFORE the FCM data message has run [setIncomingCall] — so the
+     * screen's stale-launch guard (`isIncomingCall() != true`) fired and it
+     * finished itself, dropping the user back to the lockscreen ("just the
+     * unlock option") with the caller stuck on Connecting.
+     *
+     * This sets the accept-screen state the guard checks (flag + routing fields
+     * + tag + caller info) so the FSI-launched screen survives even if the FCM
+     * data message is late or never arrives.
+     *
+     * Deliberately does NOT call [markCallOwnedByFcm] (FCM stays the canonical
+     * owner for cross-provider dedup — otherwise [CallNotifications.showIncoming]
+     * would see FCM-owned and skip posting its own banner) and does NOT cancel
+     * the tag=callId banner (that banner is the FSI source the caller just
+     * posted). Idempotent with the later real [setIncomingCall] from FCM.
+     */
+    fun setIncomingCallStateForFallback(senderId: Int, callType: String, channelName: String, callId: Int) {
+        clearAcceptedRing()
+        this.senderId = senderId
+        this.callTypeForSplashActivity = callType
+        this.channelName = channelName
+        this.callIdForSplashActivity = callId
+        this.incomingCall = true
+        this.incomingCallSetAt = System.currentTimeMillis()
+        this.lastIncomingCallTag = callId.toString()
     }
 
     // ── C-10 accept/decline race guard ───────────────────────────────────────
