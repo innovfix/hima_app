@@ -2675,6 +2675,13 @@ class BaseApplication : Application(), Configuration.Provider {
             )
         }
 
+        // REJECT_FALSE_MISS_2026_07_09: durable backstop — guarantees the reject
+        // reaches the server even if the inline post above was dropped (offline /
+        // process death). Idempotent server-side, so it is safe alongside it.
+        runCatching {
+            com.gmwapp.hima.workers.CallStatusWorker.enqueueReject(this, selfUserId, peerUserId, callId)
+        }
+
         // Relay the "rejected" push so the caller stops ringing. Skip if we have no
         // usable routing info (would send a malformed push).
         if (!callType.isNullOrEmpty() && !channelName.isNullOrEmpty()) {

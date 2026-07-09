@@ -452,6 +452,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                         endedByUserId = selfId,
                         durationSeconds = 0,
                     )
+                    // REJECT_FALSE_MISS_2026_07_09: durable backstop so the reject
+                    // survives offline / app death (idempotent alongside the post above).
+                    com.gmwapp.hima.workers.CallStatusWorker.enqueueReject(applicationContext, selfId, receiverId, call_Id)
                 }
 
                 HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)

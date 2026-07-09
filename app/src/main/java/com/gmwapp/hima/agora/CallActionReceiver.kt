@@ -495,6 +495,9 @@ class CallActionReceiver : BroadcastReceiver() {
                 Log.w("CallStatus", "Notification-reject — no network")
             }
         })
+        // REJECT_FALSE_MISS_2026_07_09: durable backstop so a notification-decline
+        // reject survives offline / process death (idempotent alongside the post above).
+        com.gmwapp.hima.workers.CallStatusWorker.enqueueReject(context, selfUserId, peerUserId, callId)
     }
 }
 
