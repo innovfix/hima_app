@@ -282,7 +282,25 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     // See MaleAudioCallingActivity for full rationale.
     private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
         onTick = { secondsRemaining ->
-            binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+            binding.reconnectBanner.text =
+                peerReconnectingTextOrNull() ?: "Reconnecting… ${secondsRemaining}s"
+        },
+        // Peer-side reconnect pill: surface "<peer> is reconnecting…" when the
+        // PEER's audio has stalled / gone offline (gated by the watchdog's 3.5s
+        // debounce so brief jitter never flashes it). Our OWN net loss already
+        // shows CallNetLossBanner's red "No internet" banner, so this pill is
+        // peer-only — that's why one side showed reconnecting but the other
+        // showed nothing on an audio call.
+        onArmedChanged = { armed ->
+            runOnUiThread {
+                val txt = peerReconnectingTextOrNull()
+                if (armed && txt != null) {
+                    binding.reconnectBanner.text = txt
+                    binding.reconnectBanner.visibility = View.VISIBLE
+                } else {
+                    binding.reconnectBanner.visibility = View.GONE
+                }
+            }
         },
         onTimeout = {
             runOnUiThread {
@@ -295,6 +313,17 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             }
         }
     )
+
+    /**
+     * Text for the peer-reconnecting pill, or null when WE are the down side
+     * (own-network loss is shown by CallNetLossBanner, not this pill). Names the
+     * peer when known, else falls back to a plain "Reconnecting…".
+     */
+    private fun peerReconnectingTextOrNull(): String? =
+        if (reconnectWatchdog.isPeerDown())
+            (if (receiverName.isBlank()) getString(R.string.call_reconnecting)
+             else getString(R.string.call_peer_reconnecting, receiverName))
+        else null
     private var mutedByInterrupt = false
     // B196 false-positive fix: tracks ONLY a real cellular (SIM) call — the sole
     // interrupt source allowed to surface the "On hold — phone call in progress"

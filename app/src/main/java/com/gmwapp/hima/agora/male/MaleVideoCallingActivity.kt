@@ -169,15 +169,23 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     // See MaleAudioCallingActivity for full rationale.
     private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
         onTick = { secondsRemaining ->
-            binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+            binding.reconnectBanner.text =
+                peerReconnectingTextOrNull() ?: "Reconnecting… ${secondsRemaining}s"
         },
-        // TC_007: hide-only on disarm. We never SHOW the banner from here (the
-        // own-network reconnect banner stays disabled per v1067); the only
-        // shower is the 8s remote-video-freeze runnable. But when the watchdog
-        // clears we must guarantee the pill goes away even if no fresh remote
-        // video DECODING callback arrives to call hideRemoteAvatarSkeleton().
+        // TC_007: the 8s remote-video-freeze runnable also shows this pill on a
+        // video stall. Here we additionally SHOW it (named) when the PEER's AUDIO
+        // stalls / they go offline (peer-only, debounced), and always hide on
+        // disarm. Own-network loss stays on CallNetLossBanner's red banner.
         onArmedChanged = { armed ->
-            if (!armed) runOnUiThread { binding.reconnectBanner.visibility = View.GONE }
+            runOnUiThread {
+                val txt = peerReconnectingTextOrNull()
+                if (armed && txt != null) {
+                    binding.reconnectBanner.text = txt
+                    binding.reconnectBanner.visibility = View.VISIBLE
+                } else if (!armed) {
+                    binding.reconnectBanner.visibility = View.GONE
+                }
+            }
         },
         onTimeout = {
             runOnUiThread {
@@ -190,6 +198,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             }
         }
     )
+
+    /**
+     * Text for the peer-reconnecting pill, or null when WE are the down side
+     * (own-network loss is shown by CallNetLossBanner, not this pill). Names the
+     * peer when known, else falls back to a plain "Reconnecting…".
+     */
+    private fun peerReconnectingTextOrNull(): String? =
+        if (reconnectWatchdog.isPeerDown())
+            (if (receiverName.isBlank()) getString(R.string.call_reconnecting)
+             else getString(R.string.call_peer_reconnecting, receiverName))
+        else null
     private var mutedByInterrupt = false
     // B196 false-positive fix: tracks ONLY a real cellular (SIM) call — the sole
     // interrupt source allowed to surface the "On hold — phone call in progress"
@@ -1934,10 +1953,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                             val run = Runnable {
                                 showRemoteAvatarSkeleton()
                                 // TC_007: after 8s of sustained freeze/failure, surface
-                                // the "Reconnecting…" pill over the avatar. Driven by the
-                                // remote-VIDEO-state path — NOT CallQualityUi's connection
-                                // banner (which stays disabled per v1067) — so it appears
-                                // only on a genuine sustained stall, never on brief blips.
+                                // the "<peer> is reconnecting…" pill over the avatar. Driven
+                                // by the remote-VIDEO-state path — NOT CallQualityUi's
+                                // connection banner (disabled per v1067) — so it appears only
+                                // on a genuine sustained stall, never on brief blips.
+                                binding.reconnectBanner.text =
+                                    if (receiverName.isBlank()) getString(R.string.call_reconnecting)
+                                    else getString(R.string.call_peer_reconnecting, receiverName)
                                 binding.reconnectBanner.visibility = View.VISIBLE
                                 pendingAvatarShow = null
                             }

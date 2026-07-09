@@ -2,6 +2,9 @@
 <resources>
     <string name="app_name">&appname;</string>
     <string name="call_reconnecting">Reconnecting…</string>
+    <!-- Shown on the PEER's screen when the OTHER side loses internet, so both
+         parties see a reconnecting indicator (not just the side that dropped). -->
+    <string name="call_peer_reconnecting">%1$s is reconnecting…</string>
     <!-- B055 — shown as a small pill below the top bar when the remote
          participant mutes their microphone, so the user knows the silence is
          intentional (not a connection issue). -->

@@ -124,6 +124,14 @@ class ReconnectWatchdog(
     /** True while any stall source is still down. */
     fun isArmed(): Boolean = ownConnectionDown || peerStreamDown || peerOfflineDown
 
+    /**
+     * True while the PEER is the down source (audio stream frozen after the
+     * debounce, or hard-offline) — as opposed to OUR own network dropping.
+     * Drives the peer-side "X is reconnecting…" pill: our own drop already
+     * shows CallNetLossBanner's red banner, so the pill is peer-only.
+     */
+    fun isPeerDown(): Boolean = peerStreamDown || peerOfflineDown
+
     // The grace window for the CURRENT set of active sources: the LONGEST window
     // among them, so an own-network drop (or a recoverable frozen stall) is never
     // cut short by a co-occurring hard-offline. 0 when nothing is down.
