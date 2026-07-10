@@ -628,8 +628,8 @@
                 app:cardElevation="0dp"
                 app:cardCornerRadius="14dp"
                 app:cardBackgroundColor="@color/white"
-                app:strokeColor="#E3E6EC"
-                app:strokeWidth="1dp">
+                app:strokeColor="#C7CDD9"
+                app:strokeWidth="1.4dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -695,7 +695,7 @@
                         android:background="@android:color/transparent"
                         android:textCursorDrawable="@drawable/color_cursor"
                         android:textColor="#1F2430"
-                        android:hint=""
+                        android:hint="Enter mobile number"
                         android:textColorHint="#9AA0AC"
                         android:textSize="16sp"
                         android:imeOptions="actionDone"
