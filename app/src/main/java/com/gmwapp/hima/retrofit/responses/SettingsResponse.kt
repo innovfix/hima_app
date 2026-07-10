@@ -26,6 +26,11 @@ data class SettingsResponseData(
     
     val audio_income: Int?,
     val video_income: Int?,
+    // Missed-call notification remote kill-switch (admin-controlled). 0/absent = OFF
+    // (no missed-call notifications shown anywhere in the app); 1 = ON. Ships OFF;
+    // flip the settings_list value to 1 to re-enable without a new APK. Read offline
+    // from DPreferences by CallNotifications.showMissed. See MEMORY: missed-call remote flag.
+    val missed_call_notifications_enabled: Int? = 0,
     // Icebreaker feature toggles (admin-controlled). Default master off; audio/video on.
     val icebreaker_enabled: Int? = 0,
     val icebreaker_audio_enabled: Int? = 1,

@@ -83,6 +83,23 @@ object CallNotifications {
     /** Legacy channel id; kept for reference. No longer used by [showMissed]. */
     private const val MISSED_CALLS_NOTIFICATION_CHANNEL_ID = "missed_calls_v1"
 
+    /**
+     * Remote kill-switch for missed-call notifications (product decision, 2026-07-10:
+     * they were too noisy). Backend-controlled via `settings_list.missed_call_notifications_enabled`
+     * (0/absent = OFF, 1 = ON), cached in [DPreferences.getSettingsData] on every home/profile
+     * load so it's readable even when the push arrives with the app killed.
+     *
+     * When OFF, [showMissed] still clears any stuck incoming ring banner but posts NO
+     * missed-call notification. Every missed-call path (OneSignal NSE server push, FCM
+     * busy, TC_026 ring-dismiss) funnels through [showMissed], so this one flag suppresses
+     * all of them. Ships OFF; flip the DB value to 1 to re-enable without a new APK.
+     *
+     * Defaults to OFF (suppressed) when settings haven't been fetched yet or on any error.
+     */
+    private fun missedCallNotificationsEnabled(context: Context): Boolean = runCatching {
+        DPreferences(context).getSettingsData()?.missed_call_notifications_enabled == 1
+    }.getOrDefault(false)
+
     /** OR'd with peerId so missed-call ids don't collide with chat (`0x40000000`) or call (`0x00000001`). */
     private const val MISSED_CALL_ID_MASK = 0x60000000
 
@@ -466,6 +483,14 @@ object CallNotifications {
         // missed-call notification below.
         runCatching {
             BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+        }
+        // Missed-call notifications are gated by a backend flag (see missedCallNotificationsEnabled).
+        // When OFF we deliberately clear the stuck ring banner ABOVE first, then post nothing. The
+        // NSE has already called event.preventDefault() for server pushes, so no OneSignal default
+        // card shows either. Return false = "nothing posted" (same contract as a suppressed miss).
+        if (!missedCallNotificationsEnabled(context)) {
+            Log.d(MISSED_CALL_DIAG_TAG, "showMissed: missed-call notifications disabled by backend flag — cleared ring, posting nothing")
+            return false
         }
         // Defensive: normalize upstream title/body (e.g. "📞 Missed call from Kishore12")
         // so Person name + avatar initial match chat-style notifications.
