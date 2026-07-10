@@ -356,11 +356,15 @@ object HimaAnalytics {
                 }
                 BaseApplication.firebaseAnalytics.logEvent(META_EVENT_D1MP, fbBundle)
 
-                // Adjust (mirrors alongside Meta + Firebase).
+                // Adjust: cumulative value as a plain param (NOT revenueInr) — d1mp
+                // re-sums prior purchases, so counting it as revenue would double it.
                 com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
                     "d1mp",
-                    revenueInr = cumulativeValue.toDouble(),
-                    params = mapOf("currency" to currency, "purchase_count" to newCount)
+                    params = mapOf(
+                        "currency" to currency,
+                        "purchase_count" to newCount,
+                        "cumulative_value" to cumulativeValue.toDouble()
+                    )
                 )
 
                 Log.d(TAG, "d1mp fired: count=$newCount cumulative=$cumulativeValue $currency")
