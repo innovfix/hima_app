@@ -627,35 +627,14 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         }
         AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
 
-        // Adjust — mutually-exclusive purchase segmentation (Option 1), same as
-        // Main/Wallet: fires ONE of purchase / new_user_purchase /
-        // new_user_first_purchase. Shares the per-purchase dedupId (global dedup)
-        // so if this PhonePe path AND Main/Wallet both fire for one purchase, only
-        // one counts. (PaymentActivity only logs to Meta; backend/Firebase logging
-        // happens in WalletActivity and MainActivity.)
-        com.gmwapp.hima.mmp.AdjustTracker.trackCoinPurchase(
+        // Adjust — mirror the Meta purchase here too so this payment path is not
+        // missed on Adjust. (PaymentActivity only logs to Meta; backend/Firebase
+        // logging happens in WalletActivity and MainActivity.)
+        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+            "purchase",
             revenueInr = coinAmount,
-            userId = "$userId",
-            coinId = "$coinId",
-            isNewUser = isNewUser(userData?.created_at),
-            dedupId = prefs?.getString("last_purchase_txn_id")
+            params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
         )
-    }
-
-    /**
-     * Same "signed-up today" definition Main/Wallet use for purchase
-     * segmentation, so Adjust classifies a PhonePe purchase the same way.
-     */
-    private fun isNewUser(createdAt: String?): Boolean {
-        if (createdAt.isNullOrEmpty()) return false
-        return try {
-            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
-            val created = fmt.parse(createdAt) ?: return false
-            val dayFmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-            dayFmt.format(created) == dayFmt.format(java.util.Date())
-        } catch (e: Exception) {
-            false
-        }
     }
 
     private fun checkOrderStatus(orderId: String) {

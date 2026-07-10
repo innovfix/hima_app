@@ -1156,19 +1156,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             value = priceDouble
         )
 
-        // Adjust: value sent as a plain param (NOT revenueInr) — initial_checkout
-        // is a funnel step, not money earned, so it must not inflate Adjust revenue.
+        // Adjust (mirrors alongside Meta + MMP + Firebase).
         com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
             "initial_checkout",
-            params = mapOf("user_id" to "$userId", "coin_id" to "$pointsId", "value" to af_price.toDouble())
+            revenueInr = af_price.toDouble(),
+            params = mapOf("user_id" to "$userId", "coin_id" to "$pointsId")
         )
 
         BaseApplication.getInstance()?.getPrefs()?.apply {
             setString("last_coin_id", pointsId)
             setString("last_coin_amount", amount.toString())
-            // Fresh per-purchase id so the several fires of ONE purchase collapse to
-            // a single counted Adjust `purchase` event (see updatePurchaseOnMeta).
-            setString("last_purchase_txn_id", System.currentTimeMillis().toString())
         }
 
         if (userId != null && pointsId.isNotEmpty() && pointsIdInt != null) {
@@ -2178,16 +2175,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             value = coinAmount
         )
 
-        // Adjust — mutually-exclusive purchase segmentation (Option 1): fires ONE of
-        // purchase / new_user_purchase / new_user_first_purchase, so each event has a
-        // clean count + amount and the three sum to the true total (no inflation).
-        // dedupId collapses the several fires of one purchase into a single count.
-        com.gmwapp.hima.mmp.AdjustTracker.trackCoinPurchase(
+        // Adjust (mirrors alongside Meta + MMP + Firebase).
+        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+            "purchase",
             revenueInr = coinAmount,
-            userId = "$userId",
-            coinId = "$coinId",
-            isNewUser = isNewUser(userData?.created_at),
-            dedupId = prefs?.getString("last_purchase_txn_id")
+            params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
         )
 
         // Check rating prompt after successful purchase
@@ -2227,9 +2219,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 value = coinAmount
             )
 
-            // Adjust for new users is handled once, mutually-exclusively, by
-            // trackCoinPurchase() above (fires new_user_purchase or
-            // new_user_first_purchase). No separate Adjust call here.
+            // Adjust (mirrors alongside Meta + Firebase + backend).
+            com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                "new_user_purchase",
+                revenueInr = coinAmount,
+                params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+            )
 
             Log.d("NewUserPurchase", "✅ new_user_purchase event logged for user $userId (created: ${userData?.created_at})")
             
@@ -2265,8 +2260,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     value = coinAmount
                 )
 
-                // Adjust new_user_first_purchase is handled by trackCoinPurchase()
-                // above (mutually-exclusive), so no separate Adjust call here.
+                // Adjust (mirrors alongside Meta + Firebase + backend).
+                com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
+                    "new_user_first_purchase",
+                    revenueInr = coinAmount,
+                    params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+                )
 
                 // Mark first purchase as logged
                 markFirstPurchaseLogged(userId)
