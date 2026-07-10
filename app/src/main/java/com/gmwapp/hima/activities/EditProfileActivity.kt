@@ -334,7 +334,9 @@ class EditProfileActivity : BaseActivity() {
             binding.pbUpdateLoader.visibility = View.GONE
             binding.btnUpdate.text = getString(R.string.update)
             binding.btnUpdate.isEnabled = true
-            if (it.data != null) {
+            // Guard null Retrofit response (HTTP error / empty / parse fail): dereferencing
+            // it.data / it.message on a null response would NPE like the avatars observer did.
+            if (it?.data != null) {
                 // Check if name was changed
                 val oldName = originalUserName
                 val newName = it.data.name
@@ -355,7 +357,7 @@ class EditProfileActivity : BaseActivity() {
                 finish()
             } else {
                 // Show error message from backend (e.g., "You can change your name only once.")
-                showAppToast(it.message ?: getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
+                showAppToast(it?.message ?: getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
             }
         })
         profileViewModel.avatarsListLiveData.observe(this, Observer {
