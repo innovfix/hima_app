@@ -131,7 +131,10 @@ class ChatActivityInHouse : AppCompatActivity() {
      * this, switching peer via `onNewIntent` re-subscribes a new observer every
      * time and the previous peer's late response would overwrite the new header.
      */
-    private var profileObserver: Observer<RegisterResponse>? = null
+    // Crashlytics initPeerHeader$lambda: getUserLiveData posts response.body() which is
+    // null on a non-2xx/empty /getUsers response. Observer must be typed nullable, else
+    // Kotlin's generated non-null param check throws before the body's null-guard runs.
+    private var profileObserver: Observer<RegisterResponse?>? = null
 
     private lateinit var rvMessages: RecyclerView
     private var layoutHistoryError: View? = null
@@ -1462,7 +1465,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             // for the previous peer can't overwrite the freshly-set header on a
             // peer switch via `onNewIntent`.
             profileObserver?.let { profileViewModel.getUserLiveData.removeObserver(it) }
-            val observer = Observer<RegisterResponse> { response ->
+            val observer = Observer<RegisterResponse?> { response ->
                 val data = response?.data ?: return@Observer
                 val fetchedName = extractNameOnly(data.name)
                     .takeIf { it.isNotBlank() && it != "User" }

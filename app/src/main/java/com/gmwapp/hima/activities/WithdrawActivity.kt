@@ -717,7 +717,10 @@ class WithdrawActivity : BaseActivity() {
 
         loginViewModel.loginResponseLiveData.observe(this, Observer {
 
-            if (it.success) {
+            // Crashlytics WithdrawActivity.panVerification$lambda: LoginResponse can be
+            // emitted as null on a failed/empty/malformed /login response. Guard it instead
+            // of dereferencing directly (matches the null-safe pattern used elsewhere here).
+            if (it?.success == true) {
                 if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){
                     binding.ivAddPan.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
                     // Rotate the drawable by a specified angle (e.g., 45 degrees)
