@@ -359,8 +359,10 @@ class EditProfileActivity : BaseActivity() {
             }
         })
         profileViewModel.avatarsListLiveData.observe(this, Observer {
-            if (it.data != null) {
-                val list = it.data
+            // Crashlytics NPE (EditProfileActivity.initUI lambda): a null Retrofit response
+            // (or null data) made it.getData() crash. Bail out instead of force-closing.
+            val list = it?.data ?: return@Observer
+            run {
                 val index = list.find { avatar -> avatar?.id == userData?.avatar_id }
                 list.remove(index)
                 list.add(0, index)

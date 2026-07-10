@@ -59,7 +59,9 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     override fun onResponse(
                         call: Call<AvatarsListResponse>, response: Response<AvatarsListResponse>
                     ) {
-                        avatarsListLiveData.postValue(response.body())
+                        // Guard null Retrofit body (HTTP error / empty / parse fail): a null
+                        // post makes the EditProfile observer NPE on it.getData(). Skip instead.
+                        response.body()?.let { avatarsListLiveData.postValue(it) }
                         Log.d("avatarsListLiveData","${response.body()}")
 
                     }
