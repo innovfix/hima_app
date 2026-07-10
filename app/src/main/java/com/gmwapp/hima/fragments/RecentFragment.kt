@@ -292,14 +292,13 @@ class RecentFragment : BaseFragment(), Refreshable {
     private fun setupFilterChips() {
         binding.chipAll.setOnSingleClickListener { onPillSelected("recent") }
         binding.chipMissed.setOnSingleClickListener { onPillSelected("missed") }
-        binding.chipRejected.setOnSingleClickListener { onPillSelected("rejected") }
         binding.chipTalkTime.setOnSingleClickListener { onPillSelected("talk_time") }
         binding.chipAZ.setOnSingleClickListener { onPillSelected("a_z") }
         styleChips(currentSortType)
     }
 
     /** Ordered filter pills, left→right, for swipe navigation. */
-    private val pillOrder = listOf("recent", "missed", "rejected", "talk_time", "a_z")
+    private val pillOrder = listOf("recent", "missed", "talk_time", "a_z")
 
     /**
      * Swipe horizontally across the call list to move between filter pills — same
@@ -407,7 +406,6 @@ class RecentFragment : BaseFragment(), Refreshable {
         val items = listOf(
             Triple(binding.chipAll, binding.tvChipAll, "recent"),
             Triple(binding.chipMissed, binding.tvChipMissed, "missed"),
-            Triple(binding.chipRejected, binding.tvChipRejected, "rejected"),
             Triple(binding.chipTalkTime, binding.tvChipTalkTime, "talk_time"),
             Triple(binding.chipAZ, binding.tvChipAZ, "a_z"),
         )

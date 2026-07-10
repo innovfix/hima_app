@@ -248,45 +248,7 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- FI_06: Rejected filter -->
-                    <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/chip_rejected"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="9dp"
-                        android:clickable="true"
-                        android:focusable="true"
-                        app:cardBackgroundColor="@color/white"
-                        app:cardCornerRadius="18dp"
-                        app:cardElevation="0dp"
-                        app:strokeColor="@color/onboarding_card_border"
-                        app:strokeWidth="1.2dp">
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="match_parent"
-                            android:gravity="center"
-                            android:orientation="horizontal"
-                            android:paddingHorizontal="15dp">
-
-                            <ImageView
-                                android:layout_width="16dp"
-                                android:layout_height="16dp"
-                                android:layout_marginEnd="6dp"
-                                android:src="@drawable/ic_call_decline"
-                                app:tint="@color/grey_medium"
-                                tools:ignore="ContentDescription" />
-
-                            <TextView
-                                android:id="@+id/tv_chip_rejected"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:fontFamily="@font/poppins_medium"
-                                android:text="@string/rejected_call_label"
-                                android:textColor="@color/grey_medium"
-                                android:textSize="13sp" />
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
+                    <!-- FI_06 Rejected filter removed: rejected calls are hidden from users entirely. -->
 
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/chip_talk_time"
