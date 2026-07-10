@@ -403,7 +403,13 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         ) ?: storedImage.orEmpty()
 
         ChatNotificationStore.saveMeta(context, peerId, peerName, peerImage)
-        val entries = ChatNotificationStore.append(context, peerId, text, System.currentTimeMillis())
+        // Dedup key: OneSignal's per-push notification id. When OneSignal's receive
+        // handler is cancelled (JobCancellationException) it reprocesses the SAME
+        // push, which used to append the message twice → doubled MessagingStyle line.
+        // The id is identical across reprocessing (and present even on text pushes,
+        // which carry no backend message_id), so it reliably drops the duplicate.
+        val dedupId = event.notification.notificationId?.takeIf { it.isNotBlank() }
+        val entries = ChatNotificationStore.append(context, peerId, text, System.currentTimeMillis(), dedupId)
 
         // H15: preventDefault BEFORE show — if show() throws, OneSignal's default
         // would otherwise also fire and the user would see two notifications for

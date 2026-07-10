@@ -17,7 +17,7 @@ import org.json.JSONObject
  */
 object ChatNotificationStore {
 
-    data class Entry(val text: String, val ts: Long)
+    data class Entry(val text: String, val ts: Long, val id: String? = null)
 
     private const val TAG = "ChatNotifStore"
     private const val PREFS = "chat_notif_store"
@@ -30,10 +30,27 @@ object ChatNotificationStore {
     private fun metaNameKey(peerId: Int) = "meta_name_$peerId"
     private fun metaImageKey(peerId: Int) = "meta_image_$peerId"
 
-    fun append(ctx: Context, peerId: Int, text: String, ts: Long): List<Entry> {
+    /**
+     * Appends one received message to the peer's rolling stack and returns the new
+     * list. [dedupId] is a stable per-push key (the OneSignal notification id) used
+     * to drop reprocessed duplicates: OneSignal re-runs the receive handler for the
+     * same push after its internal handler is cancelled (JobCancellationException →
+     * "Displaying normal OneSignal notification"), which otherwise appended the SAME
+     * message a second time and rendered a doubled MessagingStyle line. When [dedupId]
+     * matches an entry already in the stack we skip the append and return the stack
+     * unchanged. Text pushes carry no backend message_id, so the OneSignal id (unique
+     * per push, identical across reprocessing) is the reliable key for text AND media.
+     */
+    fun append(ctx: Context, peerId: Int, text: String, ts: Long, dedupId: String? = null): List<Entry> {
         val p = prefs(ctx)
         val current = readEntries(p, peerId).toMutableList()
-        current.add(Entry(text, ts))
+
+        if (dedupId != null && current.any { it.id == dedupId }) {
+            Log.d(TAG, "append peer=$peerId skipped duplicate dedupId=$dedupId")
+            return current
+        }
+
+        current.add(Entry(text, ts, dedupId))
         while (current.size > MAX_ENTRIES) current.removeAt(0)
 
         val arr = JSONArray()
@@ -41,6 +58,7 @@ object ChatNotificationStore {
             arr.put(JSONObject().apply {
                 put("t", entry.text)
                 put("ts", entry.ts)
+                entry.id?.let { put("id", it) }
             })
         }
         p.edit().putString(historyKey(peerId), arr.toString()).apply()
@@ -86,7 +104,8 @@ object ChatNotificationStore {
                     val o = arr.optJSONObject(i) ?: continue
                     val text = o.optString("t", "")
                     val ts = o.optLong("ts", 0L)
-                    if (text.isNotEmpty() && ts > 0L) add(Entry(text, ts))
+                    val id = o.optString("id", "").takeIf { it.isNotBlank() }
+                    if (text.isNotEmpty() && ts > 0L) add(Entry(text, ts, id))
                 }
             }
         } catch (e: Exception) {
