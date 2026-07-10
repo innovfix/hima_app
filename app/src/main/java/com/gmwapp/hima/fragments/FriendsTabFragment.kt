@@ -665,7 +665,17 @@ class FriendsTabFragment : Fragment() {
 
     private fun acceptFriendRequest(friend: FriendData) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        
+
+        // Float the just-accepted friend to the top of the Friends list. Both the male
+        // (FriendsHubFragment) and female (CreatorChatFragment) Friends tabs render via
+        // TYPE_CHAT_FRIENDS, and a new friend has no chat messages yet — so without a
+        // recorded accept time they'd sink into the alphabetical "no messages" bucket
+        // instead of appearing first. sortChatConversationsForCurrentTab reads this.
+        context?.let {
+            com.gmwapp.hima.utils.RecentlyAcceptedFriendsPrefsHelper
+                .recordAccepted(it, userData.id, friend.friend_id)
+        }
+
         friendRequestViewModel.sendFriendRequest(
             senderId = friend.friend_id,
             receiverId = userData.id,
@@ -849,11 +859,23 @@ class FriendsTabFragment : Fragment() {
         }
 
         val sortedUnpinned = if (tabType == TYPE_CHAT_FRIENDS) {
-            val withTime = unpinned.filter { it.lastMessageTime != null }
-                .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
-            val withoutTime = unpinned.filter { it.lastMessageTime == null }
-                .sortedBy { it.userName.lowercase(Locale.getDefault()) }
-            withTime + withoutTime
+            // Effective ordering time = the later of (last message time, the moment this
+            // friend was accepted on this device). A freshly accepted friend has no
+            // messages, so folding in the local accept timestamp floats them to the very
+            // top until real chat activity takes over. Friends with neither a message nor
+            // a recorded accept keep the old alphabetical ("no messages") ordering.
+            val effectiveMillis = unpinned.associateWith { conv ->
+                val msg = conv.lastMessageTime?.toDate()?.time ?: 0L
+                val accepted = conv.userId.toIntOrNull()?.let {
+                    com.gmwapp.hima.utils.RecentlyAcceptedFriendsPrefsHelper
+                        .getAcceptedMillis(ctx, myId, it)
+                } ?: 0L
+                maxOf(msg, accepted)
+            }
+            val (active, idle) = unpinned.partition { (effectiveMillis[it] ?: 0L) > 0L }
+            val sortedActive = active.sortedByDescending { effectiveMillis[it] ?: 0L }
+            val sortedIdle = idle.sortedBy { it.userName.lowercase(Locale.getDefault()) }
+            sortedActive + sortedIdle
         } else {
             unpinned.sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
         }
