@@ -242,8 +242,13 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         // Observe friend request errors
         friendRequestViewModel.friendRequestErrorLiveData.observe(this, Observer { error ->
+            // Single-shot consume: this LiveData is never reset, so a stale error string would
+            // otherwise replay to a fresh observer on activity re-create and re-toast with no
+            // action. Ignore the null we post back and clear it after showing.
+            if (error.isNullOrBlank()) return@Observer
             Log.e("UserProfileDetail", "❌ Friend request error: $error")
             showAppToast(error, Toast.LENGTH_SHORT)
+            friendRequestViewModel.friendRequestErrorLiveData.value = null
             // The legacy action row is hidden by default, so a failed
             // check_friend_request would otherwise leave no add-friend button.
             // Render the Variant-B button from the current (default NOT_FRIENDS)

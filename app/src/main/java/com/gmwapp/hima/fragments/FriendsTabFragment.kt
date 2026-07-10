@@ -444,7 +444,15 @@ class FriendsTabFragment : Fragment() {
         // Observe errors
         friendRequestViewModel.friendRequestErrorLiveData.observe(viewLifecycleOwner, Observer { error ->
             binding.swipeRefresh.isRefreshing = false
+            // Single-shot consume. friendRequestErrorLiveData is a plain MutableLiveData that is
+            // never reset, so its LAST error string replays to a fresh observer every time this
+            // tab's view is re-created (tab re-select / onResume / rotation). That surfaced a
+            // phantom "Failed to send friend request" toast on the Requests screen when the user
+            // had done nothing — the reported bug. Ignore the null we post back and null it out
+            // after showing so a one-off transient error can't linger as a recurring toast.
+            if (error.isNullOrBlank()) return@Observer
             requireContext().showAppToast(error, Toast.LENGTH_SHORT)
+            friendRequestViewModel.friendRequestErrorLiveData.value = null
         })
     }
 
