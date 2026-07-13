@@ -976,6 +976,39 @@ class BaseApplication : Application(), Configuration.Provider {
                     Log.e("NotifConversion", "click tracking failed: ${e.message}")
                 }
 
+                // Notification OPEN tracking for notification_logs.opened (open-rate
+                // analytics dashboard). OneSignal taps arrive HERE via additionalData,
+                // never via MainActivity's launch intent.extras — so
+                // NotificationClickTracker (which only reads intent.extras) never fired
+                // for any OneSignal-sent notification, leaving notification_logs.opened
+                // stuck at 0 across every row. Report the open from here instead.
+                // Fuzzy-matches on the payload "type" value, which equals the
+                // notification_logs.notification_type column (e.g. new_user_engagement,
+                // favorite_online). Fire-and-forget; never gates the launch path.
+                try {
+                    val openLogId = data?.optLong("notification_log_id", 0L) ?: 0L
+                    val openType = (data?.optString("type", "") ?: "").trim()
+                    if (openLogId > 0L || openType.isNotEmpty()) {
+                        getApiManager()?.notificationClicked(
+                            openLogId,
+                            openType,
+                            object : NetworkCallback<com.gmwapp.hima.retrofit.responses.NotificationClickResponse> {
+                                override fun onResponse(
+                                    call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.NotificationClickResponse>,
+                                    response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.NotificationClickResponse>
+                                ) {}
+                                override fun onFailure(
+                                    call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.NotificationClickResponse>,
+                                    t: Throwable
+                                ) {}
+                                override fun onNoNetwork() {}
+                            }
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("NotifOpenTrack", "open tracking failed: ${e.message}")
+                }
+
                 if (data != null) {
                     val user_id = data.optInt("user_id")
                     val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
