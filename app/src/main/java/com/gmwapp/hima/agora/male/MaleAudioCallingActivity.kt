@@ -4018,6 +4018,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     fun showGreyScreen(){
 
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
+            // Remote-blur ("Host's video is blurred") is a video-only face-detection
+            // signal. On a pure audio call it must never show — guards against a stale
+            // sticky greyScreenEnable replaying into a fresh audio call, and against a
+            // stray/late FCM bleeding in mid-call. Mirrors the isVideoCallGoing guard
+            // already used on the onUserMuteVideo path.
+            if (!isVideoCallGoing) return@observe
             if (msg=="greyScreenEnable"){
                 showRemoteBlurState()
 
