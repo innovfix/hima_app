@@ -53,15 +53,25 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
             val userId = prefs?.getUserData()?.id
             val authToken = prefs?.getAuthenticationToken().orEmpty()
 
-            // Capture userId + token BEFORE clearUserData wipes them, then hand off to
-            // WorkManager so the server-side FCM invalidation completes even if the user is
-            // offline / kills the app / never reopens it.
-            userId?.let { scheduleFcmTokenInvalidation(requireContext().applicationContext, it, authToken) }
-
             // T32: route through the shared teardown so the order matches the 401 /
             // clear_data paths exactly. Local diagnostic dump still happens here.
             com.gmwapp.hima.utils.OneSignalDiag.dump(requireContext(), "before_user_logout")
             BaseApplication.getInstance()?.performGlobalSessionTeardown()
+            // Clear the signed-in marker before enqueueing the worker. Otherwise an
+            // immediately-started worker can see this session as still active and abort.
+            prefs?.clearUserData()
+
+            // Capture userId + auth token above, then hand off to WorkManager so the
+            // server-side token-matching invalidation survives offline logout/process death.
+            if (userId != null && authToken.isNotBlank()) {
+                scheduleFcmTokenInvalidation(
+                    requireContext().applicationContext,
+                    userId,
+                    authToken
+                )
+            } else {
+                Log.w("LogoutBtn", "Skipping FCM invalidation: missing user or auth token")
+            }
             // Do NOT optOut() — that persists enabled=false server-side for the whole
             // device and blocks the next user on this phone from receiving pushes.
 

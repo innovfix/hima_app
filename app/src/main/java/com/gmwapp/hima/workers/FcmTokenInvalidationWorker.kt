@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.messaging.FirebaseMessaging
 import com.gmwapp.hima.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,43 +35,66 @@ class FcmTokenInvalidationWorker(
             return@withContext Result.failure()
         }
 
-        // If a user is currently signed in at the moment this worker actually
-        // runs, the logout that scheduled us has already been undone by a
-        // subsequent re-login (the login flow calls cancelUniqueWork, but if
-        // we'd already started executing, cancellation can't reach us). Posting
-        // token="0" here would clobber the freshly-registered token the new
-        // session just wrote and leave the user unreachable until they hit a
-        // path that triggers FcmTokenRegisterWorker again. Bail.
-        val currentUserId = runCatching {
-            com.gmwapp.hima.utils.DPreferences(applicationContext).getUserData()?.id ?: 0
-        }.getOrNull() ?: 0
-        if (currentUserId > 0) {
+        // If the same user is currently signed in when this worker runs, the
+        // logout that scheduled us has already been undone by a subsequent
+        // re-login (the login flow also calls cancelUniqueWork, but cancellation
+        // cannot stop every request already in flight). A different signed-in
+        // user is safe: the server deletes only this old user's exact token.
+        if (isSameUserSignedIn(userId)) {
             Log.w(
                 TAG,
-                "User is currently signed in (id=$currentUserId, invalidate-for=$userId) " +
-                    "— aborting invalidation to avoid clobbering the active session's token"
+                "User $userId is signed in again — aborting stale token invalidation"
             )
             return@withContext Result.success()
         }
 
         val authToken = inputData.getString(KEY_AUTH_TOKEN).orEmpty()
+        if (authToken.isBlank()) {
+            Log.w(TAG, "Missing auth token; dropping invalidation for user=$userId")
+            return@withContext Result.failure()
+        }
+
+        val fcmToken = try {
+            Tasks.await(
+                FirebaseMessaging.getInstance().token,
+                20,
+                TimeUnit.SECONDS
+            ).orEmpty().trim()
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to fetch FCM token for user=$userId: ${e.message}")
+            return@withContext Result.retry()
+        }
+
+        if (fcmToken.isBlank() || fcmToken == "0") {
+            Log.w(TAG, "Firebase returned no usable token for user=$userId")
+            return@withContext Result.retry()
+        }
 
         val body = FormBody.Builder()
-            .add("user_id", userId.toString())
-            .add("token", "0")
+            .add("token", fcmToken)
             .build()
 
         val request = Request.Builder()
-            .url("${BuildConfig.BASE_URL}send_fcm_token")
+            .url("${BuildConfig.BASE_URL}invalidate_fcm_token")
             .post(body)
             .header("Authorization", "Bearer $authToken")
             .build()
+
+        // getToken() can wait for up to 20 seconds. Close the resulting relogin
+        // race by checking the signed-in account again immediately before I/O.
+        if (isSameUserSignedIn(userId)) {
+            Log.w(
+                TAG,
+                "User $userId signed in while resolving FCM token — skipping invalidation"
+            )
+            return@withContext Result.success()
+        }
 
         try {
             client.newCall(request).execute().use { response ->
                 return@withContext when {
                     response.isSuccessful -> {
-                        Log.d(TAG, "FCM token invalidated for user=$userId")
+                        Log.d(TAG, "FCM token invalidated safely for user=$userId")
                         Result.success()
                     }
                     response.code in 400..499 -> {
@@ -90,6 +115,13 @@ class FcmTokenInvalidationWorker(
             Log.e(TAG, "Unexpected error: ${e.message}", e)
             Result.retry()
         }
+    }
+
+    private fun isSameUserSignedIn(userId: Int): Boolean {
+        val currentUserId = runCatching {
+            com.gmwapp.hima.utils.DPreferences(applicationContext).getUserData()?.id ?: 0
+        }.getOrNull() ?: 0
+        return currentUserId == userId
     }
 
     companion object {
