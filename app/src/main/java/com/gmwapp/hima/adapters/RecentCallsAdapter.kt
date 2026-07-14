@@ -266,9 +266,17 @@ class RecentCallsAdapter(
             // Check end_reason first so a rejected row (also empty-duration) isn't mislabeled.
             holder.binding.tvDuration.text = when {
                 call.end_reason == "rejected" -> activity.getString(R.string.rejected_call_label)
-                rawDuration.isEmpty() || parseDuration(rawDuration) <= 0 ->
+                // QA bug #10 — "Missed" must mean the call NEVER CONNECTED. Decide from
+                // started_time (empty / "00:00:00" = never connected), NOT from duration.
+                // The old duration<=0 test mislabeled a call that DID connect but whose
+                // billed duration came back 0 or empty (sub-second connect, reconnect-
+                // underbill, or a row with no duration string) as "Missed". A genuine miss
+                // has a null/empty started_time, so this still labels real misses correctly;
+                // a connected call now always shows a duration, falling back to "0 sec"
+                // instead of the blank cell the old code guarded against.
+                call.started_time.isNullOrEmpty() || call.started_time == "00:00:00" ->
                     activity.getString(R.string.missed_call_label)
-                else -> formatDuration(rawDuration)
+                else -> formatDuration(rawDuration).ifEmpty { "0 sec" }
             }
             // Remove click listener for non-favorite mode
             holder.binding.tvTime.setOnClickListener(null)
