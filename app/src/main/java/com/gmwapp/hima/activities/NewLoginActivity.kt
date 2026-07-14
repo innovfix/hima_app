@@ -21,6 +21,7 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.os.CountDownTimer
 import android.text.Editable
 import android.text.InputFilter
@@ -334,6 +335,58 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
 
+    // QA bug #4 — tracks soft-keyboard visibility so the header compresses / restores
+    // exactly once per transition (guards the global-layout listener against loops).
+    private var keyboardOpen = false
+
+    /**
+     * When the soft keyboard opens, compress the decorative logo cluster (hide the
+     * tagline + Chat/Video/Voice/Connect row, shrink the logo) so the bottom-pinned
+     * form fits inside the shrunken viewport, then scroll the currently-focused field
+     * (mobile number or OTP boxes) fully into view. When it closes, restore the
+     * original cluster so the keyboard-closed screen looks exactly as before.
+     */
+    private fun setupKeyboardCompaction() {
+        val density = resources.displayMetrics.density
+        fun px(v: Int) = (v * density).toInt()
+        val logoFull = px(94);  val logoSmall = px(46)
+        val padTopFull = px(40); val padTopSmall = px(10)
+        val padBotFull = px(16); val padBotSmall = px(6)
+
+        fun applyCompact(compact: Boolean) {
+            binding.tvTagline.visibility  = if (compact) View.GONE else View.VISIBLE
+            binding.llFeatureRow.visibility = if (compact) View.GONE else View.VISIBLE
+            binding.logoContainer.layoutParams = binding.logoContainer.layoutParams.apply {
+                width  = if (compact) logoSmall else logoFull
+                height = if (compact) logoSmall else logoFull
+            }
+            binding.llLogoSection.setPadding(
+                binding.llLogoSection.paddingLeft,
+                if (compact) padTopSmall else padTopFull,
+                binding.llLogoSection.paddingRight,
+                if (compact) padBotSmall else padBotFull
+            )
+        }
+
+        val root = binding.root
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            val rect = Rect()
+            root.getWindowVisibleDisplayFrame(rect)
+            val screenH = root.rootView.height
+            val keypad = screenH - rect.bottom
+            val open = keypad > screenH * 0.15   // >15% of screen ⇒ keyboard, not just nav/status bars
+            if (open != keyboardOpen) {
+                keyboardOpen = open
+                applyCompact(open)
+                if (open) root.post {
+                    val field = currentFocus
+                        ?: if (binding.otpSection.visibility == View.VISIBLE) binding.pvOtp else binding.etMobileNumber
+                    field?.let { root.smoothScrollTo(0, it.bottom) }
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityNewLoginBinding.inflate(layoutInflater)
@@ -361,6 +414,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
         // setupOnboarding() // Disabled for clean UI
         initUI()
+        // QA bug #4 — lift the focused mobile/OTP field above the soft keyboard.
+        // The screen is one NestedScrollView with fillViewport + a bottom-pinned
+        // form under a tall logo cluster, so with the keyboard up the content stays
+        // taller than the shrunken viewport and the field lands under the keyboard
+        // with no scroll-to-focus. On keyboard-open we compress the logo cluster and
+        // scroll the focused field into view; keyboard-closed layout is untouched.
+        setupKeyboardCompaction()
         observeReferralCodeResponse()
 
         CoroutineScope(Dispatchers.IO).launch {

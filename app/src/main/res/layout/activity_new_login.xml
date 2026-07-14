@@ -351,6 +351,7 @@
             android:layout_marginBottom="1dp" />
 
         <TextView
+            android:id="@+id/tv_tagline"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Where Feelings Connect"
@@ -360,6 +361,7 @@
 
         <!-- Feature row -->
         <LinearLayout
+            android:id="@+id/ll_feature_row"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
