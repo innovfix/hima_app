@@ -1734,14 +1734,11 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun updateComposerActionState() {
-        if (isRecording) {
-            btnMic.visibility = View.VISIBLE
-            btnSend.visibility = View.GONE
-            return
-        }
-        val hasText = etMessage.text?.toString()?.trim().orEmpty().isNotEmpty()
-        btnSend.visibility = if (hasText) View.VISIBLE else View.GONE
-        btnMic.visibility = if (hasText) View.GONE else View.VISIBLE
+        // Image + audio attachments removed (requirement): text-only composer.
+        // Send is always visible; mic and attach stay permanently hidden.
+        btnMic.visibility = View.GONE
+        ivAttach.visibility = View.GONE
+        btnSend.visibility = View.VISIBLE
     }
 
     private fun showAttachmentBottomSheet() {
