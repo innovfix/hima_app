@@ -1065,20 +1065,37 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 audioCallEnablePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 return@setOnCheckedChangeListener
             }
-            pendingAudioStatus = if (isChecked) 1 else 0
-            if (isChecked) promptPostNotificationsIfNeededForCalls()
-            if (isChecked) disableDndIfActiveForAvailability()
-            // B151 — coalesce rapid taps. Each new tap cancels the pending
-            // launch; only the final state in a tap burst hits the server.
-            audioToggleDebounceJob?.cancel()
-            audioToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
-                delay(TOGGLE_DEBOUNCE_MS)
-                femaleUsersViewModel.updateCallStatus(
-                    user.id,
-                    DConstants.AUDIO,
-                    if (isChecked) 1 else 0
-                )
+            val proceed = {
+                pendingAudioStatus = if (isChecked) 1 else 0
+                if (isChecked) promptPostNotificationsIfNeededForCalls()
+                if (isChecked) disableDndIfActiveForAvailability()
+                // B151 — coalesce rapid taps. Each new tap cancels the pending
+                // launch; only the final state in a tap burst hits the server.
+                audioToggleDebounceJob?.cancel()
+                audioToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(TOGGLE_DEBOUNCE_MS)
+                    femaleUsersViewModel.updateCallStatus(
+                        user.id,
+                        DConstants.AUDIO,
+                        if (isChecked) 1 else 0
+                    )
+                }
             }
+            // B11 — turning availability ON also turns DND OFF. Confirm first; on
+            // cancel snap the toggle back off and keep DND on.
+            if (isChecked && BaseApplication.isDndActiveStatic(user)) {
+                com.gmwapp.hima.utils.DndDisableConfirm.show(
+                    this,
+                    onConfirmed = { proceed() },
+                    onCancelled = {
+                        binding.sAudio.setOnCheckedChangeListener(null)
+                        binding.sAudio.isChecked = false
+                        setupSwitchListeners(user)
+                    }
+                )
+                return@setOnCheckedChangeListener
+            }
+            proceed()
         }
 
         binding.sVideo.setOnCheckedChangeListener { _, isChecked ->
@@ -1091,19 +1108,36 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 startActivity(Intent(requireContext(), GrantPermissionsActivity::class.java))
                 return@setOnCheckedChangeListener
             }
-            pendingVideoStatus = if (isChecked) 1 else 0
-            if (isChecked) promptPostNotificationsIfNeededForCalls()
-            if (isChecked) disableDndIfActiveForAvailability()
-            // B151 — debounced for the same reason as the audio toggle above.
-            videoToggleDebounceJob?.cancel()
-            videoToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
-                delay(TOGGLE_DEBOUNCE_MS)
-                femaleUsersViewModel.updateCallStatus(
-                    user.id,
-                    DConstants.VIDEO,
-                    if (isChecked) 1 else 0
-                )
+            val proceed = {
+                pendingVideoStatus = if (isChecked) 1 else 0
+                if (isChecked) promptPostNotificationsIfNeededForCalls()
+                if (isChecked) disableDndIfActiveForAvailability()
+                // B151 — debounced for the same reason as the audio toggle above.
+                videoToggleDebounceJob?.cancel()
+                videoToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(TOGGLE_DEBOUNCE_MS)
+                    femaleUsersViewModel.updateCallStatus(
+                        user.id,
+                        DConstants.VIDEO,
+                        if (isChecked) 1 else 0
+                    )
+                }
             }
+            // B11 — turning availability ON also turns DND OFF. Confirm first; on
+            // cancel snap the toggle back off and keep DND on.
+            if (isChecked && BaseApplication.isDndActiveStatic(user)) {
+                com.gmwapp.hima.utils.DndDisableConfirm.show(
+                    this,
+                    onConfirmed = { proceed() },
+                    onCancelled = {
+                        binding.sVideo.setOnCheckedChangeListener(null)
+                        binding.sVideo.isChecked = false
+                        setupSwitchListeners(user)
+                    }
+                )
+                return@setOnCheckedChangeListener
+            }
+            proceed()
         }
     }
 

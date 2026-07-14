@@ -683,6 +683,11 @@
     <string name="dnd_confirm_warning">You won\'t receive any calls until DND ends.</string>
     <string name="dnd_confirm_positive">Turn on DND</string>
     <string name="dnd_confirm_cancel">Cancel</string>
+    <!-- B11 — turn-OFF confirm variant (DND toggle off, or turning Audio/Video ON while DND active). -->
+    <string name="dnd_disable_confirm_title">Turn off Do Not Disturb?</string>
+    <string name="dnd_disable_confirm_body">You\'re in Do Not Disturb. Turning it off means you\'ll start receiving incoming calls again.</string>
+    <string name="dnd_disable_confirm_warning">You\'ll be available to all callers right away.</string>
+    <string name="dnd_disable_confirm_positive">Turn off DND</string>
     <string name="dnd_blocked_title">Do Not Disturb is on</string>
     <string name="dnd_blocked_body">Turn off DND to place this call.</string>
     <string name="dnd_blocked_cta">Turn off &amp; call</string>

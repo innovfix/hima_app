@@ -90,7 +90,14 @@ class DndController(
             if (switchDnd.isChecked) {
                 maybeEnableDnd(durationHours = DEFAULT_TAP_DURATION_HOURS)
             } else {
-                callToggleDndApi(wantedEnabled = 0, durationHours = 0)
+                // B11 — confirm before turning DND OFF (she'll start receiving calls
+                // again). On confirm proceed; on cancel snap the switch back on.
+                // setOnClickListener (not checked-change), so re-checking won't re-fire this.
+                DndDisableConfirm.show(
+                    fragment,
+                    onConfirmed = { callToggleDndApi(wantedEnabled = 0, durationHours = 0) },
+                    onCancelled = { switchDnd.isChecked = true }
+                )
             }
         }
 

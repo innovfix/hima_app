@@ -28,6 +28,7 @@
     </FrameLayout>
 
     <TextView
+        android:id="@+id/tv_dnd_confirm_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
@@ -38,6 +39,7 @@
         android:textSize="17sp" />
 
     <TextView
+        android:id="@+id/tv_dnd_confirm_body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -50,6 +52,7 @@
         android:textSize="13sp" />
 
     <TextView
+        android:id="@+id/tv_dnd_confirm_warning"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
