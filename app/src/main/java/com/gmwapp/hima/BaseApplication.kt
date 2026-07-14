@@ -1012,7 +1012,15 @@ class BaseApplication : Application(), Configuration.Provider {
                 if (data != null) {
                     val user_id = data.optInt("user_id")
                     val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
-                    prefs.edit().putString("notification_user_id", user_id.toString()).apply()
+                    // Bug #9: the creator-online push advertises a specific call type
+                    // ("ready for video calls"). Persist it so the auto-call on resume
+                    // starts THAT type instead of guessing audio-first when both toggles
+                    // are on. Empty when the push carries no type (other notifications).
+                    val notifCallType = data.optString("call_type", "")
+                    prefs.edit()
+                        .putString("notification_user_id", user_id.toString())
+                        .putString("notification_call_type", notifCallType)
+                        .apply()
                     // T14: full additionalData / rawPayload contain PII — debug only.
                     if (BuildConfig.DEBUG) {
                         Log.d("NotificationDataOneSingal", "$data")
