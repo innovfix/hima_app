@@ -203,7 +203,13 @@ class ChatListAdapter(
         val sortedUnpinned = unpinned.sortedByDescending {
             it.lastMessageTime?.toDate()?.time ?: 0L
         }
-        updateConversations(sortedPinned + sortedUnpinned)
+        // QA bug #8 — keep blocked conversations pinned to the bottom on live
+        // socket re-sorts too, so a new message on a normal chat never floats it
+        // above a blocked one inconsistently with the full-list sort. Final stable
+        // partition: normal rows keep their order, blocked rows go to the end.
+        val (blockedRows, normalRows) = (sortedPinned + sortedUnpinned)
+            .partition { it.isBlocked || it.peerBlockedMe }
+        updateConversations(normalRows + blockedRows)
         return true
     }
 

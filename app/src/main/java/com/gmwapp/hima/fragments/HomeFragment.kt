@@ -1108,7 +1108,12 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             val i = order.indexOf(conv.userId)
             if (i >= 0) i else Int.MAX_VALUE
         }
-        return sortedPinned + unpinned
+        // QA bug #8 — blocked conversations (either direction) sink to the bottom.
+        // Final stable partition over the pinned+time-ordered list: normal rows keep
+        // their exact order, blocked rows move to the end in their relative order.
+        val (blockedRows, normalRows) = (sortedPinned + unpinned)
+            .partition { it.isBlocked || it.peerBlockedMe }
+        return normalRows + blockedRows
     }
 
     private fun loadMyChats(userId: Int) {
@@ -1706,7 +1711,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         response?.data?.let { userData ->
 
-            prefs.edit().remove("notification_user_id").apply()
+            // Bug #9: the call type the online notification was sent for. Read it,
+            // then clear both keys so a later normal launch can't reuse a stale type.
+            val notifCallType = prefs.getString("notification_call_type", null)?.lowercase()
+            prefs.edit()
+                .remove("notification_user_id")
+                .remove("notification_call_type")
+                .apply()
 
 
             var audioStatus = userData.audio_status
@@ -1715,18 +1726,21 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             val context = requireContext()
             val intent = Intent(context, MaleCallConnectingActivity::class.java)
 
-            when {
-                audioStatus == 1 -> {
-                    intent.putExtra(DConstants.CALL_TYPE, "audio")
-                }
-                videoStatus == 1 -> {
-                    intent.putExtra(DConstants.CALL_TYPE, "video")
-                }
+            val chosenCallType = when {
+                // Honor the type the notification advertised, when that type is
+                // available — so a "ready for video calls" tap starts video even when
+                // both toggles are on (previously audio-first always won).
+                notifCallType == "video" && videoStatus == 1 -> "video"
+                notifCallType == "audio" && audioStatus == 1 -> "audio"
+                // Fallback precedence when no/unavailable notification type.
+                audioStatus == 1 -> "audio"
+                videoStatus == 1 -> "video"
                 else -> {
                     Log.d("HomeFragment", "No call available for this user")
-                    intent.putExtra(DConstants.CALL_TYPE, "audio")
+                    "audio"
                 }
             }
+            intent.putExtra(DConstants.CALL_TYPE, chosenCallType)
 
 
 

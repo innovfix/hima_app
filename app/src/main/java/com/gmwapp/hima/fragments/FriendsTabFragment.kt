@@ -880,9 +880,16 @@ class FriendsTabFragment : Fragment() {
             unpinned.sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
         }
 
-        return sortedPinned + sortedUnpinned
+        // QA bug #8 — blocked conversations (either direction) sink to the very
+        // bottom of the list. Applied as a FINAL stable partition over the already
+        // pinned/active/idle-ordered result, so every existing ordering rule is
+        // preserved WITHIN each group; only the blocked rows move down, keeping
+        // their relative order. partition() is stable, so no row is reshuffled.
+        val ordered = sortedPinned + sortedUnpinned
+        val (blockedRows, normalRows) = ordered.partition { it.isBlocked || it.peerBlockedMe }
+        return normalRows + blockedRows
     }
-    
+
     private fun updateChatUI(conversationsList: List<ChatConversation>) {
         if (!isAdded) return
         if (conversationsList.isEmpty()) {
