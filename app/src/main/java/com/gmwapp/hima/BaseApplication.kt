@@ -2501,6 +2501,17 @@ class BaseApplication : Application(), Configuration.Provider {
     fun setIncomingCallStateForFallback(senderId: Int, callType: String, channelName: String, callId: Int) {
         clearAcceptedRing()
         this.senderId = senderId
+        // QA bug #6 — persist the ringing caller to the SENDER_ID pref, not just the
+        // in-memory var. The caller-cancel handler (MyFirebaseMessagingService
+        // callDeclined) only tears the ring down when senderId == getSenderId(), and
+        // getSenderId() reads the SENDER_ID *pref*. The raw-FCM incoming path already
+        // calls saveSenderId() (pref); this OneSignal-fallback path (used when the app
+        // is closed) previously set only the in-memory var, so the cancel gate never
+        // matched → the ring/vibration kept going after the caller hung up. Writing the
+        // pref here mirrors the raw-FCM path so the existing teardown runs. Same value
+        // that's already in memory, so no divergence; it also lets the remaining-time /
+        // other same-call gates match for OneSignal-initiated calls.
+        saveSenderId(senderId)
         this.callTypeForSplashActivity = callType
         this.channelName = channelName
         this.callIdForSplashActivity = callId
