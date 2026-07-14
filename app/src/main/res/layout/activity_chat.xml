@@ -666,23 +666,22 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- Image attachment removed (requirement): hidden, no longer part of the composer. -->
+            <!-- Emoji button — reuses the freed-up left slot (image attach removed). -->
             <FrameLayout
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:background="@drawable/chat_input_background"
-                android:visibility="gone">
+                android:background="@drawable/chat_input_background">
 
-                <ImageView
-                    android:id="@+id/iv_attach"
+                <TextView
+                    android:id="@+id/btn_emoji"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:clickable="true"
-                    android:contentDescription="@string/chat_attach_desc"
+                    android:contentDescription="@string/chat_emoji_desc"
                     android:focusable="true"
-                    android:padding="10dp"
-                    android:src="@drawable/baseline_add_24"
-                    app:tint="@color/chat_attach_tint" />
+                    android:gravity="center"
+                    android:text="@string/chat_emoji_glyph"
+                    android:textSize="20sp" />
             </FrameLayout>
 
             <LinearLayout
@@ -745,6 +744,20 @@
                     android:visibility="visible" />
             </FrameLayout>
         </LinearLayout>
+
+        <!-- Emoji picker panel (lightweight in-app grid; toggled by btn_emoji). -->
+        <GridView
+            android:id="@+id/emoji_grid"
+            android:layout_width="match_parent"
+            android:layout_height="210dp"
+            android:layout_marginTop="8dp"
+            android:background="@color/chat_bubble_received"
+            android:numColumns="8"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="8dp"
+            android:scrollbars="none"
+            android:stretchMode="columnWidth"
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- Story 6: Never subscribed — subscribe to unlock chat -->

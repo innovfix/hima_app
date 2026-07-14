@@ -24,7 +24,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.GridView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
@@ -143,7 +145,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var etMessage: EditText
     private lateinit var btnSend: ImageButton
     private lateinit var btnMic: ImageButton
-    private lateinit var ivAttach: ImageView
+    private lateinit var btnEmoji: TextView
+    private lateinit var emojiGrid: GridView
     private var messageInputContainer: View? = null
     private var accountBlockedChatStrip: View? = null
     private var subscribeLockContainer: View? = null
@@ -579,7 +582,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         etMessage = findViewById(R.id.et_message)
         btnSend = findViewById(R.id.btn_send)
         btnMic = findViewById(R.id.btn_mic)
-        ivAttach = findViewById(R.id.iv_attach)
+        btnEmoji = findViewById(R.id.btn_emoji)
+        emojiGrid = findViewById(R.id.emoji_grid)
         messageInputContainer = findViewById(R.id.message_input_container)
         accountBlockedChatStrip = findViewById(R.id.account_blocked_chat_strip)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
@@ -1653,8 +1657,15 @@ class ChatActivityInHouse : AppCompatActivity() {
             sendMessage()
         }
 
-        ivAttach.setOnClickListener {
-            showAttachmentBottomSheet()
+        setupEmojiPanel()
+
+        btnEmoji.setOnClickListener {
+            toggleEmojiPanel()
+        }
+
+        // Tapping the input to type dismisses the emoji panel (keyboard takes over).
+        etMessage.setOnClickListener {
+            if (emojiGrid.visibility == View.VISIBLE) hideEmojiPanel()
         }
 
         btnMic.setOnTouchListener { _, event ->
@@ -1735,10 +1746,61 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun updateComposerActionState() {
         // Image + audio attachments removed (requirement): text-only composer.
-        // Send is always visible; mic and attach stay permanently hidden.
+        // Send is always visible; mic stays permanently hidden. (Emoji button is
+        // always visible and independent of text state.)
         btnMic.visibility = View.GONE
-        ivAttach.visibility = View.GONE
         btnSend.visibility = View.VISIBLE
+    }
+
+    // ---- Emoji picker (lightweight in-app grid; replaces the old image attach slot) ----
+
+    private val emojiList: List<String> by lazy {
+        listOf(
+            "😀", "😁", "😂", "🤣", "😃", "😄", "😅", "😊",
+            "🙂", "😉", "😌", "😍", "🥰", "😘", "😗", "😋",
+            "😜", "🤪", "😎", "🤩", "🥳", "😏", "😔", "😴",
+            "🤗", "🤔", "🤭", "🤫", "😐", "😶", "🙄", "😬",
+            "😳", "🥺", "😢", "😭", "😤", "😠", "😡", "🥶",
+            "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍",
+            "💖", "💗", "💕", "💞", "💯", "🔥", "✨", "🌟",
+            "👍", "👎", "👏", "🙏", "🤝", "💪", "🙌", "👌",
+            "🎉", "🎊", "🌸", "🌹", "🌻", "🎁", "☕", "🍕"
+        )
+    }
+
+    private fun setupEmojiPanel() {
+        emojiGrid.adapter = ArrayAdapter(this, R.layout.item_emoji, emojiList)
+        emojiGrid.setOnItemClickListener { _, _, position, _ ->
+            insertEmoji(emojiList[position])
+        }
+    }
+
+    private fun toggleEmojiPanel() {
+        if (emojiGrid.visibility == View.VISIBLE) hideEmojiPanel() else showEmojiPanel()
+    }
+
+    private fun showEmojiPanel() {
+        // Hide the soft keyboard so the panel occupies that space cleanly.
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE)
+            as? android.view.inputmethod.InputMethodManager
+        imm?.hideSoftInputFromWindow(etMessage.windowToken, 0)
+        etMessage.requestFocus()
+        emojiGrid.visibility = View.VISIBLE
+        btnEmoji.text = getString(R.string.chat_keyboard_glyph)
+    }
+
+    private fun hideEmojiPanel() {
+        emojiGrid.visibility = View.GONE
+        btnEmoji.text = getString(R.string.chat_emoji_glyph)
+    }
+
+    /** Inserts [emoji] at the current cursor position (or replaces the selection). */
+    private fun insertEmoji(emoji: String) {
+        val editable = etMessage.text ?: return
+        val start = etMessage.selectionStart.coerceIn(0, editable.length)
+        val end = etMessage.selectionEnd.coerceIn(0, editable.length)
+        editable.replace(minOf(start, end), maxOf(start, end), emoji)
+        etMessage.setSelection((minOf(start, end) + emoji.length).coerceAtMost(etMessage.text.length))
     }
 
     private fun showAttachmentBottomSheet() {
@@ -4365,6 +4427,11 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        // If the emoji panel is open, back just closes it (don't leave the chat).
+        if (::emojiGrid.isInitialized && emojiGrid.visibility == View.VISIBLE) {
+            hideEmojiPanel()
+            return
+        }
         Log.d(CHAT_REOPEN_LOG, "onBackPressed peer=$peerUserId")
         markReadOnExit()
         super.onBackPressed()
@@ -5277,7 +5344,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         etMessage.hint = getString(R.string.chat_blocked_composer_hint)
         btnSend.isEnabled = false; btnSend.alpha = 0.4f
         btnMic.isEnabled = false; btnMic.alpha = 0.4f
-        ivAttach.isEnabled = false; ivAttach.alpha = 0.4f
+        btnEmoji.isEnabled = false; btnEmoji.alpha = 0.4f
+        if (::emojiGrid.isInitialized) hideEmojiPanel()
     }
 
     /** Revert the account-blocked composer lock (admin un-blocked + gate refreshed). */
@@ -5288,7 +5356,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             etMessage.hint = getString(R.string.chat_input_hint)
             btnSend.isEnabled = true; btnSend.alpha = 1f
             btnMic.isEnabled = true; btnMic.alpha = 1f
-            ivAttach.isEnabled = true; ivAttach.alpha = 1f
+            btnEmoji.isEnabled = true; btnEmoji.alpha = 1f
         }
     }
 

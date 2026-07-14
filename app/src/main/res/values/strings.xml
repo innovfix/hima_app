@@ -156,6 +156,9 @@
     <string name="call_type_video">Video Call</string>
     <string name="chat_more_desc">More</string>
     <string name="chat_attach_desc">Attach</string>
+    <string name="chat_emoji_desc">Emoji</string>
+    <string name="chat_emoji_glyph">😊</string>
+    <string name="chat_keyboard_glyph">⌨️</string>
     <string name="chat_record_audio_desc">Record audio</string>
     <string name="chat_send_message_desc">Send message</string>
     <string name="chat_peer_avatar_desc">Chat avatar</string>
