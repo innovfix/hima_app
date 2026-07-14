@@ -120,6 +120,40 @@ object CallAliveChecker {
         }
     }
 
+    /**
+     * CHECK_CALL_ALIVE_HEARTBEAT_2026_07_14 (QA bug #2 / [B6] — fast ring cancel).
+     * Caller-side ring heartbeat: while OUR "Connecting…" screen is up (call still
+     * unanswered), ping /api/auth/call_ring_heartbeat every poll tick so the backend
+     * knows the caller is still alive. When the caller's network dies mid-ring these
+     * beats STOP; check_call_alive then stamps end_reason='not_answered' ~12s after
+     * the last beat (vs the 45s age fallback), so the callee's ring banner — driven
+     * by her own 2.5s checkConnectingDead poll — tears down ~12s in instead of 45s.
+     *
+     * Fire-and-forget on a background thread with tight timeouts; failures are
+     * swallowed (a missed beat just means we fall back toward the 45s path). The
+     * backend write is guarded to started_time-NULL rows, so a beat that races an
+     * answer is a harmless no-op.
+     */
+    fun sendRingHeartbeat(callId: Int) {
+        if (callId <= 0) return
+        Thread({
+            try {
+                val url = BuildConfig.BASE_URL + "call_ring_heartbeat"
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(3, TimeUnit.SECONDS)
+                    .writeTimeout(3, TimeUnit.SECONDS)
+                    .readTimeout(3, TimeUnit.SECONDS)
+                    .callTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                val body = okhttp3.FormBody.Builder().add("call_id", callId.toString()).build()
+                val req = okhttp3.Request.Builder().url(url).post(body).build()
+                client.newCall(req).execute().use { /* fire-and-forget */ }
+            } catch (t: Throwable) {
+                Log.w(TAG, "sendRingHeartbeat failed (ignored; 45s fallback still applies): ${t.message}")
+            }
+        }, "RingHeartbeat-$callId").start()
+    }
+
     private fun doCheck(callId: Int, requireEndReason: Boolean, onShouldEnd: () -> Unit) {
         if (callId <= 0) {
             Log.d(TAG, "skip: callId=$callId")

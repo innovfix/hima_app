@@ -125,6 +125,11 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         override fun run() {
             if (!isRunning || isFinishing || isDestroyed) return
             if (callId > 0) {
+                // [B6] caller-side ring heartbeat — tells the backend we're still
+                // ringing so it can flip the callee's dead ring ~12s after our
+                // network dies, instead of the 45s age fallback. Runs on this same
+                // connecting-only poll, so it stops on every terminal path.
+                com.gmwapp.hima.utils.CallAliveChecker.sendRingHeartbeat(callId)
                 com.gmwapp.hima.utils.CallAliveChecker.checkConnectingDead(callId) {
                     if (isRunning && !isFinishing && !isDestroyed) {
                         Log.d("CreatorCallDiag", "MConn.alivePoll -> backend says call ended, disconnecting caller")
