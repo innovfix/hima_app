@@ -293,6 +293,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 //    private var mRtmClient: RtmClient? = null
 
     private var agoraEngine: RtcEngine? = null
+    private var callModerationCaptureManager: com.gmwapp.hima.utils.CallModerationCaptureManager? = null
 
     // In-call "on hold" signaling over the Agora data stream — tells the peer
     // when we step away for a cellular / VoIP call so they see a dedicated
@@ -1551,6 +1552,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        callModerationCaptureManager?.dispose()
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
         stopHeartbeat()
         stopAcceptResend() // CALLER_ACCEPT_RESEND — clean up any pending nudges
@@ -1647,6 +1649,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
             startTime = dateFormat.format(Date()) // Set call end time in IST
             callStartMillis = System.currentTimeMillis() // B110: duration baseline
+
+            if (callModerationCaptureManager == null) {
+                callModerationCaptureManager = com.gmwapp.hima.utils.CallModerationCaptureManager(
+                    context = this@MaleVideoCallingActivity,
+                    callIdProvider = { callId },
+                    engineProvider = { agoraEngine },
+                )
+            }
+            callModerationCaptureManager?.startAfterPeerConnected()
 
             // Set the remote video view
             runOnUiThread { setupRemoteVideo(uid) }
@@ -1746,6 +1757,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             }
             startTimeoutTracking()
             startMicRevokeWatcher()
+        }
+
+        override fun onSnapshotTaken(uid: Int, filePath: String?, width: Int, height: Int, errCode: Int) {
+            callModerationCaptureManager?.onSnapshotTaken(filePath, width, height, errCode)
         }
 
 
@@ -2030,6 +2045,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun updateCallEndDetails(){
+
+        callModerationCaptureManager?.finishCall(callId)
 
 
         if (startTime.isNotEmpty()) {
@@ -2483,6 +2500,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         // Bug #5B fix (2026-05-25): always teardown Agora regardless of isJoined.
         // releaseEngineSync is idempotent. See MaleAudioCallingActivity twin
         // for full comment.
+        callModerationCaptureManager?.stopScheduling()
         stopCountdown()
         stopMicRevokeWatcher()
         try {
@@ -4298,6 +4316,3 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
 }
-
-
-

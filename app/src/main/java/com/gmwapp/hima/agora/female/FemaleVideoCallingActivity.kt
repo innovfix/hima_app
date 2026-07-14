@@ -381,6 +381,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
   //  private var mRtmClient: RtmClient? = null
 
     private var agoraEngine: RtcEngine? = null
+    private var callModerationCaptureManager: com.gmwapp.hima.utils.CallModerationCaptureManager? = null
 
     // In-call "on hold" signaling over the Agora data stream — tells the peer
     // when we step away for a cellular / VoIP call so they see a dedicated
@@ -1565,6 +1566,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        callModerationCaptureManager?.dispose()
         super.onDestroy()
         stopBonusTicker() // F1: stop the independent bonus clock so it can't leak past the call
         bonusAnchorFallbackHandler.removeCallbacksAndMessages(null) // F1: cancel any pending anchor
@@ -1735,6 +1737,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             startTimerResync()
             startTime = dateFormat.format(Date()) // Set call end time in IST
 
+            if (callModerationCaptureManager == null) {
+                callModerationCaptureManager = com.gmwapp.hima.utils.CallModerationCaptureManager(
+                    context = this@FemaleVideoCallingActivity,
+                    callIdProvider = { call_Id },
+                    engineProvider = { agoraEngine },
+                )
+            }
+            callModerationCaptureManager?.startAfterPeerConnected()
+
             // F1 Call Duration Bonus — pull the LATEST config before popups start so admin
             // edits reflect on THIS call, then anchor once (guarded so reconnect doesn't
             // replay the intro). The anchor fires from the settings observer when fresh
@@ -1831,6 +1842,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             Log.d("JoinedSuccessFully","$channel")
         //    showMessage("Joined Channel $channel")
 
+        }
+
+        override fun onSnapshotTaken(uid: Int, filePath: String?, width: Int, height: Int, errCode: Int) {
+            callModerationCaptureManager?.onSnapshotTaken(filePath, width, height, errCode)
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -2307,6 +2322,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     fun updateCallEndDetails(){
 
+        callModerationCaptureManager?.finishCall(call_Id)
+
 
         if (startTime.isNotEmpty()) {
             endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
@@ -2457,6 +2474,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // Bug #5B fix (2026-05-25): always teardown Agora regardless of isJoined.
         // releaseEngineSync is idempotent. See MaleAudioCallingActivity twin
         // for full comment.
+        callModerationCaptureManager?.stopScheduling()
         stopCountdown()
         stopBonusTicker() // F1: freeze the bonus clock the instant the call ends (no late payout flash)
         stopMicRevokeWatcher()
