@@ -2,6 +2,7 @@ package com.gmwapp.hima.utils
 
 import android.content.Context
 import android.util.Log
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -12,6 +13,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.workers.CallUpdateWorker
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 /**
  * Single point of enqueue for the post-call `individual_update_connected_call`
@@ -106,6 +108,10 @@ object CallEndUpdater {
         val request = OneTimeWorkRequest.Builder(CallUpdateWorker::class.java)
             .setInputData(data)
             .setConstraints(constraints)
+            // [B3] retry a TRANSIENT server failure instead of losing the call.
+            // Worker returns Result.retry() on 5xx/timeout; this spaces the retries
+            // out (30s, 1m, 2m, 4m…) so a struggling backend isn't hammered.
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
 
         // Belt-and-braces unique-work guard — see class doc.

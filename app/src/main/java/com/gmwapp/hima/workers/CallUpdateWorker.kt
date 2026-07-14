@@ -23,6 +23,10 @@ class CallUpdateWorker(
         .readTimeout(100, TimeUnit.SECONDS)
         .build()
 
+    // [B3] max WorkManager runs before we stop retrying a transient failure.
+    // Paired with EXPONENTIAL backoff (30s base) on the request → ~30s,1m,2m,4m…
+    private val MAX_ATTEMPTS = 5
+
     override suspend fun doWork(): Result {
         return withContext(Dispatchers.IO) {
             try {
@@ -66,12 +70,21 @@ class CallUpdateWorker(
                     Log.d("CallUpdateWorkerCheck", "Call update successful")
                     Result.success()
                 } else {
-                    Log.e("CallUpdateWorkerCheck", "Call update failed with code: ${response.code}")
-                    Result.failure()
+                    // [B3] Silent Worker Failure fix (ticket #47424): a TRANSIENT server
+                    // error (5xx / 408 / 429) must NOT permanently lose the call — retry
+                    // with the request's exponential backoff. update_connected_call is an
+                    // idempotent UPDATE by call_id (+ enqueueUniqueWork KEEP), so a retry
+                    // can't double-bill. 4xx = permanent client error → give up. Cap total
+                    // attempts so a genuinely-down backend eventually stops.
+                    val code = response.code
+                    val transient = code >= 500 || code == 408 || code == 429
+                    Log.e("CallUpdateWorkerCheck", "Call update failed code=$code transient=$transient attempt=$runAttemptCount")
+                    if (transient && runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
                 }
             } catch (e: Exception) {
-                Log.e("CallUpdateWorkerCheck", "Exception: ${e.localizedMessage}", e)
-                Result.failure()
+                // Network/IO exception (timeout, connection reset, DNS) = transient → retry.
+                Log.e("CallUpdateWorkerCheck", "Exception (attempt=$runAttemptCount): ${e.localizedMessage}", e)
+                if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
             }
         }
     }
