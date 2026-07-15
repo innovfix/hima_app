@@ -63,7 +63,21 @@ class ChatAdapter(
         private const val VIEW_TYPE_SENT_AUDIO = 6
         private const val VIEW_TYPE_RECEIVED_AUDIO = 7
         private val REACTIONS = listOf("👍", "❤️", "😂", "😮", "🙏")
+
+        /**
+         * B_004: the skew factor Android applies when a font family has no real italic and the
+         * platform has to fake one. Mirrors Skia's synthetic-oblique constant.
+         */
+        private const val SYNTHETIC_ITALIC_SKEW = 0.25f
     }
+
+    /**
+     * B_004: horizontal room the last glyph of synthetic-italic text needs so it isn't clipped.
+     * Derived from the view's own text size rather than a fixed dp, so it stays correct under
+     * accessibility font scaling. Rounded up: costing a spare pixel is cheaper than a shaved "d".
+     */
+    private fun italicSkewPadPx(view: TextView): Int =
+        kotlin.math.ceil(view.paint.textSize * SYNTHETIC_ITALIC_SKEW).toInt()
 
     private var currentPopupWindow: PopupWindow? = null
     private lateinit var audioPlayer: ChatAudioPlayer
@@ -454,6 +468,12 @@ class ChatAdapter(
             itemView.findViewById(R.id.tv_reply_quote_snippet)
         private val vReplyQuoteStrip: View = itemView.findViewById(R.id.v_reply_quote_strip)
 
+        /**
+         * B_004: the bubble's own end padding, captured before any tombstone styling so the
+         * recycle reset restores the layout's value rather than assuming zero.
+         */
+        private val tvMessageBasePaddingEnd: Int = tvMessage.paddingEnd
+
         fun bind(message: ChatMessage) {
             if (message.isDeleted) {
                 // Tombstone: italic, dimmed, no reactions/long-press/delivery ticks,
@@ -463,6 +483,17 @@ class ChatAdapter(
                 clearDeliveryIndicator(itemView)
                 tvMessage.text = itemView.context.getString(R.string.chat_message_deleted_tombstone)
                 tvMessage.setTypeface(tvMessage.typeface, Typeface.ITALIC)
+                // B_004: Poppins bundles no italic, so Typeface.ITALIC is synthesised by skewing
+                // the glyphs. The skew is applied when drawing but not counted when measuring, so
+                // on this wrap_content bubble the final "d" of "deleted" leans past the TextView's
+                // right edge and is shaved off — it reads as an "a". Give the lean somewhere to
+                // land. Tombstone-only, so normal messages keep hugging their text exactly.
+                tvMessage.setPaddingRelative(
+                    tvMessage.paddingStart,
+                    tvMessage.paddingTop,
+                    tvMessageBasePaddingEnd + italicSkewPadPx(tvMessage),
+                    tvMessage.paddingBottom
+                )
                 tvMessage.alpha = 0.6f
                 tvTime.text = message.timestamp
                 tvReaction.visibility = View.GONE
@@ -475,6 +506,12 @@ class ChatAdapter(
 
             // Reset any tombstone styling carried over by recycling.
             tvMessage.setTypeface(Typeface.create(tvMessage.typeface, Typeface.NORMAL), Typeface.NORMAL)
+            tvMessage.setPaddingRelative(
+                tvMessage.paddingStart,
+                tvMessage.paddingTop,
+                tvMessageBasePaddingEnd,
+                tvMessage.paddingBottom
+            )
             tvMessage.alpha = 1f
             itemView.isLongClickable = true
             tvMessage.isLongClickable = true
@@ -648,6 +685,15 @@ class ChatAdapter(
                 tvTombstone?.let {
                     it.visibility = View.VISIBLE
                     it.text = itemView.context.getString(R.string.chat_message_deleted_tombstone)
+                    // B_004: same synthetic-italic clipping as the text bubble — this tombstone is
+                    // also wrap_content Poppins italic with no end padding. (The image tombstone is
+                    // a fixed 220dp and centred, so it already has slack and is left alone.)
+                    it.setPaddingRelative(
+                        it.paddingStart,
+                        it.paddingTop,
+                        italicSkewPadPx(it),
+                        it.paddingBottom
+                    )
                 }
                 itemView.setOnLongClickListener(null)
                 itemView.isLongClickable = false
