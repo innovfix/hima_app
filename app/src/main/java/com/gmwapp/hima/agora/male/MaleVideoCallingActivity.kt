@@ -2996,31 +2996,70 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun applyAudioRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute) {
+        // 0) OPTIMISTIC UI (B_009). Flip the icon and intent state immediately so the
+        //    tap feels instant. The routing work below talks to the Telecom service +
+        //    AudioFlinger via IPC and can take 50-300ms; waiting for it before
+        //    updating the icon is what made the toggle feel laggy. If the OS later
+        //    rejects the route the reconciliation block at the bottom snaps the icon
+        //    back and surfaces a toast. Ported from MaleAudioCallingActivity, which
+        //    already carried this fix while the other three did not.
         isSpeakerOn = route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
         currentAudioRoute = route
+        binding.btnSpeaker.setImageResource(iconForRoute(route))
 
-        // Telecom-first: Samsung's self-managed CallAudioRouteController
-        // overrides AudioManager. Route through Connection API first.
+        // 1) Telecom-first: Samsung's self-managed CallAudioRouteController
+        //    overrides AudioManager. Route through Connection API first.
         HimaTelecomManager.setAudioRoute(route)
 
         agoraEngine?.setEnableSpeakerphone(isSpeakerOn)
 
-        when (route) {
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> audioRouter?.forceEarpiece()
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> audioRouter?.forceSpeaker()
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH -> audioRouter?.forceBluetooth()
+        // 2) Force the explicit communication device. Each force*() reports whether
+        //    the OS actually applied the route; we must not leave the icon claiming
+        //    a route the system refused (forceSpeaker fails on wired headset +
+        //    Android <12).
+        val applied = when (route) {
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE ->
+                audioRouter?.forceEarpiece() ?: false
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER ->
+                audioRouter?.forceSpeaker() ?: false
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH ->
+                audioRouter?.forceBluetooth() ?: false
         }
 
-        binding.btnSpeaker.setImageResource(iconForRoute(route))
+        // 3) Reconcile the optimistic flip with what the OS actually did. Only roll
+        //    back on rejection — the happy path needs no work, the icon is already right.
+        if (!applied) {
+            val actualRoute = audioRouter?.currentRoute() ?: route
+            if (route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER) {
+                Toast.makeText(
+                    this,
+                    "Unplug headphones to use the speaker.",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else if (route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE &&
+                actualRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+            ) {
+                // User tapped speaker-off but the OS kept routing to speaker.
+                Toast.makeText(
+                    this,
+                    "Couldn't switch off the speaker. Please try again.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            isSpeakerOn = actualRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+            currentAudioRoute = actualRoute
+            binding.btnSpeaker.setImageResource(iconForRoute(actualRoute))
+        }
 
         Log.d(
             "CallAudioRoute",
-            "Activity.applyAudioRoute requested=$route actualAfter=${audioRouter?.currentRoute()} " +
+            "Activity.applyAudioRoute requested=$route applied=$applied effective=$currentAudioRoute " +
                 "isSpeakerOn=$isSpeakerOn btConnected=${audioRouter?.isBluetoothConnected()}"
         )
         // Agora's worker thread may write isSpeakerphoneOn after we return.
         // Verify once after the worker has flushed and re-apply if it raced.
-        audioRouter?.verifyAndReapply(route)
+        // Verify the EFFECTIVE route, not the requested one — after a rollback they differ.
+        audioRouter?.verifyAndReapply(currentAudioRoute)
     }
 
     private fun iconForRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute): Int = when (route) {
