@@ -361,6 +361,15 @@ class ChatActivityInHouse : AppCompatActivity() {
      * Later resumes (returning from another screen / app background) refresh history so messages reappear.
      */
     private var suppressNextResumeHistoryReload = true
+
+    /**
+     * B_006: block/unblock can happen in [UserProfileDetailActivity], and `iHaveBlockedThisUser`
+     * only ever arrives on the chat-history response. The C1 fresh-cache skip in [onResume] would
+     * otherwise serve a <30s snapshot and never re-read it, leaving the composer, keyboard and
+     * Block/Unblock menu showing the pre-block state until the chat is closed and reopened.
+     * Set when leaving for the profile so the next resume always re-reads block state.
+     */
+    private var forceHistoryReloadOnNextResume = false
     private val audioRecorderController by lazy { AudioRecorderController(cacheDir) }
     private var recordingPulseAnimator: ObjectAnimator? = null
     private var recordingStartY: Float = 0f
@@ -1691,6 +1700,9 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun openUserProfile() {
+        // B_006: the profile screen can block/unblock this peer. Force the next resume to
+        // re-read block state from the server instead of trusting the cached snapshot.
+        forceHistoryReloadOnNextResume = true
         val intent = Intent(this, UserProfileDetailActivity::class.java).apply {
             putExtra(DConstants.USER_ID, peerUserId)
             // Use the resolved header name (structured/API/store), NOT the raw intent
@@ -3995,6 +4007,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         lastMarkedReadMessageId = null
         historySilentRetryUsed = false
         suppressNextResumeHistoryReload = true
+        // B_006: a pending "returning from profile" refresh belongs to the previous peer.
+        // onNewIntent reloads history for peer B anyway, so drop it rather than let it
+        // force a second redundant fetch.
+        forceHistoryReloadOnNextResume = false
         isAddFriendBannerDismissedThisSession = false
         // Friends-Gated Chat: the gate is per-conversation. Drop the previous
         // peer's gate so peer B never inherits peer A's "unlocked" composer
@@ -4306,7 +4322,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             suppressNextResumeHistoryReload = false
             Log.d("ChatPagination", "Skipping duplicate history reload (first resume after onCreate)")
             Log.d(CHAT_REOPEN_LOG, "onResume SKIP extra loadMessages (first resume after onCreate) peer=$peerUserId")
-        } else if (messages.any { !it.isDateHeader } &&
+        } else if (!forceHistoryReloadOnNextResume &&
+            messages.any { !it.isDateHeader } &&
             historyCache.snapshotAgeMs(peerUserId) in 0L..RESUME_RELOAD_FRESH_WINDOW_MS
         ) {
             // C1: If we already have a populated list AND the cache is fresh (<30s),
@@ -4319,9 +4336,14 @@ class ChatActivityInHouse : AppCompatActivity() {
             )
         } else {
             Log.d("ChatPagination", "onResume — refreshing chat history from server")
-            Log.d(CHAT_REOPEN_LOG, "onResume TRIGGER loadMessages() peer=$peerUserId (returning to chat)")
+            Log.d(
+                CHAT_REOPEN_LOG,
+                "onResume TRIGGER loadMessages() peer=$peerUserId (returning to chat) " +
+                    "forcedByProfileReturn=$forceHistoryReloadOnNextResume"
+            )
             loadMessages()
         }
+        forceHistoryReloadOnNextResume = false
     }
 
     override fun onPause() {
