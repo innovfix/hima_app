@@ -51,6 +51,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityNewLoginBinding
 import com.gmwapp.hima.dialogs.BottomSheetCountry
 import com.gmwapp.hima.retrofit.responses.Country
+import com.gmwapp.hima.utils.CallModerationConsent
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.FcmTokenViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
@@ -860,6 +861,12 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                         // any throttle window left over from a prior session in
                         // the same process doesn't suppress this ping.
                         runCatching { activeStatusReporter.reportActive(force = true) }
+
+                        // Record acceptance of the call-safety disclosure carried by
+                        // the "community guidelines & moderation policy" link on this
+                        // screen. Tied to this path specifically: the consent row must
+                        // only exist where the user was actually shown the text.
+                        runCatching { CallModerationConsent.submitIfRequired() }
 
                         // Bind this device to the user's external id *immediately* on OTP success.
                         // Without this the subscription wouldn't be tagged until the user reached

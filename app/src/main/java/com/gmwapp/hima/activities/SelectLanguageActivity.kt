@@ -27,6 +27,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.retrofit.responses.Language
+import com.gmwapp.hima.utils.CallModerationConsent
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -80,6 +81,13 @@ class SelectLanguageActivity : BaseActivity() {
             if (it != null && it.success && it.data != null) {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
+
+                // Sign-up branch of the same disclosure: a new user reaches this
+                // screen only by passing the login screen's "community guidelines
+                // & moderation policy" line, but registered=false skips the login
+                // success path, so record acceptance here too. Without this a new
+                // creator's first session would never be covered.
+                runCatching { CallModerationConsent.submitIfRequired() }
 
                 // Socket.IO will connect only when ChatActivityInHouse opens
                 Log.d("SocketIOCheck", "✅ Registration successful - Socket.IO will connect when chat opens")
