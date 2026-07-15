@@ -43,6 +43,7 @@ class CallModerationCaptureManager(
 
     private data class RuntimeConfig(
         val captureEnabled: Boolean,
+        val masterSwitchEnabled: Boolean,
         val intervals: List<Int>,
         val consentVersion: String,
     )
@@ -101,8 +102,16 @@ class CallModerationCaptureManager(
                         }
                     }
                 }.distinct().sorted()
+                val captureEnabled = data.optBoolean("capture_enabled", false)
                 RuntimeConfig(
-                    captureEnabled = data.optBoolean("capture_enabled", false),
+                    captureEnabled = captureEnabled,
+                    // Compatibility with a backend deployed before the master
+                    // switch field: capture_enabled was the effective gate.
+                    masterSwitchEnabled = if (data.has("master_switch_enabled")) {
+                        data.optBoolean("master_switch_enabled", false)
+                    } else {
+                        captureEnabled
+                    },
                     intervals = intervals,
                     consentVersion = data.optString("consent_version", ""),
                 )
@@ -118,11 +127,37 @@ class CallModerationCaptureManager(
         config.intervals.forEach { intervalSeconds ->
             val target = connectedAtElapsedMs + TimeUnit.SECONDS.toMillis(intervalSeconds.toLong())
             val delay = (target - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
-            val task = Runnable { requestLocalSnapshot(intervalSeconds, config.consentVersion) }
+            val task = Runnable { verifyGateAndRequestSnapshot(intervalSeconds, config.consentVersion) }
             scheduled += task
             handler.postDelayed(task, delay)
         }
         Log.d(TAG, "Scheduled ${config.intervals} for call=$initialCallId")
+    }
+
+    /**
+     * Recheck the server switch off the main thread immediately before every
+     * interval. A failed check fails closed for that interval, so an admin Off
+     * action cannot leave a previously scheduled local snapshot running.
+     */
+    private fun verifyGateAndRequestSnapshot(intervalSeconds: Int, consentVersion: String) {
+        if (!started.get() || disposed) return
+        runCatching {
+            executor.execute {
+                val config = fetchRuntimeConfig()
+                val permitted = config != null && config.captureEnabled
+                    && config.consentVersion == consentVersion
+                if (!permitted) {
+                    if (config != null && !config.masterSwitchEnabled) {
+                        handler.post { stopScheduling() }
+                    }
+                    Log.d(TAG, "Capture gate closed for call=$initialCallId interval=$intervalSeconds")
+                    return@execute
+                }
+                handler.post { requestLocalSnapshot(intervalSeconds, consentVersion) }
+            }
+        }.onFailure {
+            Log.w(TAG, "Capture gate check could not start for interval=$intervalSeconds")
+        }
     }
 
     private fun requestLocalSnapshot(intervalSeconds: Int, consentVersion: String) {
