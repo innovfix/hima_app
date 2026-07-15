@@ -128,6 +128,53 @@ class BaseApplication : Application(), Configuration.Provider {
         android.os.Handler(android.os.Looper.getMainLooper())
     private val ringtoneFocusAutoRelease = Runnable { releaseRingtoneFocus() }
 
+    /**
+     * B_012: the ringtone had no lifetime of its own.
+     *
+     * [playIncomingCallSound] is only ever called by the two accept Activities, but the
+     * MediaPlayer it creates lives here on the Application and loops forever, so it
+     * outlives the screen that started it. Every one of stopRingtone()'s callers is an
+     * Activity, Receiver or Service *reacting* to something — none is a timer. So when no
+     * screen is left to react, nothing stops the ring.
+     *
+     * That is reachable: [isIncomingCallFresh] (45s) gates whether MainActivity will
+     * re-show the call screen, and refreshing the app twice during a ring burns past it.
+     * The third refresh finds a call the app no longer considers live, returns early, and
+     * the ring is orphaned — audible forever with no UI and no call attached.
+     *
+     * Tie the ring to the same window that governs the screen: once the app has stopped
+     * tracking the call, the ring stops too. This is QA's expected result verbatim —
+     * "should stop when the call session ends, times out, or is no longer being tracked
+     * by the app". Re-arms while the call is genuinely fresh, so a live ring is untouched.
+     */
+    private val ringWatchdogHandler =
+        android.os.Handler(android.os.Looper.getMainLooper())
+    private val ringWatchdogRunnable = object : Runnable {
+        override fun run() {
+            // Nothing ringing → nothing to police, and don't re-arm.
+            if (mediaPlayer == null && ringtoneVibrator == null) return
+            if (!isIncomingCallFresh()) {
+                Log.w(
+                    "HimaIncomingCall",
+                    "ring watchdog: call no longer tracked by the app — stopping orphaned ring " +
+                        "(player=${mediaPlayer != null} vibrator=${ringtoneVibrator != null})"
+                )
+                stopRingtone()
+                return
+            }
+            ringWatchdogHandler.postDelayed(this, RING_WATCHDOG_TICK_MS)
+        }
+    }
+
+    private fun armRingWatchdog() {
+        ringWatchdogHandler.removeCallbacks(ringWatchdogRunnable)
+        ringWatchdogHandler.postDelayed(ringWatchdogRunnable, RING_WATCHDOG_TICK_MS)
+    }
+
+    private fun cancelRingWatchdog() {
+        ringWatchdogHandler.removeCallbacks(ringWatchdogRunnable)
+    }
+
     val networkConnectedLiveData = MutableLiveData<Boolean>()
     private var appConnectivityManager: ConnectivityManager? = null
     private var appNetworkCallback: ConnectivityManager.NetworkCallback? = null
@@ -244,6 +291,13 @@ class BaseApplication : Application(), Configuration.Provider {
     companion object {
         private var mInstance: BaseApplication? = null
 
+        /**
+         * B_012: how often the ring watchdog re-checks that the call is still being
+         * tracked. Only ticks while something is actually ringing, and a few seconds of
+         * overhang on a dead ring is imperceptible — so this is deliberately coarse
+         * rather than tight to the 45s freshness edge.
+         */
+        private const val RING_WATCHDOG_TICK_MS = 5_000L
 
         fun getInstance(): BaseApplication? {
             return mInstance
@@ -1699,6 +1753,11 @@ class BaseApplication : Application(), Configuration.Provider {
         // rings already vibrate via enableVibration(true) + pattern; this covers
         // the activity-only path (B030 skip-heads-up case).
         startIncomingCallVibration()
+        // B_012: arm the ring's own lifetime. Everything below only starts the sound —
+        // nothing in it can stop it once the accept screen is gone. Armed here rather
+        // than after start() so the vibration is covered too, and so an abort further
+        // down still lands in stopRingtone(), which cancels this.
+        armRingWatchdog()
 
         try {
             // Without a headset, use USAGE_NOTIFICATION_RINGTONE + MODE_RINGTONE (ring stream).
@@ -2279,6 +2338,11 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.e("MediaPlayer", "Error stopping ringtone: ${e.message}")
         } finally {
             mediaPlayer = null
+            // B_012: the ring is going away by some other route (accept, decline, timeout,
+            // volume key, the watchdog itself) — paired with armRingWatchdog(). Safe to
+            // call from inside the watchdog: removeCallbacks on the runnable that is
+            // currently executing simply drops the not-yet-posted next tick.
+            cancelRingWatchdog()
             // Stop watching volume keys once the ring is gone (paired with
             // registerRingtoneVolumeObserver in playIncomingCallSound).
             unregisterRingtoneVolumeObserver()
