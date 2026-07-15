@@ -1803,13 +1803,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         // Pending received friend-requests also surface on the Chat icon — from any tab,
         // not only while the Chat fragment is in front.
-        apiManager.getFriendTabsCounts(userData.id, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse> {
+        // B_010: only requests she hasn't seen. The watermark rides up with the request.
+        apiManager.getFriendTabsCounts(
+            userData.id,
+            object : NetworkCallback<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse> {
             override fun onResponse(
                 call: Call<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>,
                 response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>
             ) {
                 chatRequestsUnread = if (response.isSuccessful && response.body()?.success == true) {
-                    response.body()?.data?.received_requests_count ?: 0
+                    unseenRequestsOf(response.body()?.data)
                 } else {
                     0
                 }
@@ -1825,7 +1828,25 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 chatRequestsUnread = 0
                 updateChatBadge()
             }
-        })
+        },
+            com.gmwapp.hima.utils.RequestsSeenPrefs.getSeenRequestId(this, userData.id)
+        )
+    }
+
+    /**
+     * B_010: how many received requests the user hasn't seen yet.
+     *
+     * Prefers the server's watermark-aware count. A server that predates the field sends
+     * -1, and we fall back to the full count — badging a request twice is a nuisance;
+     * silently badging 0 would hide it entirely, so we fail towards over-notifying.
+     */
+    private fun unseenRequestsOf(
+        data: com.gmwapp.hima.retrofit.responses.FriendTabsCountsData?
+    ): Int {
+        data ?: return 0
+        val fresh = data.received_requests_new_count
+        return if (fresh >= 0) fresh.coerceAtLeast(0)
+        else data.received_requests_count.coerceAtLeast(0)
     }
 
     private fun updateChatBadge() {
@@ -1865,13 +1886,17 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private fun loadFriendsRequestCountBadge() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         if (userData.gender != DConstants.MALE) return
-        apiManager.getFriendTabsCounts(userData.id, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse> {
+        // B_010: only requests he hasn't seen — this badge is pure requests, so the
+        // watermark is the whole reason it can ever reach zero.
+        apiManager.getFriendTabsCounts(
+            userData.id,
+            object : NetworkCallback<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse> {
             override fun onResponse(
                 call: Call<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>,
                 response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>
             ) {
                 friendsRequestsUnread = if (response.isSuccessful && response.body()?.success == true) {
-                    response.body()?.data?.received_requests_count ?: 0
+                    unseenRequestsOf(response.body()?.data)
                 } else {
                     0
                 }
@@ -1887,7 +1912,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 friendsRequestsUnread = 0
                 updateFriendsBadge()
             }
-        })
+        },
+            com.gmwapp.hima.utils.RequestsSeenPrefs.getSeenRequestId(this, userData.id)
+        )
     }
 
     private fun updateFriendsBadge() {

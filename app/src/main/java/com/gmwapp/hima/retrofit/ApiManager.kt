@@ -1832,13 +1832,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    /**
+     * [requestsSeenId] is trailing-with-default on purpose: the tab-chip callers want the
+     * plain totals and pass their callback positionally, so it must stay the second
+     * argument. Only the nav-badge callers pass a watermark.
+     */
     fun getFriendTabsCounts(
         userId: Int,
-        callback: NetworkCallback<FriendTabsCountsResponse>
+        callback: NetworkCallback<FriendTabsCountsResponse>,
+        requestsSeenId: Int = 0
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<FriendTabsCountsResponse> =
-                getApiInterface().getFriendTabsCounts(userId)
+                getApiInterface().getFriendTabsCounts(userId, requestsSeenId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -3172,7 +3178,12 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("friend_tabs_counts")
     fun getFriendTabsCounts(
-        @Field("user_id") userId: Int
+        @Field("user_id") userId: Int,
+        // B_010: highest request id this user has already looked at. The server replies
+        // with received_requests_new_count = pending requests newer than this. Sending 0
+        // (never opened Requests) makes it equal received_requests_count, i.e. today's
+        // behaviour — the safe direction.
+        @Field("requests_seen_id") requestsSeenId: Int = 0
     ): Call<FriendTabsCountsResponse>
 
     @GET("chats")

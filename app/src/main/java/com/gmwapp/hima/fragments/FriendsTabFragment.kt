@@ -400,8 +400,9 @@ class FriendsTabFragment : Fragment() {
                     friendsList.add(requestData.toFriendData())
                     requestIdMap[requestData.sender_data.id] = requestData.request_id
                 }
+                markRequestsSeen(response.data)
             }
-            
+
             if (::adapter.isInitialized) {
                 adapter.notifyDataSetChanged()
             }
@@ -485,6 +486,44 @@ class FriendsTabFragment : Fragment() {
                 friendRequestViewModel.receivedFriendRequestsLiveData.value = null
                 friendRequestViewModel.getReceivedFriendRequests(userData.id, searchParam)
             }
+        }
+    }
+
+    /**
+     * B_010: the user is looking at the Requests list, so everything in it counts as seen.
+     * Advance the watermark to the newest id here and drop the nav badge — it used to count
+     * every pending request forever, so it never cleared however often she opened this tab.
+     *
+     * Three guards, all load-bearing — each one is a way to silence a request the user
+     * never actually saw, which would be worse than the bug being fixed:
+     *  - only the received-requests tab. This observer belongs to a fragment-scoped
+     *    view-model, but the fragment class backs every tab, so tabType is what makes
+     *    "she saw the requests" true rather than merely likely.
+     *  - only while this tab is actually on screen. ViewPager2's FragmentStateAdapter
+     *    builds the adjacent page ahead of time and caps it at STARTED, so today nothing
+     *    loads offscreen — but that is a property of where loadData() happens to be
+     *    called from, not a guarantee. isResumed states the requirement outright so a
+     *    later load-on-create cannot quietly clear the badge from the next tab over.
+     *  - only an unfiltered list. A search shows a subset; treating that as "seen all"
+     *    would silence requests she never laid eyes on.
+     */
+    private fun markRequestsSeen(
+        data: List<com.gmwapp.hima.retrofit.responses.ReceivedFriendRequestData>
+    ) {
+        if (tabType != TYPE_THEIR_REQUESTS) return
+        if (!isResumed) return
+        if (currentSearchQuery.isNotBlank()) return
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        val newest = data.maxOfOrNull { it.request_id } ?: return
+
+        val moved = com.gmwapp.hima.utils.RequestsSeenPrefs.markSeen(requireContext(), userId, newest)
+        if (!moved) return
+
+        // Watermark moved, so the badge is now stale by definition — refresh both genders'
+        // paths rather than wait for the next onResume to notice.
+        (activity as? com.gmwapp.hima.activities.MainActivity)?.let {
+            it.refreshFriendsRequestCountBadge()
+            it.refreshChatUnreadBadge()
         }
     }
 
