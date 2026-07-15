@@ -683,6 +683,9 @@
     <string name="dnd_confirm_warning">You won\'t receive any calls until DND ends.</string>
     <string name="dnd_confirm_positive">Turn on DND</string>
     <string name="dnd_confirm_cancel">Cancel</string>
+    <!-- B_002 — shown when Accept is tapped with no network: entering the call would
+         hang "connected" with no audio forever, so we block it at the source. -->
+    <string name="call_accept_no_network">No internet connection — check your connection and try again</string>
     <!-- B11 — turn-OFF confirm variant (DND toggle off, or turning Audio/Video ON while DND active). -->
     <string name="dnd_disable_confirm_title">Turn off Do Not Disturb?</string>
     <string name="dnd_disable_confirm_body">You\'re in Do Not Disturb. Turning it off means you\'ll start receiving incoming calls again.</string>

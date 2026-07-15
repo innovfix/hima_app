@@ -272,6 +272,16 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         startAlivePolling()
 
         binding.accpet.setOnClickListener {
+            // B_002 — an OFFLINE device must never enter a call it can never join
+            // (Agora can't connect, onJoinChannelSuccess never fires, so the only
+            // safety timer never arms and the call hangs "connected" forever).
+            // Block BEFORE any state change (terminalStarted / stopAlivePolling) so
+            // the ring stays intact and he can retry or decline. isOnline() is
+            // lenient + fail-open — see NetworkUtils. Mirrors FemaleCallAcceptActivity.
+            if (!com.gmwapp.hima.utils.NetworkUtils.isOnline(this)) {
+                Toast.makeText(this, getString(R.string.call_accept_no_network), Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
             terminalStarted = true      // user is answering — stop the self-heal poll
             stopAlivePolling()
             if (receiverId != -1 && CallChannel.isJoinable(channelName) && !callType.isNullOrEmpty()) {

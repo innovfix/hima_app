@@ -78,6 +78,28 @@ class CallActionReceiver : BroadcastReceiver() {
                     return
                 }
 
+                // B_002 — an OFFLINE device must never enter a call it can never join:
+                // Agora can't connect, onJoinChannelSuccess never fires, and the only
+                // safety timer (startTimeoutTracking) is armed INSIDE that callback, so
+                // nothing ends the call and it hangs "connected" with no audio forever.
+                // The full-screen Accept button guards this too; without it here the
+                // heads-up "Answer" action would bypass the check entirely.
+                //
+                // Unlike the two guards above this is NOT terminal — the call is still
+                // live, she just can't answer right now. So do NOT tear the ring down:
+                // leave the banner + ringtone intact so she can retry or decline, and
+                // return BEFORE markRingAccepted so no accepted-state is left behind.
+                // isOnline() is lenient + fail-open (see NetworkUtils).
+                if (!com.gmwapp.hima.utils.NetworkUtils.isOnline(context)) {
+                    Log.d("HimaIncomingCall", "ACTION_ACCEPT_CALL blocked: device offline callId=$callId")
+                    Toast.makeText(
+                        context.applicationContext,
+                        context.getString(R.string.call_accept_no_network),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
+
                 // FORCE_CLOSE_REJECT_2026_07_07 — record that THIS caller's ring was
                 // accepted, so if the app is swiped from recents during the
                 // notification-accept cold-start window (before the calling activity's

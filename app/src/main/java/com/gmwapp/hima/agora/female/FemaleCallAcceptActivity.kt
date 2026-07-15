@@ -355,6 +355,20 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
         binding.accpet.setOnClickListener {
             if (callButtonsLocked) return@setOnClickListener
+            // B_002 — an OFFLINE device must never enter a call it can never join.
+            // Agora can't connect, onJoinChannelSuccess never fires, and the only
+            // safety timer (startTimeoutTracking) is armed INSIDE that callback — so
+            // nothing ends the call and it sits "connected" with no audio forever.
+            // Block at the source, BEFORE any state changes: no lockCallButtons, no
+            // stopRingtone, no markRingAccepted — the ring stays fully intact so she
+            // can retry or decline, and the caller just sees a normal timeout.
+            // isOnline() is lenient + fail-open, so it can only block a genuinely
+            // absent network (see NetworkUtils).
+            if (!com.gmwapp.hima.utils.NetworkUtils.isOnline(this)) {
+                Log.d("CreatorCallDiag", "FAccept.click BLOCKED: device offline callId=$call_Id")
+                Toast.makeText(this, getString(R.string.call_accept_no_network), Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
             if (receiverId != -1 && CallChannel.isJoinable(channelName) && !callType.isNullOrEmpty()) {
                 Log.d(
                     "CreatorCallDiag",
