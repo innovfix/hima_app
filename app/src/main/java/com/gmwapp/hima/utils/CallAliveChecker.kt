@@ -32,6 +32,51 @@ object CallAliveChecker {
     private const val TAG = "CallAliveChecker"
 
     /**
+     * ONE shared connection pool for every call in this file. Each variant below is a
+     * newBuilder() shallow copy — it keeps its own timeouts but SHARES this pool and
+     * dispatcher, so a warm keep-alive connection is reused instead of a fresh
+     * DNS+TCP+TLS handshake per request.
+     *
+     * This is load-bearing for the heartbeat, not just tidiness. sendRingHeartbeat
+     * fires every ~2.5s with a 3s connectTimeout; on a slow link a COLD handshake
+     * alone can exceed 3s, so a per-request client made the beat time out while the
+     * caller was perfectly alive. Five such misses = 12s of apparent silence =
+     * check_call_alive stamps not_answered and kills a LIVE call — precisely on the
+     * weak networks this feature exists to handle, and invisible on office wifi where
+     * a cold handshake is ~100ms. With the pool warm, the timeout measures caller
+     * liveness (the thing we mean) rather than connection setup (the thing we don't).
+     */
+    private val sharedPool = okhttp3.OkHttpClient()
+
+    /** Tight 2s phases: runs BLOCKING on the FCM dispatch thread (~20s system budget). */
+    private val ringingNowClient: okhttp3.OkHttpClient by lazy {
+        sharedPool.newBuilder()
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .writeTimeout(2, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.SECONDS)
+            .callTimeout(5, TimeUnit.SECONDS)
+            .build()
+    }
+
+    /** Heartbeat + doCheck phases (3s). callTimeout only where it existed before. */
+    private val heartbeatClient: okhttp3.OkHttpClient by lazy {
+        sharedPool.newBuilder()
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .writeTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(3, TimeUnit.SECONDS)
+            .callTimeout(5, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private val checkClient: okhttp3.OkHttpClient by lazy {
+        sharedPool.newBuilder()
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .writeTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(3, TimeUnit.SECONDS)
+            .build()
+    }
+
+    /**
      * @param callId   the active call's id (skip if 0 / unknown)
      * @param onShouldEnd run on main thread IF backend confirms the call has ended.
      *                    NOT called if call is alive, network fails, or any error.
@@ -91,15 +136,9 @@ object CallAliveChecker {
         if (callId <= 0) return false
         return try {
             val url = BuildConfig.BASE_URL + "check_call_alive"
-            val client = okhttp3.OkHttpClient.Builder()
-                .connectTimeout(2, TimeUnit.SECONDS)
-                .writeTimeout(2, TimeUnit.SECONDS)
-                .readTimeout(2, TimeUnit.SECONDS)
-                .callTimeout(5, TimeUnit.SECONDS)
-                .build()
             val body = okhttp3.FormBody.Builder().add("call_id", callId.toString()).build()
             val req = okhttp3.Request.Builder().url(url).post(body).build()
-            client.newCall(req).execute().use { resp ->
+            ringingNowClient.newCall(req).execute().use { resp ->
                 val raw = resp.body?.string() ?: return false
                 Log.d(TAG, "isRingingNow callId=$callId resp=$raw")
                 // Use `ringable` (unanswered + fresh), NOT `alive`. `alive` only means
@@ -139,15 +178,9 @@ object CallAliveChecker {
         Thread({
             try {
                 val url = BuildConfig.BASE_URL + "call_ring_heartbeat"
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(3, TimeUnit.SECONDS)
-                    .writeTimeout(3, TimeUnit.SECONDS)
-                    .readTimeout(3, TimeUnit.SECONDS)
-                    .callTimeout(5, TimeUnit.SECONDS)
-                    .build()
                 val body = okhttp3.FormBody.Builder().add("call_id", callId.toString()).build()
                 val req = okhttp3.Request.Builder().url(url).post(body).build()
-                client.newCall(req).execute().use { /* fire-and-forget */ }
+                heartbeatClient.newCall(req).execute().use { /* fire-and-forget */ }
             } catch (t: Throwable) {
                 Log.w(TAG, "sendRingHeartbeat failed (ignored; 45s fallback still applies): ${t.message}")
             }
@@ -162,16 +195,11 @@ object CallAliveChecker {
         Thread({
             try {
                 val url = BuildConfig.BASE_URL + "check_call_alive"
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(3, TimeUnit.SECONDS)
-                    .writeTimeout(3, TimeUnit.SECONDS)
-                    .readTimeout(3, TimeUnit.SECONDS)
-                    .build()
                 val body = okhttp3.FormBody.Builder()
                     .add("call_id", callId.toString())
                     .build()
                 val req = okhttp3.Request.Builder().url(url).post(body).build()
-                client.newCall(req).execute().use { resp ->
+                checkClient.newCall(req).execute().use { resp ->
                     val raw = resp.body?.string() ?: return@Thread
                     Log.d(TAG, "callId=$callId resp=$raw")
                     // Backend returns:
