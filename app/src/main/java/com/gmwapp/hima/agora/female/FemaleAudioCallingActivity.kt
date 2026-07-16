@@ -40,6 +40,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
@@ -79,6 +80,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.EarningsHonourActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
+import com.gmwapp.hima.audio.AgoraLocalAudioExtractor
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.agora.services.CallingService
@@ -96,10 +98,7 @@ import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
 import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
-import io.agora.rtc2.IAudioFrameObserver
-import io.agora.rtc2.audio.AudioParams
 import io.agora.rtc2.video.VideoCanvas
-import org.json.JSONObject
 //import org.vosk.Model
 //import org.vosk.Recognizer
 import java.io.BufferedInputStream
@@ -107,8 +106,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.nio.ByteBuffer
-import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import kotlin.math.abs
@@ -135,6 +132,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     // B127: real-time RECORD_AUDIO revoke listener; started on join, stopped on teardown.
     private var micWatcher: com.gmwapp.hima.utils.MicPermissionWatcher? = null
+
+    // Local-mic extraction foundation for a future transcription provider. Chunks are currently
+    // consumed in memory only: no file, upload, transcript, AI call or warning is created.
+    private var localAudioExtractor: AgoraLocalAudioExtractor? = null
 
     // Periodic re-fetch of remaining_time. The FCM "remainingTimeUpdated"
     // push from the caller's side can be lost (DND, doze, network) and
@@ -407,7 +408,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 //    private lateinit var model: Model
 //    private lateinit var recognizer: Recognizer
 
-    private val executor = Executors.newSingleThreadExecutor()
     private val accountViewModel: AccountViewModel by viewModels()
 
     var blockWords: List<String> = emptyList()
@@ -558,6 +558,16 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             // failed and both sides connected silent. DEFAULT lets Agora pick per
             // the channel profile (COMMUNICATION here).
             agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_DEFAULT)
+            localAudioExtractor?.dispose()
+            localAudioExtractor = if (BuildConfig.FLAVOR == "development") {
+                AgoraLocalAudioExtractor("FemaleAudioExtractor") { chunk ->
+                    Log.d(
+                        "FemaleAudioExtractor",
+                        "in-memory chunk seq=${chunk.sequence} duration_ms=${chunk.durationMs} " +
+                            "overlap_ms=${chunk.overlapMs} speech=${chunk.voiceActivity.hasSpeech}"
+                    )
+                }.also { it.attach(agoraEngine!!) }
+            } else null
             // B037: smoothFactor 1 (not 3) so the speak-wave reacts to actual
             // speech bursts instead of a 600ms moving average that hid soft
             // voices entirely; threshold lowered to 30 in onAudioVolumeIndication.
@@ -671,6 +681,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     agoraEngine?.muteAllRemoteAudioStreams(false)
                 }
             }
+            localAudioExtractor?.setPaused(isMuted || mutedByInterrupt)
         }
     }
 
@@ -1668,6 +1679,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             mutedByInterrupt = false
             if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
             agoraEngine?.muteAllRemoteAudioStreams(false)
+            localAudioExtractor?.setPaused(isMuted)
             // Open the reliable data stream used for peer "on hold" signaling.
             holdSignal.onChannelJoined()
             startTimeoutTracking()
@@ -1833,9 +1845,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
 
-            initVosk()
-
-//            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
+            localAudioExtractor?.start(initiallyPaused = isMuted || mutedByInterrupt)
 
         }
 
@@ -1995,6 +2005,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         stopCountdown()
         stopBonusTicker() // F1: freeze the bonus clock the instant the call ends (no late payout flash)
         stopMicRevokeWatcher()
+        localAudioExtractor?.dispose()
+        localAudioExtractor = null
         try {
             agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
                 agoraEngine, "FemaleAudioCalling", hasVideo = false
@@ -2231,6 +2243,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         // B143: deterministic teardown — disable audio, leave channel, then block on destroy.
         stopMicRevokeWatcher()
+        localAudioExtractor?.dispose()
+        localAudioExtractor = null
         agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
             agoraEngine, "FemaleAudioCalling", hasVideo = false
         )
@@ -2946,6 +2960,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             mutedByInterrupt = false
             agoraEngine?.muteAllRemoteAudioStreams(false)
             if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+            localAudioExtractor?.setPaused(isMuted)
         }
         newRemainingTime()
         startCallingService()
@@ -3009,6 +3024,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
+        localAudioExtractor?.setPaused(isMuted || mutedByInterrupt)
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
         // B054 — flip the self mute badge so the creator sees the same

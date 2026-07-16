@@ -56,6 +56,7 @@ import com.gmwapp.hima.mmp.MmpClient
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.RatingActivity
@@ -63,6 +64,7 @@ import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.GiftAdapter
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.audio.AgoraLocalAudioExtractor
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.agora.GiftBottomSheetFragment
@@ -102,11 +104,6 @@ import java.util.TimeZone
 //import org.vosk.Model
 //import org.vosk.Recognizer
 //import org.vosk.android.RecognitionListener
-import java.util.concurrent.Executors
-import io.agora.rtc2.IAudioFrameObserver
-import java.nio.ByteBuffer
-import io.agora.rtc2.audio.AudioParams
-import org.json.JSONObject
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -216,9 +213,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 //    private lateinit var model: Model
 //    private lateinit var recognizer: Recognizer
 
-    private val executor = Executors.newSingleThreadExecutor()
-
-
     private var appId: String? = null // Will be received from backend
     private val expirationTimeInSeconds = 3600
     private var token: String? = null
@@ -234,6 +228,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     // B127: real-time RECORD_AUDIO revoke listener; started on join, stopped on teardown.
     private var micWatcher: com.gmwapp.hima.utils.MicPermissionWatcher? = null
+
+    // Local-mic extraction foundation for a future transcription provider. Chunks are currently
+    // consumed in memory only: no file, upload, transcript, AI call or warning is created.
+    private var localAudioExtractor: AgoraLocalAudioExtractor? = null
 
     // Tester report: in-call timer drifted ~60s between the two sides over a
     // few minutes. B141 anchored the math to serverNowMs at each fetch, but
@@ -501,6 +499,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             // failed and both sides connected silent. DEFAULT lets Agora pick per
             // the channel profile (COMMUNICATION here).
             agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_DEFAULT)
+            localAudioExtractor?.dispose()
+            localAudioExtractor = if (BuildConfig.FLAVOR == "development") {
+                AgoraLocalAudioExtractor("MaleAudioExtractor") { chunk ->
+                    Log.d(
+                        "MaleAudioExtractor",
+                        "in-memory chunk seq=${chunk.sequence} duration_ms=${chunk.durationMs} " +
+                            "overlap_ms=${chunk.overlapMs} speech=${chunk.voiceActivity.hasSpeech}"
+                    )
+                }.also { it.attach(agoraEngine!!) }
+            } else null
             // B037: smoothFactor 1 (not 3) so the speak-wave reacts to actual
             // speech bursts instead of a 600ms moving average that hid soft
             // voices entirely; threshold lowered to 30 in onAudioVolumeIndication.
@@ -642,6 +650,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     agoraEngine?.muteAllRemoteAudioStreams(false)
                 }
             }
+            localAudioExtractor?.setPaused(isMuted || mutedByInterrupt)
         }
     }
 
@@ -1675,6 +1684,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             mutedByInterrupt = false
             if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
             agoraEngine?.muteAllRemoteAudioStreams(false)
+            localAudioExtractor?.setPaused(isMuted)
             // Open the reliable data stream used for peer "on hold" signaling.
             holdSignal.onChannelJoined()
             startTimeoutTracking()
@@ -1811,14 +1821,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             com.gmwapp.hima.utils.HimaAnalytics.logContact(this@MaleAudioCallingActivity, contentType = "audio_call")
             startCallingService()
             getRemainingTime()
-            initVosk()
+            localAudioExtractor?.start(initiallyPaused = isMuted || mutedByInterrupt)
             // I021 — load the package catalog now so the banner's chips are
             // populated by the time the timer drops below 60s.
             runOnUiThread { lowBalanceBanner?.prefetch() }
             // Safety-net 30s re-fetch — see TIMER_RESYNC_INTERVAL_MS rationale.
             startTimerResync()
-
-//            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
 
             val bundle = Bundle().apply {
                 putString("user_id", "${maleUserId}")
@@ -2018,6 +2026,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // call on the !isJoined path is safe.
         stopCountdown()
         stopMicRevokeWatcher()
+        localAudioExtractor?.dispose()
+        localAudioExtractor = null
         try {
             agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
                 agoraEngine, "MaleAudioCalling", hasVideo = false
@@ -2127,6 +2137,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         // B143: deterministic teardown — disable audio, leave channel, then block on destroy.
         stopMicRevokeWatcher()
+        localAudioExtractor?.dispose()
+        localAudioExtractor = null
         agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
             agoraEngine, "MaleAudioCalling", hasVideo = false
         )
@@ -2433,6 +2445,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             mutedByInterrupt = false
             agoraEngine?.muteAllRemoteAudioStreams(false)
             if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+            localAudioExtractor?.setPaused(isMuted)
         }
         newRemainingTime()
         startCallingService()
@@ -2487,6 +2500,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
+        localAudioExtractor?.setPaused(isMuted || mutedByInterrupt)
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
         // B054 — flip the self-avatar mute badge so the user sees the same
