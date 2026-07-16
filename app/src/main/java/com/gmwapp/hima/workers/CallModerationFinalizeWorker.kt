@@ -40,6 +40,7 @@ class CallModerationFinalizeWorker(
         val request = Request.Builder()
             .url("${BuildConfig.BASE_URL}call-moderation/calls/$callId/end")
             .header("Authorization", "Bearer $token")
+            .header(APP_VERSION_CODE_HEADER, BuildConfig.VERSION_CODE.toString())
             .post(
                 FormBody.Builder()
                     .add("duration_seconds", durationSeconds.toString())
@@ -64,6 +65,7 @@ class CallModerationFinalizeWorker(
 
     companion object {
         private const val TAG = "CallModerationEnd"
+        private const val APP_VERSION_CODE_HEADER = "X-Hima-Version-Code"
         private const val MAX_ATTEMPTS = 6
         private const val KEY_CALL_ID = "call_id"
         private const val KEY_LOCAL_USER_ID = "local_user_id"

@@ -25,6 +25,8 @@ object CallModerationConsent {
 
     private const val TAG = "CallModerationConsent"
 
+    private const val APP_VERSION_CODE_HEADER = "X-Hima-Version-Code"
+
     private val executor = Executors.newSingleThreadExecutor()
 
     private val client = OkHttpClient.Builder()
@@ -60,6 +62,7 @@ object CallModerationConsent {
         val request = Request.Builder()
             .url("${BuildConfig.BASE_URL}call-moderation/consent")
             .header("Authorization", "Bearer $token")
+            .header(APP_VERSION_CODE_HEADER, BuildConfig.VERSION_CODE.toString())
             .post(body)
             .build()
 
@@ -83,6 +86,7 @@ object CallModerationConsent {
         val request = Request.Builder()
             .url("${BuildConfig.BASE_URL}call-moderation/config")
             .header("Authorization", "Bearer $token")
+            .header(APP_VERSION_CODE_HEADER, BuildConfig.VERSION_CODE.toString())
             .get()
             .build()
 

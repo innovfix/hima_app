@@ -44,6 +44,7 @@ class CallModerationCaptureManager(
     private data class RuntimeConfig(
         val captureEnabled: Boolean,
         val masterSwitchEnabled: Boolean,
+        val appVersionEligible: Boolean,
         val intervals: List<Int>,
         val consentVersion: String,
     )
@@ -86,6 +87,7 @@ class CallModerationCaptureManager(
         val request = Request.Builder()
             .url("${BuildConfig.BASE_URL}call-moderation/config")
             .header("Authorization", "Bearer $token")
+            .header(APP_VERSION_CODE_HEADER, BuildConfig.VERSION_CODE.toString())
             .get()
             .build()
         return try {
@@ -112,6 +114,9 @@ class CallModerationCaptureManager(
                     } else {
                         captureEnabled
                     },
+                    // An older backend has no version gate, so preserve its
+                    // existing capture_enabled contract during staged rollout.
+                    appVersionEligible = data.optBoolean("app_version_eligible", true),
                     intervals = intervals,
                     consentVersion = data.optString("consent_version", ""),
                 )
@@ -147,7 +152,7 @@ class CallModerationCaptureManager(
                 val permitted = config != null && config.captureEnabled
                     && config.consentVersion == consentVersion
                 if (!permitted) {
-                    if (config != null && !config.masterSwitchEnabled) {
+                    if (config != null && (!config.masterSwitchEnabled || !config.appVersionEligible)) {
                         handler.post { stopScheduling() }
                     }
                     Log.d(TAG, "Capture gate closed for call=$initialCallId interval=$intervalSeconds")
@@ -262,6 +267,7 @@ class CallModerationCaptureManager(
 
     companion object {
         private const val TAG = "CallModerationCapture"
+        private const val APP_VERSION_CODE_HEADER = "X-Hima-Version-Code"
         private val ALLOWED_INTERVALS = setOf(60, 300, 600)
         private val CONFIG_CLIENT = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)

@@ -87,6 +87,7 @@ class CallModerationUploadWorker(
         val request = Request.Builder()
             .url("${BuildConfig.BASE_URL}call-moderation/snapshots")
             .header("Authorization", "Bearer $authToken")
+            .header(APP_VERSION_CODE_HEADER, BuildConfig.VERSION_CODE.toString())
             .post(body)
             .build()
 
@@ -127,6 +128,7 @@ class CallModerationUploadWorker(
 
     companion object {
         private const val TAG = "CallModerationUpload"
+        private const val APP_VERSION_CODE_HEADER = "X-Hima-Version-Code"
         private const val MAX_ATTEMPTS = 5
         private val ALLOWED_INTERVALS = setOf(60, 300, 600)
 
