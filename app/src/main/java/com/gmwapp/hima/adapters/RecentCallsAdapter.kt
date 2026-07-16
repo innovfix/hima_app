@@ -258,23 +258,28 @@ class RecentCallsAdapter(
             holder.binding.llDuration.visibility = View.VISIBLE
             holder.binding.tvTime.text = call.started_time ?: ""
             val rawDuration = call.duration?.trim().orEmpty()
-            // Missed calls come back from the backend with an empty or 0 duration,
-            // which left the clock-icon row visually empty. Show "Missed" instead.
             // For connected calls, roll 60+ minutes into hours so "1265 min 29 sec"
             // renders as "21 hr 5 min 29 sec".
             // FI_06: a declined call ("rejected") is distinct from an unanswered "missed".
             // Check end_reason first so a rejected row (also empty-duration) isn't mislabeled.
+            // Rejected rows are filtered out of All server-side; the branch stays as a guard.
             holder.binding.tvDuration.text = when {
                 call.end_reason == "rejected" -> activity.getString(R.string.rejected_call_label)
-                // QA bug #10 — "Missed" must mean the call NEVER CONNECTED. Decide from
-                // started_time (empty / "00:00:00" = never connected), NOT from duration.
-                // The old duration<=0 test mislabeled a call that DID connect but whose
-                // billed duration came back 0 or empty (sub-second connect, reconnect-
-                // underbill, or a row with no duration string) as "Missed". A genuine miss
-                // has a null/empty started_time, so this still labels real misses correctly;
-                // a connected call now always shows a duration, falling back to "0 sec"
-                // instead of the blank cell the old code guarded against.
-                call.started_time.isNullOrEmpty() || call.started_time == "00:00:00" ->
+                // "Missed" = never connected. NO single field can decide it:
+                //   * started_time is NOT the DB column — calls_list overwrites it with a
+                //     display label ("Today 01:52 PM"), so it is never empty. Testing it
+                //     makes this branch dead code and every miss renders "0 sec".
+                //   * duration alone: blank also for calls that DID connect but were
+                //     orphaned/underbilled (ended_time '00:00:00') — QA bug #10.
+                //   * end_reason alone: rows carry a real started_time together with
+                //     'not_answered' (Talk Time filters them out for this reason).
+                // So: no billed span AND the backend did not record a real ending.
+                // A blank end_reason must count — a caller who abandons the ring leaves
+                // the row unstamped, and on prod that is ~34% of all misses (56k/day);
+                // requiring 'not_answered' alone would render those "0 sec". An orphaned
+                // connected row is stamped 'ended', so it stays out of this branch.
+                (call.end_reason.isNullOrBlank() || call.end_reason == "not_answered") &&
+                    rawDuration.isEmpty() ->
                     activity.getString(R.string.missed_call_label)
                 else -> formatDuration(rawDuration).ifEmpty { "0 sec" }
             }
