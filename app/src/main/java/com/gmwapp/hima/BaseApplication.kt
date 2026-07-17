@@ -1348,6 +1348,19 @@ class BaseApplication : Application(), Configuration.Provider {
             // disk after logout instead of waiting for the next session's sweep.
             java.io.File(cacheDir, "call-moderation").deleteRecursively()
         }
+        // Same teardown for AUDIO moderation. It uses a separate worker tag and a separate
+        // cache directory, so the image cleanup above does not touch it — a captured WAV
+        // and its pending upload would otherwise survive logout into the next account.
+        runCatching {
+            androidx.work.WorkManager.getInstance(this)
+                .cancelAllWorkByTag(
+                    com.gmwapp.hima.workers.CallAudioUploadWorker.WORK_TAG,
+                )
+            java.io.File(
+                cacheDir,
+                com.gmwapp.hima.workers.CallAudioUploadWorker.CACHE_DIRECTORY,
+            ).deleteRecursively()
+        }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }
         // Autopay/welcome-gift gating must not leak to the next account on a

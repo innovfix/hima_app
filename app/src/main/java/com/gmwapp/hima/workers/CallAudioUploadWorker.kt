@@ -136,6 +136,9 @@ class CallAudioUploadWorker(
         private const val TAG = "CallAudioUpload"
         const val CACHE_DIRECTORY = "call-audio-moderation"
 
+        /** Lets logout cancel every pending audio upload in one call, like the image worker. */
+        const val WORK_TAG = "call_audio_moderation_work"
+
         /** Backstop: no recording of a user's call outlives this, uploaded or not. */
         const val MAX_LOCAL_AGE_MS = 6L * 60L * 60L * 1000L
 
@@ -178,6 +181,7 @@ class CallAudioUploadWorker(
 
             val request = OneTimeWorkRequestBuilder<CallAudioUploadWorker>()
                 .setInputData(data)
+                .addTag(WORK_TAG)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
