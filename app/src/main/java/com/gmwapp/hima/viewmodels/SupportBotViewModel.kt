@@ -181,24 +181,20 @@ class SupportBotViewModel @Inject constructor(
         }
 
         attachInFlight.value = true
-        // viewModelScope survives rotation; a real teardown cancels it, and the
-        // bounded copy deletes its partial on cancellation — so no leak.
         viewModelScope.launch {
-            // Record the file into the tracked field INSIDE the IO block, in the
-            // same synchronous step the copy completes (`?.also`), BEFORE
-            // withContext's suspension boundary. If cancellation lands as
-            // withContext returns, `val file = …` throws and the lines below
-            // never run — but attachTempFile is already set, so onCleared deletes
-            // it. If cancellation lands during the copy, copyBounded throws and
-            // cleans up its own partial (attachTempFile stays null). Either way,
-            // no finished-but-untracked file survives. The copy is still
-            // cancellable — there is no NonCancellable here.
-            val file = withContext(Dispatchers.IO) {
-                copyBounded(resolver, appContext.cacheDir, uri, maxBytes)?.also { attachTempFile = it }
-            }
-            if (file == null) { finishAttach(); attachErrorLiveData.value = "too_big"; return@launch }
+            // Create the target file and record it NOW — on the main thread,
+            // BEFORE any IO. onCleared() (also main-thread) can then always find
+            // and delete it, regardless of when the copy finishes or is
+            // cancelled, so a completed-after-teardown file can never be
+            // orphaned. attachTempFile is touched ONLY on the main thread (here,
+            // finishAttach, onCleared), so there is no cross-thread field access.
+            // copyInto writes into this file and never touches the field.
+            val target = java.io.File(appContext.cacheDir, "support_" + System.nanoTime())
+            attachTempFile = target
+            val ok = withContext(Dispatchers.IO) { copyInto(resolver, uri, target, maxBytes) }
+            if (!ok) { finishAttach(); attachErrorLiveData.value = "too_big"; return@launch }
             val part = MultipartBody.Part.createFormData(
-                "file", file.name, file.asRequestBody(mime.toMediaTypeOrNull())
+                "file", target.name, target.asRequestBody(mime.toMediaTypeOrNull())
             )
             attachCall = repository.attach(sessionId, part, object : NetworkCallback<SupportBotAttachResponse> {
                 override fun onNoNetwork() { finishAttach(); attachErrorLiveData.value = "no_network" }
@@ -236,24 +232,29 @@ class SupportBotViewModel @Inject constructor(
         attachInFlight.value = false
     }
 
-    private suspend fun copyBounded(
+    /**
+     * Copy the picked file into [target] (created and tracked by the caller on
+     * the main thread), bounded by [maxBytes]. Returns true on success. On
+     * cancellation or failure it deletes the partial and, for cancellation,
+     * rethrows. It never touches attachTempFile — the caller owns that field on
+     * the main thread — so there is no cross-thread state and no race between
+     * completion and recording.
+     */
+    private suspend fun copyInto(
         resolver: android.content.ContentResolver,
-        cacheDir: java.io.File,
         uri: android.net.Uri,
+        target: java.io.File,
         maxBytes: Long
-    ): java.io.File? {
-        val out = java.io.File(cacheDir, "support_" + System.nanoTime())
+    ): Boolean {
         return try {
             resolver.openInputStream(uri)!!.use { input ->
-                out.outputStream().use { output ->
+                target.outputStream().use { output ->
                     val buf = ByteArray(8 * 1024)
                     var total = 0L
                     while (true) {
-                        // Respond to cancellation between reads: JVM blocking IO
-                        // is not interrupted by coroutine cancellation, so we
-                        // check each loop. On cancel this throws, and the catch
-                        // below deletes the partial before it propagates — so a
-                        // teardown mid-copy never leaves an untracked file.
+                        // JVM blocking IO is not interrupted by coroutine
+                        // cancellation, so check each loop; on cancel this throws
+                        // and the catch deletes the partial before propagating.
                         coroutineContext.ensureActive()
                         val n = input.read(buf)
                         if (n < 0) break
@@ -263,11 +264,11 @@ class SupportBotViewModel @Inject constructor(
                     }
                 }
             }
-            out
+            true
         } catch (c: kotlinx.coroutines.CancellationException) {
-            out.delete(); throw c            // clean up, but preserve cancellation
+            target.delete(); throw c
         } catch (t: Throwable) {
-            out.delete(); null               // too-large / IO failure — nothing left behind
+            target.delete(); false
         }
     }
 
