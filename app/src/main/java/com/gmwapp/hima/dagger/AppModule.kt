@@ -156,18 +156,22 @@ object AppModule {
                 return response
             }
         })
-        // The support bot's answer step runs a model with tool calls and can
-        // legitimately take up to the backend's 25s session ceiling. The global
-        // 20s readTimeout would give up FIRST — the app would show a failure
-        // while the backend was still producing a valid escalation the user
-        // never sees. Extend the read timeout for this one endpoint only, past
-        // the ceiling, so the app always waits for the definitive answer.
+        // The support bot runs a model with tool calls and can legitimately
+        // take up to the backend's 25s session ceiling. The global 20s
+        // readTimeout would give up FIRST — the app would show a failure while
+        // the backend was still producing a valid answer the user never sees.
+        //
+        // BOTH model-running endpoints need this, not just the first:
+        //   support_bot_reply    — the first answer (step 3 -> 4).
+        //   support_bot_feedback — the SECOND attempt after "No, still need
+        //                          help" runs the model again on this path.
+        // Missing feedback here was the original bug reappearing on the retry.
         // Every other call keeps the tight 20s.
         okClientBuilder.addInterceptor(object : Interceptor {
             @Throws(IOException::class)
             override fun intercept(chain: Chain): Response {
                 val path = chain.request().url.encodedPath
-                return if (path.endsWith("support_bot_reply")) {
+                return if (path.endsWith("support_bot_reply") || path.endsWith("support_bot_feedback")) {
                     chain.withReadTimeout(30, TimeUnit.SECONDS).proceed(chain.request())
                 } else {
                     chain.proceed(chain.request())
