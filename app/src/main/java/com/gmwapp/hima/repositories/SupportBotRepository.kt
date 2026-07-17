@@ -5,6 +5,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.SupportBotAttachResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotFeedbackResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotReplyResponse
+import com.gmwapp.hima.retrofit.responses.SupportBotSessionResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotStartResponse
 import javax.inject.Inject
 
@@ -20,6 +21,11 @@ class SupportBotRepository @Inject constructor(
         userMessage: String?,
         callback: NetworkCallback<SupportBotReplyResponse>
     ) = apiManager.supportBotReply(sessionId, choiceKey, userMessage, callback)
+
+    fun session(
+        sessionId: Int,
+        callback: NetworkCallback<SupportBotSessionResponse>
+    ) = apiManager.supportBotSession(sessionId, callback)
 
     fun feedback(
         sessionId: Int,

@@ -7,6 +7,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.SupportBotAttachResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotFeedbackResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotReplyResponse
+import com.gmwapp.hima.retrofit.responses.SupportBotSessionResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotStartResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import retrofit2.Call
@@ -24,6 +25,7 @@ class SupportBotViewModel @Inject constructor(
 
     val startLiveData = MutableLiveData<SupportBotStartResponse>()
     val replyLiveData = MutableLiveData<SupportBotReplyResponse>()
+    val sessionLiveData = MutableLiveData<SupportBotSessionResponse>()
     val feedbackLiveData = MutableLiveData<SupportBotFeedbackResponse>()
     val attachLiveData = MutableLiveData<SupportBotAttachResponse>()
     val errorLiveData = MutableLiveData<String>()
@@ -73,6 +75,35 @@ class SupportBotViewModel @Inject constructor(
             }
 
             override fun onFailure(call: Call<SupportBotReplyResponse>, t: Throwable) =
+                fail(t.message ?: "Network error")
+        })
+    }
+
+    /**
+     * Resume (P1-G). A failure here is soft: the caller falls back to start()
+     * so a stale/expired saved id never blocks the user from getting help.
+     */
+    fun session(sessionId: Int) {
+        loadingLiveData.value = true
+        repository.session(sessionId, object : NetworkCallback<SupportBotSessionResponse> {
+            override fun onNoNetwork() = fail("No internet connection")
+
+            override fun onResponse(
+                call: Call<SupportBotSessionResponse>,
+                response: Response<SupportBotSessionResponse>
+            ) {
+                loadingLiveData.value = false
+                val body = response.body()
+                if (response.isSuccessful && body != null && body.success) {
+                    sessionLiveData.value = body
+                } else {
+                    // Expired / not found / not ours — resume simply isn't
+                    // available; the activity starts fresh instead.
+                    errorLiveData.value = "resume_failed"
+                }
+            }
+
+            override fun onFailure(call: Call<SupportBotSessionResponse>, t: Throwable) =
                 fail(t.message ?: "Network error")
         })
     }

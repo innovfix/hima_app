@@ -11,6 +11,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.AiChatAdapter
 import com.gmwapp.hima.adapters.AiChatMessage
@@ -82,7 +83,24 @@ class SupportBotActivity : BaseActivity() {
 
         initUI()
         observe()
-        viewModel.start()
+
+        // Resume (P1-G). If a session from a previous, killed run is still on
+        // disk, rebuild it so the user lands back where they left off instead
+        // of re-answering four questions. A stale/expired id fails soft: the
+        // resume_failed branch clears it and starts fresh.
+        val saved = BaseApplication.getInstance()?.getPrefs()?.getString(KEY_ACTIVE_SESSION)?.toIntOrNull() ?: 0
+        if (saved > 0) viewModel.session(saved) else viewModel.start()
+    }
+
+    private fun saveActiveSession() {
+        if (sessionId > 0) {
+            BaseApplication.getInstance()?.getPrefs()?.setString(KEY_ACTIVE_SESSION, sessionId.toString())
+        }
+    }
+
+    /** Called once a session is terminal, so the NEXT open starts fresh. */
+    private fun clearActiveSession() {
+        BaseApplication.getInstance()?.getPrefs()?.setString(KEY_ACTIVE_SESSION, "")
     }
 
     /**
@@ -253,6 +271,7 @@ class SupportBotActivity : BaseActivity() {
 
             sessionId = r.session_id ?: 0
             if (sessionId == 0) { showRetry(); return@observe }
+            saveActiveSession()
 
             // Spec #11 — during an incident this goes FIRST, before the menu.
             // Someone whose calls are down because the platform is down should
@@ -285,6 +304,9 @@ class SupportBotActivity : BaseActivity() {
             }
             if (r.escalated_immediately && r.ticket_id != null) {
                 binding.tvViewTicket.text = getString(R.string.support_bot_view_ticket, r.ticket_id)
+                // A ticket now exists — this session is done; start fresh next
+                // time (reopening would hit pending_escalated_ticket anyway).
+                clearActiveSession()
             }
             showInput(r.input_mode)
             if (!r.out_of_hours.isNullOrBlank()) {
@@ -306,6 +328,11 @@ class SupportBotActivity : BaseActivity() {
                 showInput(BotInputMode.YESNO)
                 return@observe
             }
+
+            // Past the second attempt the session is terminal either way
+            // (resolved, or a ticket raised) — the next open should start
+            // fresh, not resume this closed conversation.
+            clearActiveSession()
 
             botSays(r.ai_message, null)
             ticketId = r.ticket_id
@@ -354,9 +381,21 @@ class SupportBotActivity : BaseActivity() {
             scrollToEnd()
         }
 
+        viewModel.sessionLiveData.observe(this) { r ->
+            adapter.hideTyping()
+            renderResumedSession(r)
+        }
+
         // Network/server trouble mid-conversation: stay in the chat and offer
         // a retry. Do not swap the screen out from under them.
-        viewModel.errorLiveData.observe(this) {
+        viewModel.errorLiveData.observe(this) { err ->
+            // A failed resume is not a conversation failure — there is no chat
+            // yet to retry. Drop the stale id and start a fresh session.
+            if (err == "resume_failed") {
+                clearActiveSession()
+                viewModel.start()
+                return@observe
+            }
             showRetry()
         }
     }
@@ -488,5 +527,54 @@ class SupportBotActivity : BaseActivity() {
     private fun fallbackToForm() {
         startActivity(Intent(this, SubmitTicketActivity::class.java))
         finish()
+    }
+
+    /**
+     * Resume (P1-G). Rebuild a session reopened after the app was killed: the
+     * transcript first, then the live input exactly as the server last left it.
+     * The last bot turn IS the current prompt, so it is already in history —
+     * we only add the chip bubble / feedback bar on top, never the text again.
+     */
+    private fun renderResumedSession(r: com.gmwapp.hima.retrofit.responses.SupportBotSessionResponse) {
+        sessionId = r.session_id ?: 0
+        if (sessionId <= 0) { clearActiveSession(); viewModel.start(); return }
+        saveActiveSession()
+        ticketId = r.ticket_id
+
+        r.history?.forEach { turn ->
+            adapter.addMessage(AiChatMessage(turn.text, isUser = turn.role == "user"))
+        }
+
+        when (r.input_mode) {
+            BotInputMode.CHIPS -> {
+                if (!r.chips.isNullOrEmpty()) {
+                    adapter.setChipsEnabled(true)
+                    adapter.addMessage(AiChatMessage("", isUser = false, chips = r.chips))
+                }
+                showInput(BotInputMode.CHIPS)
+            }
+            BotInputMode.TEXT -> showInput(BotInputMode.TEXT)
+            BotInputMode.YESNO -> {
+                binding.tvFeedbackPrompt.text = r.feedback_prompt.orEmpty()
+                showInput(BotInputMode.YESNO)
+            }
+            else -> {
+                // Terminal (escalated). Any leftover action chips (attach /
+                // view ticket) are still valid on a resumed session.
+                if (!r.chips.isNullOrEmpty()) {
+                    adapter.setChipsEnabled(true)
+                    adapter.addMessage(AiChatMessage("", isUser = false, chips = r.chips))
+                }
+                r.ticket_id?.let {
+                    binding.tvViewTicket.text = getString(R.string.support_bot_view_ticket, it)
+                }
+                showInput(BotInputMode.NONE)
+            }
+        }
+        scrollToEnd()
+    }
+
+    companion object {
+        private const val KEY_ACTIVE_SESSION = "support_bot_active_session"
     }
 }

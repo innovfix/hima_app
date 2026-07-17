@@ -7,6 +7,7 @@ import com.gmwapp.hima.retrofit.responses.AiOnboardingCompleteResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotAttachResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotFeedbackResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotReplyResponse
+import com.gmwapp.hima.retrofit.responses.SupportBotSessionResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotStartResponse
 import com.gmwapp.hima.retrofit.responses.AiOnboardingReplyResponse
 import com.gmwapp.hima.retrofit.responses.AiOnboardingStartResponse
@@ -2403,6 +2404,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    /** Resume (P1-G) — rebuild a session reopened after the app was killed. */
+    fun supportBotSession(
+        sessionId: Int,
+        callback: NetworkCallback<SupportBotSessionResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().supportBotSession(sessionId).enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun supportBotFeedback(
         sessionId: Int,
         solved: Int,
@@ -3646,6 +3659,12 @@ interface ApiInterface {
         @Field("choice_key") choiceKey: String?,
         @Field("user_message") userMessage: String?
     ): Call<SupportBotReplyResponse>
+
+    @FormUrlEncoded
+    @POST("support_bot_session")
+    fun supportBotSession(
+        @Field("session_id") sessionId: Int
+    ): Call<SupportBotSessionResponse>
 
     @FormUrlEncoded
     @POST("support_bot_feedback")

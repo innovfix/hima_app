@@ -90,6 +90,32 @@ data class SupportBotFeedbackResponse(
     val out_of_hours: String? = null
 )
 
+/** One rendered bubble in a resumed transcript. role = "bot" | "user". */
+@Parcelize
+data class BotHistoryTurn(
+    val role: String,
+    val text: String
+) : Parcelable
+
+/**
+ * Resume (P1-G). Returned by support_bot_session: the full transcript plus the
+ * current step's live render, so a reopened session rebuilds exactly where it
+ * was left — no taps repeated.
+ */
+data class SupportBotSessionResponse(
+    val success: Boolean,
+    val code: String? = null,
+    val session_id: Int? = null,
+    val step: Int = 0,
+    val is_final: Boolean = false,
+    val ticket_id: Int? = null,
+    val history: List<BotHistoryTurn>? = null,
+    val ai_message: String? = null,
+    val input_mode: String? = null,
+    val chips: List<BotChip>? = null,
+    val feedback_prompt: String? = null
+)
+
 data class SupportBotAttachResponse(
     val success: Boolean,
     val code: String? = null,
