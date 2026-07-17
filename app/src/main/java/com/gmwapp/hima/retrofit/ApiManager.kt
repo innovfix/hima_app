@@ -4,6 +4,10 @@ import android.util.Log
 import com.gmwapp.hima.activities.RetrofitClient
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AiOnboardingCompleteResponse
+import com.gmwapp.hima.retrofit.responses.SupportBotAttachResponse
+import com.gmwapp.hima.retrofit.responses.SupportBotFeedbackResponse
+import com.gmwapp.hima.retrofit.responses.SupportBotReplyResponse
+import com.gmwapp.hima.retrofit.responses.SupportBotStartResponse
 import com.gmwapp.hima.retrofit.responses.AiOnboardingReplyResponse
 import com.gmwapp.hima.retrofit.responses.AiOnboardingStartResponse
 import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
@@ -2374,6 +2378,59 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    // AI Support Bot.
+    // NOTE: none of these send a user_id. The server derives the user from the
+    // auth token, and the signatures are what enforce that. Do not add one.
+    fun supportBotStart(callback: NetworkCallback<SupportBotStartResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().supportBotStart().enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun supportBotReply(
+        sessionId: Int,
+        choiceKey: String?,
+        userMessage: String?,
+        callback: NetworkCallback<SupportBotReplyResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().supportBotReply(sessionId, choiceKey, userMessage).enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun supportBotFeedback(
+        sessionId: Int,
+        solved: Int,
+        csat: Int?,
+        callback: NetworkCallback<SupportBotFeedbackResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().supportBotFeedback(sessionId, solved, csat).enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    /** Spec #8 — optional attachment on the ticket the bot just raised. */
+    fun supportBotAttach(
+        sessionId: Int,
+        file: MultipartBody.Part,
+        callback: NetworkCallback<SupportBotAttachResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().supportBotAttach(
+                sessionId.toString().toRequestBody("text/plain".toMediaTypeOrNull()),
+                file
+            ).enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -3575,5 +3632,34 @@ interface ApiInterface {
     fun aiOnboardingComplete(
         @Field("session_id") sessionId: Int
     ): Call<AiOnboardingCompleteResponse>
+
+    @FormUrlEncoded
+    @POST("support_bot_start")
+    fun supportBotStart(
+        @Field("_") ignored: String = ""
+    ): Call<SupportBotStartResponse>
+
+    @FormUrlEncoded
+    @POST("support_bot_reply")
+    fun supportBotReply(
+        @Field("session_id") sessionId: Int,
+        @Field("choice_key") choiceKey: String?,
+        @Field("user_message") userMessage: String?
+    ): Call<SupportBotReplyResponse>
+
+    @FormUrlEncoded
+    @POST("support_bot_feedback")
+    fun supportBotFeedback(
+        @Field("session_id") sessionId: Int,
+        @Field("solved") solved: Int,
+        @Field("csat") csat: Int?
+    ): Call<SupportBotFeedbackResponse>
+
+    @Multipart
+    @POST("support_bot_attach")
+    fun supportBotAttach(
+        @Part("session_id") sessionId: RequestBody,
+        @Part file: MultipartBody.Part
+    ): Call<SupportBotAttachResponse>
 
 }

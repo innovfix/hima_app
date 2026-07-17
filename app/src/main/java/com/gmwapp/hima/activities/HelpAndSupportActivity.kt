@@ -79,8 +79,7 @@ class HelpAndSupportActivity : BaseActivity() {
 
         // Handle raise ticket card click (for male users)
         binding.cvRaiseTicket.setOnSingleClickListener {
-            val intent = Intent(this, SubmitTicketActivity::class.java)
-            startActivity(intent)
+            openSupport()
         }
 
         // Check user gender and configure UI accordingly
@@ -107,12 +106,24 @@ class HelpAndSupportActivity : BaseActivity() {
         }
     }
 
+    /**
+     * Every route into raising a ticket goes through here.
+     *
+     * The bot is the front door, but SubmitTicketActivity is deliberately kept
+     * in the build as the fallback: SupportBotActivity itself drops back to it
+     * whenever the server says the bot is disabled (the ops kill-switch, no
+     * release needed) or anything fails. Hard-removing the only support channel
+     * behind an unproven LLM endpoint is how you get a P0 at 2am.
+     */
+    private fun openSupport() {
+        startActivity(Intent(this, SupportBotActivity::class.java))
+    }
+
     private fun setupRecyclerView() {
         categoriesAdapter = CategoriesAdapter(categoriesList) { category ->
             // Check if it's "Other Queries" - navigate to ticket submission
             if (category.category.equals("Other Queries", ignoreCase = true)) {
-                val intent = Intent(this, SubmitTicketActivity::class.java)
-                startActivity(intent)
+                openSupport()
             } else {
                 // Regular category - navigate to subqueries
                 val intent = Intent(this, SubqueriesActivity::class.java)

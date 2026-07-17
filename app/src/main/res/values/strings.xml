@@ -725,4 +725,18 @@
         <item>Kindness like yours is rare.</item>
         <item>Someone felt truly heard today.</item>
     </string-array>
+    <!-- AI Support Bot -->
+    <string name="support_bot_title">Help and Support</string>
+    <string name="support_bot_type_hint">Type your message…</string>
+    <string name="support_bot_yes_solved">Yes, solved</string>
+    <string name="support_bot_still_need_help">Still need help</string>
+    <string name="support_bot_view_ticket">View ticket #%1$d</string>
+    <string name="support_bot_rate_thanks">Thanks for the feedback!</string>
+    <string name="support_bot_rate_prompt">How was your experience?</string>
+    <string name="support_bot_rate_sad">😞\nSad</string>
+    <string name="support_bot_rate_neutral">😐\nNeutral</string>
+    <string name="support_bot_rate_great">😍\nGreat</string>
+    <string name="support_bot_attach_cta">Add screenshot / voice note</string>
+    <string name="support_bot_retry">Try again</string>
+    <string name="support_bot_error">Something went wrong. Please try again.</string>
 </resources>

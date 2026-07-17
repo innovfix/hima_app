@@ -14,6 +14,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.R
+import com.gmwapp.hima.retrofit.responses.BotChip
 import com.gmwapp.hima.retrofit.responses.MatchedCreator
 import de.hdodenhof.circleimageview.CircleImageView
 
@@ -23,11 +24,18 @@ data class AiChatMessage(
     val isTyping: Boolean = false,
     val creator: MatchedCreator? = null,
     val userPreview: String? = null,
-    val skipTyping: Boolean = false
+    val skipTyping: Boolean = false,
+    /**
+     * Server-driven options rendered under this message (support bot only).
+     * Defaulted to null so AI onboarding is completely unaffected.
+     */
+    val chips: List<BotChip>? = null
 )
 
 class AiChatAdapter(
-    private val messages: MutableList<AiChatMessage> = mutableListOf()
+    private val messages: MutableList<AiChatMessage> = mutableListOf(),
+    /** Support bot only; null for AI onboarding. */
+    private val onChipClick: ((BotChip) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -35,6 +43,22 @@ class AiChatAdapter(
         private const val TYPE_USER = 1
         private const val TYPE_TYPING = 2
         private const val TYPE_CREATOR_DELIVERY = 3
+        private const val TYPE_CHIPS = 4
+    }
+
+    /** Chips are only ever tappable on the LAST message — an old row is history. */
+    private var chipsEnabled = true
+
+    /**
+     * Must repaint the existing rows, not just flip the flag: without the
+     * notify, an already-bound chip row keeps its listener and full opacity,
+     * so a stale row stays tappable and posts a key the server has already
+     * moved past.
+     */
+    fun setChipsEnabled(enabled: Boolean) {
+        if (chipsEnabled == enabled) return
+        chipsEnabled = enabled
+        messages.forEachIndexed { i, m -> if (m.chips != null) notifyItemChanged(i) }
     }
 
     fun addMessage(message: AiChatMessage) {
@@ -64,6 +88,7 @@ class AiChatAdapter(
         return when {
             m.creator != null -> TYPE_CREATOR_DELIVERY
             m.isTyping -> TYPE_TYPING
+            m.chips != null -> TYPE_CHIPS
             m.isUser -> TYPE_USER
             else -> TYPE_AI
         }
@@ -77,6 +102,7 @@ class AiChatAdapter(
             TYPE_CREATOR_DELIVERY -> CreatorDeliveryViewHolder(
                 inflater.inflate(R.layout.item_ai_chat_creator_delivery, parent, false)
             )
+            TYPE_CHIPS -> ChipsViewHolder(inflater.inflate(R.layout.item_ai_chat_chips, parent, false))
             else -> ChatViewHolder(inflater.inflate(R.layout.item_ai_chat_ai, parent, false))
         }
     }
@@ -85,6 +111,13 @@ class AiChatAdapter(
         when (holder) {
             is ChatViewHolder -> holder.tvMessage.text = messages[position].text
             is CreatorDeliveryViewHolder -> holder.bind(messages[position])
+            is ChipsViewHolder -> holder.bind(
+                messages[position],
+                // Only the newest chip row stays live; tapping a stale one
+                // would post a key the server has already moved past.
+                enabled = chipsEnabled && position == messages.size - 1,
+                onClick = onChipClick
+            )
         }
     }
 
@@ -100,6 +133,36 @@ class AiChatAdapter(
     }
 
     class TypingViewHolder(view: View) : RecyclerView.ViewHolder(view)
+
+    class ChipsViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val container: com.google.android.flexbox.FlexboxLayout =
+            view.findViewById(R.id.chips_container)
+
+        fun bind(m: AiChatMessage, enabled: Boolean, onClick: ((BotChip) -> Unit)?) {
+            container.removeAllViews()
+            val chips = m.chips ?: return
+            val ctx = container.context
+            val inflater = LayoutInflater.from(ctx)
+
+            chips.forEach { chip ->
+                val tv = inflater.inflate(R.layout.item_bot_chip, container, false) as TextView
+                tv.text = chip.label
+                tv.isEnabled = enabled
+                tv.alpha = if (enabled) 1f else 0.45f
+                if (chip.ghost) {
+                    // Secondary, NOT disabled. text_light_grey (#979797) on a
+                    // dashed border read as unavailable — the opposite of what
+                    // this chip is for; the spec requires it be reachable at
+                    // every step. black_light on a pale fill keeps it clearly
+                    // pressable while staying quieter than the pink options.
+                    tv.setBackgroundResource(R.drawable.bg_bot_chip_ghost)
+                    tv.setTextColor(ctx.getColor(R.color.black_light))
+                }
+                if (enabled) tv.setOnClickListener { onClick?.invoke(chip) }
+                container.addView(tv)
+            }
+        }
+    }
 
     class CreatorDeliveryViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val ivAvatar: CircleImageView = view.findViewById(R.id.iv_creator_avatar)

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Outlined pink chip: matches the app's accent (#ff1383) with a white fill. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/colorAccent" />
+            <corners android:radius="20dp" />
+            <stroke android:width="1.5dp" android:color="@color/colorAccent" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/white" />
+            <corners android:radius="20dp" />
+            <stroke android:width="1.5dp" android:color="@color/colorAccent" />
+        </shape>
+    </item>
+</selector>

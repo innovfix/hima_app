@@ -279,6 +279,7 @@
         <activity android:name=".activities.CreatorWarningsActivity" />
         <activity android:name=".activities.MyWarningsActivity" />
         <activity android:name=".activities.HelpAndSupportActivity" />
+        <activity android:name=".activities.SupportBotActivity" />
         <activity android:name=".activities.SubqueriesActivity" />
         <activity android:name=".activities.SubqueryDetailActivity" />
         <activity android:name=".activities.SubmitTicketActivity"
