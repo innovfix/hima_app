@@ -80,7 +80,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.EarningsHonourActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
-import com.gmwapp.hima.audio.AgoraLocalAudioExtractor
+import com.gmwapp.hima.audio.CallAudioModerationSession
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.agora.services.CallingService
@@ -124,6 +124,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private var videoUid = 0
     private var isJoined = false
     private var agoraEngine: RtcEngine? = null
+    private var callModerationCaptureManager: com.gmwapp.hima.utils.CallModerationCaptureManager? = null
 
     // In-call "on hold" signaling over the Agora data stream — tells the peer
     // when we step away for a cellular / VoIP call so they see a dedicated
@@ -135,7 +136,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     // Local-mic extraction foundation for a future transcription provider. Chunks are currently
     // consumed in memory only: no file, upload, transcript, AI call or warning is created.
-    private var localAudioExtractor: AgoraLocalAudioExtractor? = null
+    private var audioModerationSession: CallAudioModerationSession? = null
 
     // Periodic re-fetch of remaining_time. The FCM "remainingTimeUpdated"
     // push from the caller's side can be lost (DND, doze, network) and
@@ -558,16 +559,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             // failed and both sides connected silent. DEFAULT lets Agora pick per
             // the channel profile (COMMUNICATION here).
             agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_DEFAULT)
-            localAudioExtractor?.dispose()
-            localAudioExtractor = if (BuildConfig.FLAVOR == "development") {
-                AgoraLocalAudioExtractor("FemaleAudioExtractor") { chunk ->
-                    Log.d(
-                        "FemaleAudioExtractor",
-                        "in-memory chunk seq=${chunk.sequence} duration_ms=${chunk.durationMs} " +
-                            "overlap_ms=${chunk.overlapMs} speech=${chunk.voiceActivity.hasSpeech}"
-                    )
-                }.also { it.attach(agoraEngine!!) }
-            } else null
+            audioModerationSession?.dispose()
+            audioModerationSession = CallAudioModerationSession(
+                context = this,
+                callIdProvider = { call_Id },
+                engineProvider = { agoraEngine },
+            ).also { it.prepare() }
             // B037: smoothFactor 1 (not 3) so the speak-wave reacts to actual
             // speech bursts instead of a 600ms moving average that hid soft
             // voices entirely; threshold lowered to 30 in onAudioVolumeIndication.
@@ -681,7 +678,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     agoraEngine?.muteAllRemoteAudioStreams(false)
                 }
             }
-            localAudioExtractor?.setPaused(isMuted || mutedByInterrupt)
+            audioModerationSession?.setPaused(isMuted || mutedByInterrupt)
         }
     }
 
@@ -1679,7 +1676,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             mutedByInterrupt = false
             if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
             agoraEngine?.muteAllRemoteAudioStreams(false)
-            localAudioExtractor?.setPaused(isMuted)
+            audioModerationSession?.setPaused(isMuted)
             // Open the reliable data stream used for peer "on hold" signaling.
             holdSignal.onChannelJoined()
             startTimeoutTracking()
@@ -1761,6 +1758,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 }
                 // 2026-05-23 v1072 — banner DISABLED. See MaleVideo for rationale.
             }
+        }
+
+        override fun onSnapshotTaken(uid: Int, filePath: String?, width: Int, height: Int, errCode: Int) {
+            callModerationCaptureManager?.onSnapshotTaken(filePath, width, height, errCode)
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -1845,7 +1846,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
 
-            localAudioExtractor?.start(initiallyPaused = isMuted || mutedByInterrupt)
+            audioModerationSession?.startAfterPeerConnected(initiallyPaused = isMuted || mutedByInterrupt)
 
         }
 
@@ -2005,8 +2006,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         stopCountdown()
         stopBonusTicker() // F1: freeze the bonus clock the instant the call ends (no late payout flash)
         stopMicRevokeWatcher()
-        localAudioExtractor?.dispose()
-        localAudioExtractor = null
+        audioModerationSession?.finishCall(call_Id)
+        audioModerationSession?.dispose()
+        audioModerationSession = null
         try {
             agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
                 agoraEngine, "FemaleAudioCalling", hasVideo = false
@@ -2031,6 +2033,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     }
 
     fun updateCallEndDetails(){
+
+        // Must run before the switchCallID promotion at the tail of this method:
+        // finishCall() only matches the leg it was started for, so once callId
+        // has moved on the video leg would never be finalised.
+        callModerationCaptureManager?.finishCall(call_Id)
 
         if (startTime.isNotEmpty()) {
             endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
@@ -2198,6 +2205,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        callModerationCaptureManager?.dispose()
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
         stopBonusTicker() // F1: stop the independent bonus clock so it can't leak past the call
         bonusAnchorFallbackHandler.removeCallbacksAndMessages(null) // F1: cancel any pending anchor
@@ -2243,8 +2251,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         // B143: deterministic teardown — disable audio, leave channel, then block on destroy.
         stopMicRevokeWatcher()
-        localAudioExtractor?.dispose()
-        localAudioExtractor = null
+        audioModerationSession?.finishCall(call_Id)
+        audioModerationSession?.dispose()
+        audioModerationSession = null
         agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
             agoraEngine, "FemaleAudioCalling", hasVideo = false
         )
@@ -2853,6 +2862,21 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 binding.localVideoViewContainer.visibility = View.VISIBLE
                 binding.localCardView.visibility = View.VISIBLE
                 applySavedLocalPreviewPosition()
+
+                // The camera is live from here on, so this leg needs the same
+                // moderation coverage as a call that started in video. Anchored
+                // after updateCallEndDetails() above, which has already promoted
+                // callId to switchCallID — the video leg's id, which is what the
+                // snapshot must be attributed to. Only wired on the cameraOk
+                // path: no camera, no frames to capture.
+                if (callModerationCaptureManager == null) {
+                    callModerationCaptureManager = com.gmwapp.hima.utils.CallModerationCaptureManager(
+                        context = this@FemaleAudioCallingActivity,
+                        callIdProvider = { call_Id },
+                        engineProvider = { agoraEngine },
+                    )
+                }
+                callModerationCaptureManager?.startAfterPeerConnected()
             } else {
                 Log.w("CameraFallback", "FemaleAudio.switchToVideo: camera unavailable, skipping local preview")
                 binding.localCardView.visibility = View.GONE
@@ -2960,7 +2984,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             mutedByInterrupt = false
             agoraEngine?.muteAllRemoteAudioStreams(false)
             if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
-            localAudioExtractor?.setPaused(isMuted)
+            audioModerationSession?.setPaused(isMuted)
         }
         newRemainingTime()
         startCallingService()
@@ -3024,7 +3048,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
-        localAudioExtractor?.setPaused(isMuted || mutedByInterrupt)
+        audioModerationSession?.setPaused(isMuted || mutedByInterrupt)
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
         // B054 — flip the self mute badge so the creator sees the same
