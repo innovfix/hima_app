@@ -1335,6 +1335,15 @@ class BaseApplication : Application(), Configuration.Provider {
             com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearForUser(this, teardownUserId)
             com.gmwapp.hima.utils.DeletedChatsPrefsHelper.clearForUser(this, teardownUserId)
         }
+        // Cancel any pending call-moderation uploads/finalize captured under
+        // this login so they can never fire under the next account's session.
+        // (The workers also re-check the session user at run time as a backstop.)
+        runCatching {
+            androidx.work.WorkManager.getInstance(this)
+                .cancelAllWorkByTag(
+                    com.gmwapp.hima.workers.CallModerationUploadWorker.WORK_TAG,
+                )
+        }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }
         // Autopay/welcome-gift gating must not leak to the next account on a

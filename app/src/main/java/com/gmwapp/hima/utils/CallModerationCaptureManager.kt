@@ -76,6 +76,18 @@ class CallModerationCaptureManager(
                 Log.d(TAG, "Capture disabled or consent missing for call=$initialCallId")
                 return@execute
             }
+            // Durable beacon before any capture: if the process dies mid-call
+            // before a first upload or the end report, this is the only record
+            // that a moderation case was owed. Survives process death via
+            // WorkManager; the server flags the call if nothing else arrives.
+            val localUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+            if (localUserId > 0) {
+                com.gmwapp.hima.workers.CallModerationBeaconWorker.enqueue(
+                    context = appContext,
+                    callId = initialCallId,
+                    localUserId = localUserId,
+                )
+            }
             handler.post { schedule(config) }
         }
     }
@@ -114,9 +126,10 @@ class CallModerationCaptureManager(
                     } else {
                         captureEnabled
                     },
-                    // An older backend has no version gate, so preserve its
-                    // existing capture_enabled contract during staged rollout.
-                    appVersionEligible = data.optBoolean("app_version_eligible", true),
+                    // Fail closed: the moderation backend always sends this
+                    // field, so a missing/malformed value means an untrusted
+                    // response, not an eligible client. Never assume eligibility.
+                    appVersionEligible = data.optBoolean("app_version_eligible", false),
                     intervals = intervals,
                     consentVersion = data.optString("consent_version", ""),
                 )
@@ -148,7 +161,28 @@ class CallModerationCaptureManager(
         if (!started.get() || disposed) return
         runCatching {
             executor.execute {
-                val config = fetchRuntimeConfig()
+                // A null result means the check could not reach/parse the server
+                // (e.g. a brief network blip), NOT a decision. Retry only that
+                // indeterminate case so a momentary drop does not silently cost
+                // this interval's frame; a definitive answer (on or off) is used
+                // immediately without retrying. Runs on a background executor,
+                // so the short sleeps never touch the main thread.
+                var config: RuntimeConfig? = null
+                var attempt = 0
+                while (attempt < GATE_RECHECK_ATTEMPTS) {
+                    if (!started.get() || disposed) return@execute
+                    config = fetchRuntimeConfig()
+                    if (config != null) break
+                    attempt++
+                    if (attempt < GATE_RECHECK_ATTEMPTS) {
+                        try {
+                            Thread.sleep(GATE_RECHECK_BACKOFF_MS)
+                        } catch (e: InterruptedException) {
+                            Thread.currentThread().interrupt()
+                            return@execute
+                        }
+                    }
+                }
                 val permitted = config != null && config.captureEnabled
                     && config.consentVersion == consentVersion
                 if (!permitted) {
@@ -268,6 +302,10 @@ class CallModerationCaptureManager(
     companion object {
         private const val TAG = "CallModerationCapture"
         private const val APP_VERSION_CODE_HEADER = "X-Hima-Version-Code"
+        // Survive a brief network blip on the pre-snapshot gate recheck without
+        // letting a real "off" wait: ~3 tries over ~3s, then give up (fail closed).
+        private const val GATE_RECHECK_ATTEMPTS = 3
+        private const val GATE_RECHECK_BACKOFF_MS = 1500L
         private val ALLOWED_INTERVALS = setOf(60, 300, 600)
         private val CONFIG_CLIENT = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)

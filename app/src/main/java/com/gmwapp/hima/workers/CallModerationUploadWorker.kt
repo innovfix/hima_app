@@ -42,6 +42,7 @@ class CallModerationUploadWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val callId = inputData.getInt(KEY_CALL_ID, 0)
+        val localUserId = inputData.getInt(KEY_LOCAL_USER_ID, 0)
         val intervalSeconds = inputData.getInt(KEY_INTERVAL_SECONDS, 0)
         val capturedAt = inputData.getString(KEY_CAPTURED_AT).orEmpty()
         val consentVersion = inputData.getString(KEY_CONSENT_VERSION).orEmpty()
@@ -61,6 +62,29 @@ class CallModerationUploadWorker(
         if (runAttemptCount >= MAX_ATTEMPTS) {
             deletePrivateTemp(image)
             Log.w(TAG, "Upload exhausted retries call=$callId interval=$intervalSeconds")
+            return@withContext Result.failure()
+        }
+
+        // The frame belongs to the login that captured it. If the session has
+        // since changed (logout + a different account signing in), the pending
+        // work must not upload this user's call frame under the new account's
+        // token — that would attribute the evidence to the wrong person.
+        if (localUserId <= 0) {
+            deletePrivateTemp(image)
+            return@withContext Result.failure()
+        }
+        val sessionUserId = BaseApplication.getInstance()
+            ?.getPrefs()?.getUserData()?.id ?: 0
+        if (sessionUserId <= 0) {
+            // Session not readable yet (e.g. work running right after a process
+            // restart before prefs are warm). Indeterminate, not a mismatch —
+            // retry rather than discard a legitimate frame. Bounded by the
+            // MAX_ATTEMPTS guard above.
+            return@withContext Result.retry()
+        }
+        if (sessionUserId != localUserId) {
+            deletePrivateTemp(image)
+            Log.w(TAG, "Session changed since capture (was=$localUserId now=$sessionUserId); dropping call=$callId interval=$intervalSeconds")
             return@withContext Result.failure()
         }
 
@@ -128,6 +152,8 @@ class CallModerationUploadWorker(
 
     companion object {
         private const val TAG = "CallModerationUpload"
+        /** Shared tag so a session teardown can cancel all pending moderation work. */
+        const val WORK_TAG = "call_moderation_work"
         private const val APP_VERSION_CODE_HEADER = "X-Hima-Version-Code"
         private const val MAX_ATTEMPTS = 5
         private val ALLOWED_INTERVALS = setOf(60, 300, 600)
@@ -166,6 +192,7 @@ class CallModerationUploadWorker(
             val request = OneTimeWorkRequestBuilder<CallModerationUploadWorker>()
                 .setInputData(input)
                 .setConstraints(constraints)
+                .addTag(WORK_TAG)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
 

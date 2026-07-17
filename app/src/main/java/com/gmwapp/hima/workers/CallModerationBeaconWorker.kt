@@ -21,8 +21,16 @@ import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** Reports the local participant's connected duration after the video call ends. */
-class CallModerationFinalizeWorker(
+/**
+ * Drops a "this call is expected to be moderated" beacon at call start.
+ *
+ * This is durable WorkManager work, so it survives the process being killed:
+ * if the app dies mid-call before any snapshot uploads and before the end
+ * report, the beacon still reaches the server on the next network window. That
+ * is the only trace that lets the backend notice a call that otherwise went
+ * completely dark. Enqueued the moment capture is confirmed for a call.
+ */
+class CallModerationBeaconWorker(
     appContext: Context,
     workerParams: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParams) {
@@ -30,21 +38,19 @@ class CallModerationFinalizeWorker(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val callId = inputData.getInt(KEY_CALL_ID, 0)
         val localUserId = inputData.getInt(KEY_LOCAL_USER_ID, 0)
-        val durationSeconds = inputData.getInt(KEY_DURATION_SECONDS, 0)
-        val endedAt = inputData.getString(KEY_ENDED_AT).orEmpty()
-        if (callId <= 0 || durationSeconds < 0 || endedAt.isBlank()) return@withContext Result.failure()
+        if (callId <= 0) return@withContext Result.failure()
         if (runAttemptCount >= MAX_ATTEMPTS) return@withContext Result.failure()
 
-        // Only finalize under the login that made the call (see upload worker).
+        // Only report under the login that made the call (see upload worker).
         if (localUserId <= 0) return@withContext Result.failure()
         val sessionUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (sessionUserId <= 0) {
             // Session not readable yet; indeterminate, not a mismatch. Retry
-            // (bounded by MAX_ATTEMPTS) rather than drop a real finalize.
+            // (bounded by MAX_ATTEMPTS) rather than drop a real beacon.
             return@withContext Result.retry()
         }
         if (sessionUserId != localUserId) {
-            Log.w(TAG, "Session changed since call=$callId (was=$localUserId now=$sessionUserId); dropping finalize")
+            Log.w(TAG, "Session changed since call=$callId (was=$localUserId now=$sessionUserId); dropping beacon")
             return@withContext Result.failure()
         }
 
@@ -52,15 +58,10 @@ class CallModerationFinalizeWorker(
         if (token.isBlank()) return@withContext Result.failure()
 
         val request = Request.Builder()
-            .url("${BuildConfig.BASE_URL}call-moderation/calls/$callId/end")
+            .url("${BuildConfig.BASE_URL}call-moderation/calls/$callId/expect")
             .header("Authorization", "Bearer $token")
             .header(APP_VERSION_CODE_HEADER, BuildConfig.VERSION_CODE.toString())
-            .post(
-                FormBody.Builder()
-                    .add("duration_seconds", durationSeconds.toString())
-                    .add("ended_at", endedAt)
-                    .build(),
-            )
+            .post(FormBody.Builder().build())
             .build()
 
         try {
@@ -72,39 +73,29 @@ class CallModerationFinalizeWorker(
                 }
             }
         } catch (e: IOException) {
-            Log.w(TAG, "Call-end moderation report failed call=$callId: ${e.message}")
+            Log.w(TAG, "Beacon post failed call=$callId: ${e.message}")
             Result.retry()
         }
     }
 
     companion object {
-        private const val TAG = "CallModerationEnd"
+        private const val TAG = "CallModerationBeacon"
         private const val APP_VERSION_CODE_HEADER = "X-Hima-Version-Code"
         private const val MAX_ATTEMPTS = 6
         private const val KEY_CALL_ID = "call_id"
         private const val KEY_LOCAL_USER_ID = "local_user_id"
-        private const val KEY_DURATION_SECONDS = "duration_seconds"
-        private const val KEY_ENDED_AT = "ended_at"
         private val CLIENT = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
 
-        fun enqueue(
-            context: Context,
-            callId: Int,
-            localUserId: Int,
-            durationSeconds: Int,
-            endedAt: String,
-        ): Boolean {
-            if (callId <= 0 || localUserId <= 0 || durationSeconds < 0) return false
+        fun enqueue(context: Context, callId: Int, localUserId: Int): Boolean {
+            if (callId <= 0 || localUserId <= 0) return false
             val data = Data.Builder()
                 .putInt(KEY_CALL_ID, callId)
                 .putInt(KEY_LOCAL_USER_ID, localUserId)
-                .putInt(KEY_DURATION_SECONDS, durationSeconds)
-                .putString(KEY_ENDED_AT, endedAt)
                 .build()
-            val request = OneTimeWorkRequestBuilder<CallModerationFinalizeWorker>()
+            val request = OneTimeWorkRequestBuilder<CallModerationBeaconWorker>()
                 .setInputData(data)
                 .setConstraints(
                     Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(),
@@ -113,7 +104,7 @@ class CallModerationFinalizeWorker(
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
             WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
-                "call_moderation_finalize_${callId}_$localUserId",
+                "call_moderation_beacon_${callId}_$localUserId",
                 ExistingWorkPolicy.KEEP,
                 request,
             )
