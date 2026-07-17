@@ -2,7 +2,14 @@ package com.gmwapp.hima.viewmodels
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.gmwapp.hima.repositories.SupportBotRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.SupportBotAttachResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotFeedbackResponse
@@ -131,28 +138,114 @@ class SupportBotViewModel @Inject constructor(
         })
     }
 
-    /** Spec #8 — optional attachment on the ticket just raised. */
-    fun attach(sessionId: Int, part: okhttp3.MultipartBody.Part) {
-        loadingLiveData.value = true
-        repository.attach(sessionId, part, object : NetworkCallback<SupportBotAttachResponse> {
-            override fun onNoNetwork() = fail("No internet connection")
+    // ─────────────────────────── attachments (Spec #8) ───────────────────────
+    //
+    // The whole attachment lifecycle lives HERE, not in the Activity, on
+    // purpose. The upload (a singleton OkHttp call) and this ViewModel both
+    // survive a rotation while the Activity does not — so if the Activity owned
+    // the temp file, its onDestroy would delete the file mid-upload on every
+    // rotation. The ViewModel owns the file and deletes it only when the upload
+    // actually resolves (or at real teardown, onCleared), never mid-flight.
 
-            override fun onResponse(
-                call: Call<SupportBotAttachResponse>,
-                response: Response<SupportBotAttachResponse>
-            ) {
-                loadingLiveData.value = false
-                val body = response.body()
-                if (response.isSuccessful && body != null) {
-                    attachLiveData.value = body
-                } else {
-                    errorLiveData.value = "attach_failed"
+    /** Validation / failure codes for the UI: too_big | bad_type | failed | no_network | in_flight. */
+    val attachErrorLiveData = MutableLiveData<String>()
+    val attachInFlight = MutableLiveData<Boolean>()
+
+    /** The single temp file currently on disk, owned by the ViewModel. */
+    private var attachTempFile: java.io.File? = null
+
+    fun uploadAttachment(appContext: android.content.Context, uri: android.net.Uri, sessionId: Int, maxBytes: Long) {
+        if (attachInFlight.value == true) {
+            attachErrorLiveData.value = "in_flight"
+            return
+        }
+        val resolver = appContext.contentResolver
+
+        // Size FIRST, when the provider reports it — a fast reject.
+        val size = runCatching {
+            resolver.query(uri, null, null, null, null)?.use { c ->
+                val i = c.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                if (i >= 0 && c.moveToFirst()) c.getLong(i) else -1L
+            } ?: -1L
+        }.getOrDefault(-1L)
+        if (size > maxBytes) { attachErrorLiveData.value = "too_big"; return }
+
+        val mime = resolver.getType(uri) ?: "application/octet-stream"
+        if (!(mime.startsWith("image/") || mime.startsWith("video/") || mime.startsWith("audio/"))) {
+            attachErrorLiveData.value = "bad_type"; return
+        }
+
+        attachInFlight.value = true
+        // viewModelScope survives rotation; a real teardown cancels it, and the
+        // bounded copy deletes its partial on cancellation — so no leak.
+        viewModelScope.launch {
+            val file = withContext(Dispatchers.IO) { copyBounded(resolver, appContext.cacheDir, uri, maxBytes) }
+            if (file == null) { finishAttach(); attachErrorLiveData.value = "too_big"; return@launch }
+            attachTempFile = file
+            val part = MultipartBody.Part.createFormData(
+                "file", file.name, file.asRequestBody(mime.toMediaTypeOrNull())
+            )
+            repository.attach(sessionId, part, object : NetworkCallback<SupportBotAttachResponse> {
+                override fun onNoNetwork() { finishAttach(); attachErrorLiveData.value = "no_network" }
+
+                override fun onResponse(
+                    call: Call<SupportBotAttachResponse>,
+                    response: Response<SupportBotAttachResponse>
+                ) {
+                    val body = response.body()
+                    // Deliver the body BEFORE cleanup so the observer sees it.
+                    if (response.isSuccessful && body != null) attachLiveData.value = body
+                    else attachErrorLiveData.value = "failed"
+                    finishAttach()
+                }
+
+                // Network/upload failure ALSO resets the in-flight flag — the
+                // bug was that this path left it stuck true forever, blocking
+                // every later attachment.
+                override fun onFailure(call: Call<SupportBotAttachResponse>, t: Throwable) {
+                    attachErrorLiveData.value = "failed"; finishAttach()
+                }
+            })
+        }
+    }
+
+    /** Delete the temp file and free the slot, on any resolution. */
+    private fun finishAttach() {
+        attachTempFile?.delete(); attachTempFile = null
+        attachInFlight.value = false
+    }
+
+    private fun copyBounded(
+        resolver: android.content.ContentResolver,
+        cacheDir: java.io.File,
+        uri: android.net.Uri,
+        maxBytes: Long
+    ): java.io.File? {
+        val out = java.io.File(cacheDir, "support_" + System.nanoTime())
+        return runCatching {
+            resolver.openInputStream(uri)!!.use { input ->
+                out.outputStream().use { output ->
+                    val buf = ByteArray(8 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        total += n
+                        if (total > maxBytes) throw java.io.IOException("attachment exceeds limit")
+                        output.write(buf, 0, n)
+                    }
                 }
             }
+            out
+        }.getOrElse { out.delete(); null }   // partial / failed / cancelled — nothing left behind
+    }
 
-            override fun onFailure(call: Call<SupportBotAttachResponse>, t: Throwable) =
-                fail(t.message ?: "Network error")
-        })
+    override fun onCleared() {
+        super.onCleared()
+        // Backstop: a copy that finished but whose upload never resolved would
+        // otherwise leak at teardown. Only reached when the ViewModel is truly
+        // gone (last Activity finished), never on rotation.
+        attachTempFile?.delete(); attachTempFile = null
     }
 
     private fun fail(message: String) {
