@@ -156,6 +156,24 @@ object AppModule {
                 return response
             }
         })
+        // The support bot's answer step runs a model with tool calls and can
+        // legitimately take up to the backend's 25s session ceiling. The global
+        // 20s readTimeout would give up FIRST — the app would show a failure
+        // while the backend was still producing a valid escalation the user
+        // never sees. Extend the read timeout for this one endpoint only, past
+        // the ceiling, so the app always waits for the definitive answer.
+        // Every other call keeps the tight 20s.
+        okClientBuilder.addInterceptor(object : Interceptor {
+            @Throws(IOException::class)
+            override fun intercept(chain: Chain): Response {
+                val path = chain.request().url.encodedPath
+                return if (path.endsWith("support_bot_reply")) {
+                    chain.withReadTimeout(30, TimeUnit.SECONDS).proceed(chain.request())
+                } else {
+                    chain.proceed(chain.request())
+                }
+            }
+        })
         if (BuildConfig.DEBUG) {
             okClientBuilder.addInterceptor(httpLoggingInterceptor)
         }
