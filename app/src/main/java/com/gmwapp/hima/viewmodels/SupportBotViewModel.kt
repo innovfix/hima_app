@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmwapp.hima.repositories.SupportBotRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -154,6 +156,9 @@ class SupportBotViewModel @Inject constructor(
     /** The single temp file currently on disk, owned by the ViewModel. */
     private var attachTempFile: java.io.File? = null
 
+    /** The in-flight upload, retained so we can cancel it before deleting the file. */
+    private var attachCall: Call<SupportBotAttachResponse>? = null
+
     fun uploadAttachment(appContext: android.content.Context, uri: android.net.Uri, sessionId: Int, maxBytes: Long) {
         if (attachInFlight.value == true) {
             attachErrorLiveData.value = "in_flight"
@@ -185,7 +190,7 @@ class SupportBotViewModel @Inject constructor(
             val part = MultipartBody.Part.createFormData(
                 "file", file.name, file.asRequestBody(mime.toMediaTypeOrNull())
             )
-            repository.attach(sessionId, part, object : NetworkCallback<SupportBotAttachResponse> {
+            attachCall = repository.attach(sessionId, part, object : NetworkCallback<SupportBotAttachResponse> {
                 override fun onNoNetwork() { finishAttach(); attachErrorLiveData.value = "no_network" }
 
                 override fun onResponse(
@@ -209,25 +214,37 @@ class SupportBotViewModel @Inject constructor(
         }
     }
 
-    /** Delete the temp file and free the slot, on any resolution. */
+    /**
+     * Delete the temp file and free the slot, on any resolution. Cancels the
+     * Call FIRST so OkHttp is not mid-read of a file we are about to delete
+     * (harmless on the success/failure paths where it is already done, load-
+     * bearing when called from onCleared while an upload is still running).
+     */
     private fun finishAttach() {
+        attachCall?.cancel(); attachCall = null
         attachTempFile?.delete(); attachTempFile = null
         attachInFlight.value = false
     }
 
-    private fun copyBounded(
+    private suspend fun copyBounded(
         resolver: android.content.ContentResolver,
         cacheDir: java.io.File,
         uri: android.net.Uri,
         maxBytes: Long
     ): java.io.File? {
         val out = java.io.File(cacheDir, "support_" + System.nanoTime())
-        return runCatching {
+        return try {
             resolver.openInputStream(uri)!!.use { input ->
                 out.outputStream().use { output ->
                     val buf = ByteArray(8 * 1024)
                     var total = 0L
                     while (true) {
+                        // Respond to cancellation between reads: JVM blocking IO
+                        // is not interrupted by coroutine cancellation, so we
+                        // check each loop. On cancel this throws, and the catch
+                        // below deletes the partial before it propagates — so a
+                        // teardown mid-copy never leaves an untracked file.
+                        coroutineContext.ensureActive()
                         val n = input.read(buf)
                         if (n < 0) break
                         total += n
@@ -237,14 +254,21 @@ class SupportBotViewModel @Inject constructor(
                 }
             }
             out
-        }.getOrElse { out.delete(); null }   // partial / failed / cancelled — nothing left behind
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            out.delete(); throw c            // clean up, but preserve cancellation
+        } catch (t: Throwable) {
+            out.delete(); null               // too-large / IO failure — nothing left behind
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
-        // Backstop: a copy that finished but whose upload never resolved would
-        // otherwise leak at teardown. Only reached when the ViewModel is truly
-        // gone (last Activity finished), never on rotation.
+        // Teardown for real (last Activity finished, never rotation). Cancel any
+        // in-flight upload BEFORE deleting its file, so OkHttp is not left
+        // reading a file we removed. viewModelScope is cancelled by the base
+        // class, which stops a copy in progress; its bounded copy deletes the
+        // partial on cancellation, so nothing is left behind.
+        attachCall?.cancel(); attachCall = null
         attachTempFile?.delete(); attachTempFile = null
     }
 

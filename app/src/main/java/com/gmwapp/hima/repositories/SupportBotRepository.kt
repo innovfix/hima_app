@@ -38,5 +38,6 @@ class SupportBotRepository @Inject constructor(
         sessionId: Int,
         part: okhttp3.MultipartBody.Part,
         callback: NetworkCallback<SupportBotAttachResponse>
-    ) = apiManager.supportBotAttach(sessionId, part, callback)
+    ): retrofit2.Call<SupportBotAttachResponse>? =
+        apiManager.supportBotAttach(sessionId, part, callback)
 }

@@ -2429,20 +2429,26 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
-    /** Spec #8 — optional attachment on the ticket the bot just raised. */
+    /**
+     * Spec #8 — optional attachment on the ticket the bot just raised.
+     * Returns the in-flight [Call] so the caller can cancel it (e.g. before
+     * deleting the request-body file), or null when offline.
+     */
     fun supportBotAttach(
         sessionId: Int,
         file: MultipartBody.Part,
         callback: NetworkCallback<SupportBotAttachResponse>
-    ) {
+    ): Call<SupportBotAttachResponse>? {
         if (Helper.checkNetworkConnection()) {
-            getApiInterface().supportBotAttach(
+            val call = getApiInterface().supportBotAttach(
                 sessionId.toString().toRequestBody("text/plain".toMediaTypeOrNull()),
                 file
-            ).enqueue(callback)
-        } else {
-            callback.onNoNetwork()
+            )
+            call.enqueue(callback)
+            return call
         }
+        callback.onNoNetwork()
+        return null
     }
 }
 
