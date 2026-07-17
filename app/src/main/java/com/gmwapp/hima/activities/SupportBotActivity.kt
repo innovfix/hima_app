@@ -25,6 +25,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import androidx.lifecycle.lifecycleScope
+import android.provider.OpenableColumns
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -54,6 +59,9 @@ class SupportBotActivity : BaseActivity() {
     private lateinit var adapter: AiChatAdapter
     private var sessionId: Int = 0
     private var ticketId: Int? = null
+
+    /** Matches the server's 5MB ceiling — checked here so we never copy 200MB to be told no. */
+    private val MAX_ATTACHMENT_BYTES = 5L * 1024 * 1024
 
     /**
      * Spec #8. GetContent() with a wildcard so a screenshot, a screen recording
@@ -85,14 +93,28 @@ class SupportBotActivity : BaseActivity() {
      * runCatching because Zoho is only initialised for some users; a support
      * screen must never crash because a chat SDK is not ready.
      */
+    /**
+     * Only restore the launcher if WE hid it. It is enabled for female
+     * creators from FemaleHomeFragment:516 and off for everyone else, so
+     * blindly calling showLauncher(true) on pause turned it ON for users who
+     * never had it — a floating chat button appearing out of nowhere. Caught
+     * by audit.
+     */
+    private var hidZohoLauncher = false
+
     override fun onResume() {
         super.onResume()
-        runCatching { ZohoSalesIQ.showLauncher(false) }
+        runCatching {
+            ZohoSalesIQ.showLauncher(false)
+            hidZohoLauncher = true
+        }
     }
 
     override fun onPause() {
         super.onPause()
+        if (!hidZohoLauncher) return
         runCatching { ZohoSalesIQ.showLauncher(true) }
+        hidZohoLauncher = false
     }
 
     private fun initUI() {
@@ -131,30 +153,75 @@ class SupportBotActivity : BaseActivity() {
         binding.btnRateGreat.setOnSingleClickListener { sendRating(3) }
     }
 
-    /** Spec #9 — CSAT, only ever after the user confirmed it was resolved. */
+    /**
+     * Spec #9 — CSAT, only ever after the user confirmed it was resolved.
+     *
+     * ratingSent latches: submitting a rating re-posts solved=true, and the
+     * server answers ask_rating=true again — so without this the panel
+     * reappears every time and the user can never finish. Caught by audit.
+     */
+    private var ratingSent = false
+
     private fun sendRating(score: Int) {
+        if (ratingSent) return
+        ratingSent = true
         binding.llRating.visibility = View.GONE
         viewModel.feedback(sessionId, solved = true, csat = score)
         showAppToast(getString(R.string.support_bot_rate_thanks), Toast.LENGTH_SHORT)
     }
 
-    /** Spec #8 — optional; the ticket already exists either way. */
+    /**
+     * Spec #8 — optional; the ticket already exists either way.
+     *
+     * Audit caught three things here: the copy ran on the MAIN THREAD (an ANR
+     * on a big screen recording), there was no size check before copying (5MB
+     * server limit, so a 200MB video was copied in full and then rejected),
+     * and the filename was echoed into the chat BEFORE the upload, with the
+     * response's success/code ignored — so a rejected file looked accepted.
+     */
     private fun uploadAttachment(uri: Uri) {
-        val file = copyToCache(uri) ?: run {
-            showAppToast(getString(R.string.support_bot_error), Toast.LENGTH_SHORT); return
+        // Size FIRST, from the content resolver, before copying a byte.
+        val size = runCatching {
+            contentResolver.query(uri, null, null, null, null)?.use { c ->
+                val i = c.getColumnIndex(OpenableColumns.SIZE)
+                if (i >= 0 && c.moveToFirst()) c.getLong(i) else -1L
+            } ?: -1L
+        }.getOrDefault(-1L)
+
+        if (size > MAX_ATTACHMENT_BYTES) {
+            showAppToast(getString(R.string.support_bot_attach_too_big), Toast.LENGTH_LONG)
+            return
         }
+
         val mime = contentResolver.getType(uri) ?: "application/octet-stream"
-        val part = MultipartBody.Part.createFormData(
-            "file", file.name, file.asRequestBody(mime.toMediaTypeOrNull())
-        )
-        adapter.addMessage(AiChatMessage(file.name, isUser = true))
-        scrollToEnd()
-        viewModel.attach(sessionId, part)
+        if (!(mime.startsWith("image/") || mime.startsWith("video/") || mime.startsWith("audio/"))) {
+            showAppToast(getString(R.string.support_bot_attach_bad_type), Toast.LENGTH_LONG)
+            return
+        }
+
+        // Copy OFF the main thread; only then post.
+        lifecycleScope.launch {
+            val file = withContext(Dispatchers.IO) { copyToCache(uri) }
+            if (file == null || file.length() > MAX_ATTACHMENT_BYTES) {
+                file?.delete()
+                showAppToast(getString(R.string.support_bot_attach_too_big), Toast.LENGTH_LONG)
+                return@launch
+            }
+            pendingAttachment = file
+            val part = MultipartBody.Part.createFormData(
+                "file", file.name, file.asRequestBody(mime.toMediaTypeOrNull())
+            )
+            // NOTE: no chat bubble yet — it goes up only when the server
+            // confirms, so a rejected file cannot look accepted.
+            viewModel.attach(sessionId, part)
+        }
     }
 
+    /** Cleaned up as soon as the upload resolves, either way. */
+    private var pendingAttachment: File? = null
+
     private fun copyToCache(uri: Uri): File? = runCatching {
-        val name = "support_" + System.currentTimeMillis()
-        val out = File(cacheDir, name)
+        val out = File(cacheDir, "support_" + System.currentTimeMillis())
         contentResolver.openInputStream(uri)!!.use { input ->
             out.outputStream().use { input.copyTo(it) }
         }
@@ -211,7 +278,11 @@ class SupportBotActivity : BaseActivity() {
             if (!r.out_of_hours.isNullOrBlank()) {
                 adapter.addMessage(AiChatMessage(r.out_of_hours, isUser = false))
             }
-            if (r.can_attach) offerAttachment(r.attach_prompt)
+            // The server already sent an __attach chip in r.chips on the
+            // immediate-escalation path, and botSays() rendered it. Adding
+            // another here put TWO identical attach buttons on screen. Only
+            // offer one when the server did NOT send chips of its own.
+            if (r.can_attach && r.chips.isNullOrEmpty()) offerAttachment(r.attach_prompt)
         }
 
         viewModel.feedbackLiveData.observe(this) { r ->
@@ -246,6 +317,23 @@ class SupportBotActivity : BaseActivity() {
         }
 
         viewModel.attachLiveData.observe(this) { r ->
+            // Cache file is dead either way.
+            pendingAttachment?.delete(); pendingAttachment = null
+
+            if (!r.success) {
+                // The server's own reason, rendered — a rejected upload used to
+                // look identical to a successful one.
+                showAppToast(
+                    when (r.code) {
+                        "too_large" -> getString(R.string.support_bot_attach_too_big)
+                        "bad_type" -> getString(R.string.support_bot_attach_bad_type)
+                        "too_many" -> getString(R.string.support_bot_attach_too_many)
+                        else -> getString(R.string.support_bot_error)
+                    },
+                    Toast.LENGTH_LONG
+                )
+                return@observe
+            }
             botSays(r.ai_message, null)
         }
 
