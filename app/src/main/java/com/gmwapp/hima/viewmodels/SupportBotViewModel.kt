@@ -184,9 +184,19 @@ class SupportBotViewModel @Inject constructor(
         // viewModelScope survives rotation; a real teardown cancels it, and the
         // bounded copy deletes its partial on cancellation — so no leak.
         viewModelScope.launch {
-            val file = withContext(Dispatchers.IO) { copyBounded(resolver, appContext.cacheDir, uri, maxBytes) }
+            // Record the file into the tracked field INSIDE the IO block, in the
+            // same synchronous step the copy completes (`?.also`), BEFORE
+            // withContext's suspension boundary. If cancellation lands as
+            // withContext returns, `val file = …` throws and the lines below
+            // never run — but attachTempFile is already set, so onCleared deletes
+            // it. If cancellation lands during the copy, copyBounded throws and
+            // cleans up its own partial (attachTempFile stays null). Either way,
+            // no finished-but-untracked file survives. The copy is still
+            // cancellable — there is no NonCancellable here.
+            val file = withContext(Dispatchers.IO) {
+                copyBounded(resolver, appContext.cacheDir, uri, maxBytes)?.also { attachTempFile = it }
+            }
             if (file == null) { finishAttach(); attachErrorLiveData.value = "too_big"; return@launch }
-            attachTempFile = file
             val part = MultipartBody.Part.createFormData(
                 "file", file.name, file.asRequestBody(mime.toMediaTypeOrNull())
             )
