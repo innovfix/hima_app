@@ -123,7 +123,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             if (!isRunning || isFinishing || isDestroyed) return
             if (!designOnly && callId > 0) {
                 // [B6] caller-side ring heartbeat — see MaleCallConnectingActivity.
-                // Lets the backend flip the callee's dead ring ~12s after our
+                // Lets the backend flip the callee's dead ring ~15-18s after our
                 // network dies instead of the 45s age fallback. Connecting-only.
                 com.gmwapp.hima.utils.CallAliveChecker.sendRingHeartbeat(callId)
                 com.gmwapp.hima.utils.CallAliveChecker.checkConnectingDead(callId) {
@@ -958,4 +958,3 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
     }
 }
-

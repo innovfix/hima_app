@@ -40,8 +40,8 @@ object CallAliveChecker {
      * This is load-bearing for the heartbeat, not just tidiness. sendRingHeartbeat
      * fires every ~2.5s with a 3s connectTimeout; on a slow link a COLD handshake
      * alone can exceed 3s, so a per-request client made the beat time out while the
-     * caller was perfectly alive. Five such misses = 12s of apparent silence =
-     * check_call_alive stamps not_answered and kills a LIVE call — precisely on the
+     * caller was perfectly alive. Sustained misses can exceed the 15s stale
+     * threshold and make check_call_alive end a LIVE ring — precisely on the
      * weak networks this feature exists to handle, and invisible on office wifi where
      * a cold handshake is ~100ms. With the pool warm, the timeout measures caller
      * liveness (the thing we mean) rather than connection setup (the thing we don't).
@@ -164,22 +164,36 @@ object CallAliveChecker {
      * Caller-side ring heartbeat: while OUR "Connecting…" screen is up (call still
      * unanswered), ping /api/auth/call_ring_heartbeat every poll tick so the backend
      * knows the caller is still alive. When the caller's network dies mid-ring these
-     * beats STOP; check_call_alive then stamps end_reason='not_answered' ~12s after
-     * the last beat (vs the 45s age fallback), so the callee's ring banner — driven
-     * by her own 2.5s checkConnectingDead poll — tears down ~12s in instead of 45s.
+     * beats STOP; check_call_alive then returns reason='not_answered' after 15s
+     * without mutating user_calls (vs the 45s legacy fallback), so the callee's
+     * 2.5s checkConnectingDead poll tears down the ring in roughly 15-18s.
      *
      * Fire-and-forget on a background thread with tight timeouts; failures are
      * swallowed (a missed beat just means we fall back toward the 45s path). The
-     * backend write is guarded to started_time-NULL rows, so a beat that races an
-     * answer is a harmless no-op.
+     * The backend accepts this only from the authenticated initiator and stores
+     * the timestamp in short-lived shared Redis, never in the call/billing row.
      */
     fun sendRingHeartbeat(callId: Int) {
         if (callId <= 0) return
+        // The heartbeat changes shared server liveness state, so it must be
+        // authenticated and bound by the backend to the actual call initiator.
+        // Older builds sent only call_id; the production endpoint deliberately
+        // rejects that unauthenticated shape rather than allowing enumerable
+        // call ids to keep or cancel somebody else's ring.
+        val authToken = com.gmwapp.hima.BaseApplication.getInstance()
+            ?.getPrefs()
+            ?.getAuthenticationToken()
+            .orEmpty()
+        if (authToken.isBlank()) return
         Thread({
             try {
                 val url = BuildConfig.BASE_URL + "call_ring_heartbeat"
                 val body = okhttp3.FormBody.Builder().add("call_id", callId.toString()).build()
-                val req = okhttp3.Request.Builder().url(url).post(body).build()
+                val req = okhttp3.Request.Builder()
+                    .url(url)
+                    .header("Authorization", "Bearer $authToken")
+                    .post(body)
+                    .build()
                 heartbeatClient.newCall(req).execute().use { /* fire-and-forget */ }
             } catch (t: Throwable) {
                 Log.w(TAG, "sendRingHeartbeat failed (ignored; 45s fallback still applies): ${t.message}")
