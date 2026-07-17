@@ -51,6 +51,11 @@ data class SupportBotStartResponse(
 
 data class SupportBotReplyResponse(
     val success: Boolean,
+    /** in_progress = the previous request is still running server-side. */
+    val code: String? = null,
+    val message: String? = null,
+    /** Server replayed an already-finished answer instead of regenerating. */
+    val already_answered: Boolean = false,
     val step: Int = 0,
     val ai_message: String? = null,
     val feedback_prompt: String? = null,

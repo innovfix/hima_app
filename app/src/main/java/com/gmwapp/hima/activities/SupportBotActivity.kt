@@ -220,6 +220,10 @@ class SupportBotActivity : BaseActivity() {
     /** Cleaned up as soon as the upload resolves, either way. */
     private var pendingAttachment: File? = null
 
+    /** The last thing the user actually did, so "Try again" replays IT. */
+    private data class BotAction(val choiceKey: String? = null, val userMessage: String? = null)
+    private var lastAction: BotAction? = null
+
     private fun copyToCache(uri: Uri): File? = runCatching {
         val out = File(cacheDir, "support_" + System.currentTimeMillis())
         contentResolver.openInputStream(uri)!!.use { input ->
@@ -263,7 +267,15 @@ class SupportBotActivity : BaseActivity() {
 
         viewModel.replyLiveData.observe(this) { r ->
             adapter.hideTyping()
-            if (!r.success) { showRetry(); return@observe }
+            if (!r.success) {
+                // The previous request is still running server-side. Tell them
+                // to wait rather than offering a retry that will just collide.
+                if (r.code == "in_progress") {
+                    showAppToast(r.message, Toast.LENGTH_SHORT)
+                    return@observe
+                }
+                showRetry(); return@observe
+            }
 
             ticketId = r.ticket_id
             botSays(r.ai_message, r.chips)
@@ -373,9 +385,20 @@ class SupportBotActivity : BaseActivity() {
                 return
             }
             "__retry" -> {
+                // Replay the action that FAILED, not a sentinel.
+                //
+                // This used to post choice_key="__noop", which falls through to
+                // the answer step — so "Try again" after a network blip could
+                // run the model with empty text and produce a fresh, unrelated
+                // answer. Caught by audit. The server is now idempotent past
+                // step 5, but the client should still resend what it meant.
                 adapter.setChipsEnabled(false)
-                if (sessionId > 0) viewModel.reply(sessionId, choiceKey = "__noop")
-                else viewModel.start()
+                val last = lastAction
+                when {
+                    sessionId <= 0 -> viewModel.start()
+                    last == null -> viewModel.start()
+                    else -> viewModel.reply(sessionId, last.choiceKey, last.userMessage)
+                }
                 return
             }
             "__view_ticket" -> {
@@ -384,6 +407,7 @@ class SupportBotActivity : BaseActivity() {
             "__skip" -> {
                 adapter.addMessage(AiChatMessage(chip.label, isUser = true))
                 adapter.setChipsEnabled(false)
+                lastAction = BotAction(userMessage = "__skip")
                 viewModel.reply(sessionId, userMessage = "__skip"); return
             }
         }
@@ -392,6 +416,7 @@ class SupportBotActivity : BaseActivity() {
         adapter.addMessage(AiChatMessage(chip.label, isUser = true))
         adapter.setChipsEnabled(false)
         scrollToEnd()
+        lastAction = BotAction(choiceKey = chip.key)
         viewModel.reply(sessionId, choiceKey = chip.key)
     }
 
@@ -401,6 +426,7 @@ class SupportBotActivity : BaseActivity() {
         binding.etMessage.setText("")
         adapter.addMessage(AiChatMessage(text, isUser = true))
         scrollToEnd()
+        lastAction = BotAction(userMessage = text)
         viewModel.reply(sessionId, userMessage = text)
     }
 
