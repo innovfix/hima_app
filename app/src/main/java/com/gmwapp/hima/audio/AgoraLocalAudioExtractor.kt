@@ -9,6 +9,7 @@ import io.agora.rtc2.audio.AudioParams
 import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Extracts only this device's local Agora microphone track.
@@ -111,6 +112,19 @@ class AgoraLocalAudioExtractor(
         synchronized(stateLock) {
             worker.execute { emit(chunker.flush()) }
             worker.shutdown()
+        }
+        // Block until the final flush has actually WRITTEN before returning, so the caller
+        // (CallAudioModerationSession.finishCall) can close the WAV knowing the tail is in.
+        // Without this the close races the flush: finishCall nulls the writer first and the
+        // last chunk is dropped — and for a sub-30s call the flush IS the entire call, so it
+        // would upload nothing. A single <1MB in-memory→disk write drains in ~1ms; the
+        // timeout is only a safety cap against a hung worker, never the common path.
+        try {
+            if (!worker.awaitTermination(DISPOSE_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                Log.w(logTag, "Final audio flush did not drain within ${DISPOSE_FLUSH_TIMEOUT_MS}ms")
+            }
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
         }
     }
 
@@ -228,5 +242,8 @@ class AgoraLocalAudioExtractor(
         private const val CHANNELS = 1
         private const val BYTES_PER_SAMPLE = 2
         private const val SAMPLES_PER_CALLBACK = 1_024
+        // Safety cap only — the flush write drains in ~1ms. Kept well under the ~5s ANR
+        // threshold since dispose() is called from the call activity's teardown.
+        private const val DISPOSE_FLUSH_TIMEOUT_MS = 2_000L
     }
 }
