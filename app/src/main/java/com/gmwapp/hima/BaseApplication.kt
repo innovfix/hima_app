@@ -1343,6 +1343,10 @@ class BaseApplication : Application(), Configuration.Provider {
                 .cancelAllWorkByTag(
                     com.gmwapp.hima.workers.CallModerationUploadWorker.WORK_TAG,
                 )
+            // Cancelling the upload does not remove the frame already written to
+            // private cache; delete it now so a captured image never lingers on
+            // disk after logout instead of waiting for the next session's sweep.
+            java.io.File(cacheDir, "call-moderation").deleteRecursively()
         }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }
