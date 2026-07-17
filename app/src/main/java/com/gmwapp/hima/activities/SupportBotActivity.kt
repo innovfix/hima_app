@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.AiChatAdapter
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.adapters.AiChatMessage
 import com.gmwapp.hima.databinding.ActivitySupportBotBinding
 import com.gmwapp.hima.retrofit.responses.BotChip
@@ -104,35 +105,36 @@ class SupportBotActivity : BaseActivity() {
     }
 
     /**
-     * Zoho's floating launcher is turned on for female creators from the home
-     * screen (FemaleHomeFragment:516) and would sit on top of the send button
-     * here. Hide it for the duration and put it back on the way out.
+     * Zoho's floating launcher is turned on ONLY for female users, from the
+     * home screen (FemaleHomeFragment:516), and would sit on top of the send
+     * button here. Hide it while this screen is up, restore it on the way out.
+     *
+     * Gate on gender, not on "did I call hide". The first attempt latched
+     * hidZohoLauncher whenever showLauncher(false) succeeded — but that call
+     * succeeds for EVERYONE, so onPause then enabled a launcher for users
+     * (e.g. male) who never had one: a floating chat button out of nowhere.
+     * showLauncher exposes no "is it visible" query, so the population that
+     * has it — female — is the correct and only safe gate. Everyone else: we
+     * never touch it.
      *
      * runCatching because Zoho is only initialised for some users; a support
      * screen must never crash because a chat SDK is not ready.
      */
-    /**
-     * Only restore the launcher if WE hid it. It is enabled for female
-     * creators from FemaleHomeFragment:516 and off for everyone else, so
-     * blindly calling showLauncher(true) on pause turned it ON for users who
-     * never had it — a floating chat button appearing out of nowhere. Caught
-     * by audit.
-     */
-    private var hidZohoLauncher = false
+    private val userHasZohoLauncher: Boolean by lazy {
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            ?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+    }
 
     override fun onResume() {
         super.onResume()
-        runCatching {
-            ZohoSalesIQ.showLauncher(false)
-            hidZohoLauncher = true
-        }
+        if (!userHasZohoLauncher) return
+        runCatching { ZohoSalesIQ.showLauncher(false) }
     }
 
     override fun onPause() {
         super.onPause()
-        if (!hidZohoLauncher) return
+        if (!userHasZohoLauncher) return
         runCatching { ZohoSalesIQ.showLauncher(true) }
-        hidZohoLauncher = false
     }
 
     private fun initUI() {
