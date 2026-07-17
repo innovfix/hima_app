@@ -37,6 +37,7 @@ import com.gmwapp.hima.activities.ChatListActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySplashScreenBinding
+import com.gmwapp.hima.utils.CallModerationConsent
 import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
@@ -71,6 +72,13 @@ class SplashScreenActivity : BaseActivity() {
     // Hard stop: if the version-check API hangs or the server misbehaves, we don't
     // want the user staring at the logo for minutes. Fall back on cached data after 8s.
     private val SPLASH_FALLBACK_MS = 8000L
+
+    // Throttle for the app-open consent refresh. consent_version changes maybe once a
+    // year, but onCreate runs on every cold start — unthrottled this would GET
+    // /call-moderation/config hundreds of thousands of times a day to read a value that
+    // almost never moves.
+    private val CONSENT_REFRESH_INTERVAL_MS = 24L * 60L * 60L * 1000L
+    private val CONSENT_REFRESH_KEY = "call_safety_consent_last_check_ms"
     private val splashTimeoutHandler = Handler(Looper.getMainLooper())
     private val splashTimeoutRunnable = Runnable {
         if (hasNavigatedFromSplash) return@Runnable
@@ -111,8 +119,53 @@ class SplashScreenActivity : BaseActivity() {
         // Record start time
         splashStartTime = System.currentTimeMillis()
 
+        // Re-collect the call-safety disclosure for users who are ALREADY logged in.
+        // NewLoginActivity/SelectLanguageActivity only fire on a fresh login or sign-up,
+        // and sessions here persist indefinitely — so a server-side consent_version bump
+        // would otherwise never reach the existing user base, leaving capture_enabled
+        // false for them forever. No-ops when there is no token or when /config reports
+        // consent_required=false, and fails closed (no row -> no capture) on any error.
+        //
+        // DELIBERATE DEVIATION, accepted by Perumal 2026-07-17: unlike the login/sign-up
+        // call sites, this screen does NOT display the "community guidelines & moderation
+        // policy" line, so a row can be recorded for a session where the text was never
+        // re-shown. Both other call sites and CallModerationController::acceptDisclosure
+        // state the opposite ("must not call it silently"). Taken knowingly to reach the
+        // installed base without a second prompt; the disclosure text carried by the login
+        // checkbox is what the recorded row points at, so that policy document — not this
+        // call — is what must actually describe the capture being consented to.
+        //
+        // savedInstanceState guard: this activity declares no screenOrientation/configChanges
+        // and is resizeableActivity=true, so a rotation or split-screen change during the 3s
+        // splash re-runs onCreate and would otherwise duplicate the round-trip.
+        if (savedInstanceState == null && shouldRefreshCallSafetyConsent()) {
+            runCatching { CallModerationConsent.submitIfRequired() }
+        }
+
         startSplashAnimations()
         initUI()
+    }
+
+    /**
+     * True at most once per CONSENT_REFRESH_INTERVAL_MS. The stamp is written on the
+     * ATTEMPT, not on success, so a failed submit also waits out the interval before
+     * retrying — acceptable because consent fails closed (no row -> no capture), so the
+     * worst case is capture staying off a while longer, never capture running without a
+     * row. Same reason a version bump may take up to the interval to reach a device.
+     */
+    private fun shouldRefreshCallSafetyConsent(): Boolean {
+        // Reuses the shared DPreferences file, which this screen has already loaded for
+        // getUserData(); a dedicated getSharedPreferences() would add a second
+        // main-thread disk read to every cold start. Reads hit the in-memory instance
+        // and setString writes via apply(), so neither blocks the splash.
+        val prefs = BaseApplication.getInstance()?.getPrefs() ?: return false
+        val now = System.currentTimeMillis()
+        val elapsed = now - (prefs.getString(CONSENT_REFRESH_KEY)?.toLongOrNull() ?: 0L)
+        // Negative elapsed = device clock moved backwards; treat as due rather than
+        // locking the refresh out until wall-clock catches back up.
+        if (elapsed in 0 until CONSENT_REFRESH_INTERVAL_MS) return false
+        prefs.setString(CONSENT_REFRESH_KEY, now.toString())
+        return true
     }
 
     private fun startSplashAnimations() {
