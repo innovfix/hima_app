@@ -43,10 +43,16 @@ class CallAudioModerationSession(
     private val configExecutor = Executors.newSingleThreadExecutor()
     private val prepared = AtomicBoolean(false)
     private val disposed = AtomicBoolean(false)
+    // Guards beginCapture against a double-start: the peer-connect thread and the
+    // config-fetch thread can both try to start once the race below is resolved.
+    private val capturing = AtomicBoolean(false)
 
     @Volatile private var config: Config? = null
     @Volatile private var extractor: AgoraLocalAudioExtractor? = null
     @Volatile private var pendingPaused = false
+    // The peer connected and asked us to record. If config had not arrived yet, this
+    // stays true so the config-fetch callback can start capture the moment it lands.
+    @Volatile private var startRequested = false
 
     private val vad = EnergyVoiceActivityDetector()
     private val writeLock = Any()
@@ -63,6 +69,11 @@ class CallAudioModerationSession(
         configExecutor.execute {
             config = fetchConfig()
             CallAudioUploadWorker.deleteExpired(appContext)
+            // The race fix: if the peer already connected while this HTTP call was in
+            // flight, startAfterPeerConnected() returned early on a null config and set
+            // startRequested. Start now that config has landed, so a fast-answered call
+            // is not silently dropped.
+            if (startRequested && !disposed.get()) beginCapture()
         }
     }
 
@@ -70,20 +81,42 @@ class CallAudioModerationSession(
      * [initiallyPaused] carries the caller's live mute state. Agora keeps delivering local
      * mic frames while muted (mute stops publishing, not capture), so starting unpaused
      * would record speech the user believes is private.
+     *
+     * If config has not arrived yet, capture is deferred to the prepare() callback rather
+     * than abandoned — the peer connecting faster than the config HTTP round-trip must not
+     * lose the call.
      */
     fun startAfterPeerConnected(initiallyPaused: Boolean) {
         if (disposed.get()) return
-        val cfg = config ?: return
+        startRequested = true
+        pendingPaused = initiallyPaused || pendingPaused
+        beginCapture()
+    }
+
+    /**
+     * Idempotent — safe to call from both the peer-connect thread and the config-fetch
+     * callback. The [capturing] CAS ensures only the first wins; a no-op config (disabled,
+     * not sampled, blank consent) resets the flag so a later valid state could still start.
+     */
+    private fun beginCapture() {
+        if (disposed.get() || !startRequested) return
+        val cfg = config ?: return // config not here yet; prepare()'s callback will retry
         val callId = callIdProvider()
         if (!cfg.captureEnabled || cfg.consentVersion.isBlank() || callId <= 0) return
         if (!isCallSampled(callId, cfg.sampleRate)) {
             Log.d(TAG, "Call $callId not in the ${cfg.sampleRate}% sample — not recording")
             return
         }
+        if (!capturing.compareAndSet(false, true)) return // already recording
 
-        val engine = engineProvider() ?: return
-        synchronized(writeLock) {
-            if (writer != null) return
+        val engine = engineProvider()
+        if (engine == null) {
+            capturing.set(false)
+            return
+        }
+
+        val opened = synchronized(writeLock) {
+            if (writer != null) return@synchronized true
             runCatching {
                 val dir = File(appContext.cacheDir, CallAudioUploadWorker.CACHE_DIRECTORY)
                 check(dir.exists() || dir.mkdirs()) { "cannot create audio cache dir" }
@@ -96,21 +129,23 @@ class CallAudioModerationSession(
                 capturedMs = 0
                 capReached = false
                 capturedCallId = callId
-            }.onFailure {
-                Log.w(TAG, "Unable to open audio file: ${it.message}")
-                return
-            }
+            }.onFailure { Log.w(TAG, "Unable to open audio file: ${it.message}") }.isSuccess
+        }
+        if (!opened) {
+            capturing.set(false)
+            return
         }
 
         val ex = AgoraLocalAudioExtractor(logTag = "CallAudioModeration") { chunk -> onChunk(chunk, cfg) }
         if (!ex.attach(engine)) {
             closeAndDiscard()
+            capturing.set(false)
             return
         }
         extractor = ex
-        // pendingPaused may already have moved if the user toggled mute between prepare()
-        // and peer-connect; honour the latest state rather than the one passed in.
-        ex.start(initiallyPaused = initiallyPaused || pendingPaused)
+        // Honour the latest mute state; it may have moved during ring or during the
+        // deferred config window.
+        ex.start(initiallyPaused = pendingPaused)
         Log.d(TAG, "Recording call $capturedCallId (sample=${cfg.sampleRate}%, cap=${cfg.maxMinutes}m)")
     }
 
@@ -162,6 +197,10 @@ class CallAudioModerationSession(
      * an empty track costs money to transcribe and tells a reviewer nothing.
      */
     fun finishCall(expectedCallId: Int) {
+        // Cancel any deferred start FIRST: a fast-answered call can end before its config
+        // HTTP returned, leaving capturedCallId=0. Without this, config landing after the
+        // hangup would start a zombie recording of a call that is already over.
+        startRequested = false
         if (expectedCallId <= 0 || expectedCallId != capturedCallId) return
         extractor?.dispose()
         extractor = null
