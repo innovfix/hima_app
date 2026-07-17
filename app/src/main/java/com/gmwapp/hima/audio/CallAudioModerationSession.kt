@@ -183,13 +183,24 @@ class CallAudioModerationSession(
         capturedMs += chunk.durationMs
         if (speech.isEmpty()) return
 
+        // Byte ceiling. Write only what fits under MAX_PCM_BYTES (aligned to a 2-byte
+        // sample), then stop — the file stays uploadable and we keep the opening minutes
+        // instead of the server rejecting an oversized WAV and the worker deleting it all.
+        val room = (MAX_PCM_BYTES - pcmBytes).let { it - (it % 2) }
+        if (room <= 0) {
+            capReached = true
+            return
+        }
+        val toWrite = if (speech.size > room) speech.copyOf(room) else speech
+
         synchronized(writeLock) {
             val raf = writer ?: return
             runCatching {
-                raf.write(speech)
-                pcmBytes += speech.size
+                raf.write(toWrite)
+                pcmBytes += toWrite.size
             }.onFailure { Log.w(TAG, "Audio write failed: ${it.message}") }
         }
+        if (pcmBytes >= MAX_PCM_BYTES) capReached = true
     }
 
     /**
@@ -303,6 +314,13 @@ class CallAudioModerationSession(
         private const val TAG = "CallAudioModeration"
         private const val SAMPLE_RATE_HZ = 16_000
         private const val MIN_SPEECH_MS = 1_000L
+        // Hard byte ceiling on the PCM payload. The server rejects a WAV over ~12 MiB, and
+        // the upload worker then DELETES it — so an oversized file loses the whole call.
+        // Capping here keeps the first ~6.5 min of *speech* (16 kHz mono = 32 KB/s, so
+        // 12 MiB ≈ 393 s of voiced audio; VAD trimming means far more wall-clock than that).
+        // The 4 KB margin leaves room for the 44-byte header. Independent of max_minutes,
+        // which caps wall-clock; this caps bytes so upload can never be rejected for size.
+        private const val MAX_PCM_BYTES = 12_582_912 - 4_096
         private val CLIENT = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
