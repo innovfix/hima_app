@@ -739,6 +739,7 @@
     <string name="support_bot_attach_too_big">File is too large — please keep it under 5MB.</string>
     <string name="support_bot_attach_bad_type">Please pick a screenshot, recording or voice note.</string>
     <string name="support_bot_attach_too_many">You\'ve already added 3 files to this ticket.</string>
+    <string name="support_bot_attach_wait">Please wait for the current upload to finish.</string>
     <string name="support_bot_attach_cta">Add screenshot / voice note</string>
     <string name="support_bot_retry">Try again</string>
     <string name="support_bot_error">Something went wrong. Please try again.</string>

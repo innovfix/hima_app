@@ -137,6 +137,13 @@ class SupportBotActivity : BaseActivity() {
         runCatching { ZohoSalesIQ.showLauncher(true) }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // A copy that never reached the server (activity killed mid-upload)
+        // would otherwise leave its temp file in the cache forever.
+        pendingAttachment?.delete(); pendingAttachment = null
+    }
+
     private fun initUI() {
         binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.support_bot_title)
         binding.includeProfileToolbar.cvBack.setOnSingleClickListener { finish() }
@@ -200,7 +207,15 @@ class SupportBotActivity : BaseActivity() {
      * response's success/code ignored — so a rejected file looked accepted.
      */
     private fun uploadAttachment(uri: Uri) {
-        // Size FIRST, from the content resolver, before copying a byte.
+        // One upload at a time. Picking a second file mid-upload used to
+        // overwrite pendingAttachment and orphan the first temp file.
+        if (uploadInFlight) {
+            showAppToast(getString(R.string.support_bot_attach_wait), Toast.LENGTH_SHORT)
+            return
+        }
+
+        // Size FIRST, from the content resolver, before copying a byte — a fast
+        // reject when the provider reports a size.
         val size = runCatching {
             contentResolver.query(uri, null, null, null, null)?.use { c ->
                 val i = c.getColumnIndex(OpenableColumns.SIZE)
@@ -219,14 +234,22 @@ class SupportBotActivity : BaseActivity() {
             return
         }
 
+        uploadInFlight = true
         // Copy OFF the main thread; only then post.
         lifecycleScope.launch {
-            val file = withContext(Dispatchers.IO) { copyToCache(uri) }
-            if (file == null || file.length() > MAX_ATTACHMENT_BYTES) {
-                file?.delete()
+            // Bounded copy: providers that report SIZE = -1 (unknown) would
+            // otherwise stream an arbitrarily large file to disk before the
+            // post-copy check. copyToCacheBounded aborts the moment the limit
+            // is crossed and leaves nothing behind.
+            val file = withContext(Dispatchers.IO) { copyToCacheBounded(uri, MAX_ATTACHMENT_BYTES) }
+            if (file == null) {
+                uploadInFlight = false
                 showAppToast(getString(R.string.support_bot_attach_too_big), Toast.LENGTH_LONG)
                 return@launch
             }
+            // Replace any previous pending file, deleting it first so a swapped
+            // attachment cannot leak.
+            pendingAttachment?.delete()
             pendingAttachment = file
             val part = MultipartBody.Part.createFormData(
                 "file", file.name, file.asRequestBody(mime.toMediaTypeOrNull())
@@ -240,17 +263,41 @@ class SupportBotActivity : BaseActivity() {
     /** Cleaned up as soon as the upload resolves, either way. */
     private var pendingAttachment: File? = null
 
+    /** True from pick until the server responds — blocks a concurrent pick. */
+    private var uploadInFlight = false
+
     /** The last thing the user actually did, so "Try again" replays IT. */
     private data class BotAction(val choiceKey: String? = null, val userMessage: String? = null)
     private var lastAction: BotAction? = null
 
-    private fun copyToCache(uri: Uri): File? = runCatching {
+    /**
+     * Copy the picked file into the cache, but never more than [maxBytes].
+     * Aborts (and deletes the partial) the moment the limit is crossed, so an
+     * unknown-size provider cannot stream an arbitrarily large file. Any
+     * failure also leaves nothing behind.
+     */
+    private fun copyToCacheBounded(uri: Uri, maxBytes: Long): File? {
         val out = File(cacheDir, "support_" + System.currentTimeMillis())
-        contentResolver.openInputStream(uri)!!.use { input ->
-            out.outputStream().use { input.copyTo(it) }
+        return runCatching {
+            contentResolver.openInputStream(uri)!!.use { input ->
+                out.outputStream().use { output ->
+                    val buf = ByteArray(8 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        total += n
+                        if (total > maxBytes) throw java.io.IOException("attachment exceeds limit")
+                        output.write(buf, 0, n)
+                    }
+                }
+            }
+            out
+        }.getOrElse {
+            out.delete()   // partial or failed copy — leave nothing behind
+            null
         }
-        out
-    }.getOrNull()
+    }
 
     private fun observe() {
         viewModel.startLiveData.observe(this) { r ->
@@ -358,8 +405,9 @@ class SupportBotActivity : BaseActivity() {
         }
 
         viewModel.attachLiveData.observe(this) { r ->
-            // Cache file is dead either way.
+            // Cache file is dead either way; the upload slot is free again.
             pendingAttachment?.delete(); pendingAttachment = null
+            uploadInFlight = false
 
             if (!r.success) {
                 // The server's own reason, rendered — a rejected upload used to
