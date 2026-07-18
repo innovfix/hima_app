@@ -3,6 +3,7 @@ package com.gmwapp.hima.adapters
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
 import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
@@ -110,6 +111,7 @@ class AiChatAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
             is ChatViewHolder -> holder.tvMessage.text = messages[position].text
+            is TypingViewHolder -> holder.start()
             is CreatorDeliveryViewHolder -> holder.bind(messages[position])
             is ChipsViewHolder -> holder.bind(
                 messages[position],
@@ -123,6 +125,7 @@ class AiChatAdapter(
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
         if (holder is CreatorDeliveryViewHolder) holder.cancelAnimations()
+        if (holder is TypingViewHolder) holder.stop()
         super.onViewRecycled(holder)
     }
 
@@ -132,7 +135,42 @@ class AiChatAdapter(
         val tvMessage: TextView = view.findViewById(R.id.tv_chat_message)
     }
 
-    class TypingViewHolder(view: View) : RecyclerView.ViewHolder(view)
+    class TypingViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val dots = listOf<View>(
+            view.findViewById(R.id.dot1),
+            view.findViewById(R.id.dot2),
+            view.findViewById(R.id.dot3)
+        )
+        private val animators = mutableListOf<Animator>()
+
+        /** Staggered bounce + fade so it reads as "support is typing…". */
+        fun start() {
+            stop()
+            val lift = 5f * itemView.resources.displayMetrics.density // ~5dp hop
+            dots.forEachIndexed { i, dot ->
+                dot.alpha = 0.4f
+                dot.translationY = 0f
+                val anim = ObjectAnimator.ofPropertyValuesHolder(
+                    dot,
+                    PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, 0f, -lift, 0f),
+                    PropertyValuesHolder.ofFloat(View.ALPHA, 0.4f, 1f, 0.4f)
+                ).apply {
+                    duration = 900
+                    startDelay = i * 160L
+                    repeatCount = ObjectAnimator.INFINITE
+                    interpolator = AccelerateDecelerateInterpolator()
+                    start()
+                }
+                animators.add(anim)
+            }
+        }
+
+        fun stop() {
+            animators.toList().forEach { it.cancel() }
+            animators.clear()
+            dots.forEach { it.translationY = 0f; it.alpha = 1f }
+        }
+    }
 
     class ChipsViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val container: com.google.android.flexbox.FlexboxLayout =

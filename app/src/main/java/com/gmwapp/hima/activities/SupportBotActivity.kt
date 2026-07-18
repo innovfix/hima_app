@@ -22,6 +22,7 @@ import com.gmwapp.hima.retrofit.responses.BotInputMode
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.showAppToast
 import com.gmwapp.hima.viewmodels.SupportBotViewModel
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.zoho.salesiqembed.ZohoSalesIQ
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -159,10 +160,6 @@ class SupportBotActivity : BaseActivity() {
             finish()
         }
 
-        // Spec #9 — rating. Sends and closes; never blocks them.
-        binding.btnRateSad.setOnSingleClickListener { sendRating(1) }
-        binding.btnRateNeutral.setOnSingleClickListener { sendRating(2) }
-        binding.btnRateGreat.setOnSingleClickListener { sendRating(3) }
     }
 
     /**
@@ -171,15 +168,55 @@ class SupportBotActivity : BaseActivity() {
      * ratingSent latches: submitting a rating re-posts solved=true, and the
      * server answers ask_rating=true again — so without this the panel
      * reappears every time and the user can never finish. Caught by audit.
+     *
+     * awaitingRatingAck: the rating re-post ALSO returns the closing message
+     * ("Ticket close panniten") a second time. Without this the feedback
+     * observer rendered that closing bubble twice. Set before the rating call
+     * and consumed at the top of the observer so the ack is swallowed silently
+     * — the thank-you now lives in the sheet, not the chat.
      */
     private var ratingSent = false
+    private var awaitingRatingAck = false
+    private var csatSheet: BottomSheetDialog? = null
 
-    private fun sendRating(score: Int) {
+    /**
+     * CSAT as a bottom-sheet popup (not an inline chat row). Shown once, after
+     * the user confirmed the issue was resolved.
+     */
+    private fun showCsatSheet() {
+        if (ratingSent || isFinishing) return
+        val sheet = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.sheet_support_csat, null)
+        sheet.setContentView(view)
+
+        val ask = view.findViewById<View>(R.id.ll_csat_ask)
+        val thanks = view.findViewById<View>(R.id.ll_csat_thanks)
+
+        view.findViewById<View>(R.id.btn_csat_sad).setOnSingleClickListener { onCsatPicked(1, ask, thanks, sheet) }
+        view.findViewById<View>(R.id.btn_csat_neutral).setOnSingleClickListener { onCsatPicked(2, ask, thanks, sheet) }
+        view.findViewById<View>(R.id.btn_csat_great).setOnSingleClickListener { onCsatPicked(3, ask, thanks, sheet) }
+        view.findViewById<View>(R.id.btn_csat_done).setOnSingleClickListener { sheet.dismiss() }
+
+        csatSheet = sheet
+        sheet.show()
+    }
+
+    private fun onCsatPicked(score: Int, ask: View, thanks: View, sheet: BottomSheetDialog) {
         if (ratingSent) return
         ratingSent = true
-        binding.llRating.visibility = View.GONE
+        awaitingRatingAck = true          // swallow the duplicate closing message
         viewModel.feedback(sessionId, solved = true, csat = score)
-        showAppToast(getString(R.string.support_bot_rate_thanks), Toast.LENGTH_SHORT)
+
+        ask.visibility = View.GONE
+        thanks.visibility = View.VISIBLE
+        // Auto-dismiss after ~1.5s; the user can also tap Done.
+        thanks.postDelayed({ if (!isFinishing) sheet.dismiss() }, 1500)
+    }
+
+    override fun onDestroy() {
+        csatSheet?.dismiss()
+        csatSheet = null
+        super.onDestroy()
     }
 
     /**
@@ -275,6 +312,14 @@ class SupportBotActivity : BaseActivity() {
         }
 
         viewModel.feedbackLiveData.observe(this) { r ->
+            // The rating re-post's response is an acknowledgement only — the
+            // thank-you already showed in the sheet. Swallow it so the closing
+            // message is not rendered into the chat a second time.
+            if (awaitingRatingAck) {
+                awaitingRatingAck = false
+                return@observe
+            }
+
             // Spec #6 — the second, different attempt. No ticket yet; they get
             // another Yes/No.
             if (r.second_attempt) {
@@ -306,7 +351,8 @@ class SupportBotActivity : BaseActivity() {
             } else {
                 showInput(BotInputMode.NONE)
                 // Spec #9 — rating only after they confirmed it's resolved.
-                if (r.ask_rating) binding.llRating.visibility = View.VISIBLE
+                // Now a bottom-sheet popup, not an inline chat row.
+                if (r.ask_rating) showCsatSheet()
             }
         }
 

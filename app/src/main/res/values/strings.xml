@@ -736,6 +736,13 @@
     <string name="support_bot_rate_sad">😞\nSad</string>
     <string name="support_bot_rate_neutral">😐\nNeutral</string>
     <string name="support_bot_rate_great">😍\nGreat</string>
+    <string name="support_bot_rate_subtitle">Your feedback helps us improve 💛</string>
+    <string name="support_bot_csat_sad">Sad</string>
+    <string name="support_bot_csat_neutral">Neutral</string>
+    <string name="support_bot_csat_great">Great</string>
+    <string name="support_bot_rate_ty_title">Thanks for your review!</string>
+    <string name="support_bot_rate_ty_body">Come back whenever you need help.</string>
+    <string name="support_bot_rate_done">Done</string>
     <string name="support_bot_attach_too_big">File is too large — please keep it under 5MB.</string>
     <string name="support_bot_attach_bad_type">Please pick a screenshot, recording or voice note.</string>
     <string name="support_bot_attach_too_many">You\'ve already added 3 files to this ticket.</string>
