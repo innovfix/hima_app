@@ -196,6 +196,10 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.appcompat)
+    // Bundled color-emoji font (Noto Color Emoji). Ships the emoji set inside the
+    // APK so every device renders the same vibrant emoji instead of the (often
+    // flat/dull) vendor set. Version pinned to the emoji2 that appcompat resolves.
+    implementation("androidx.emoji2:emoji2-bundled:1.3.0")
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)

@@ -351,6 +351,19 @@ class BaseApplication : Application(), Configuration.Provider {
         // Test log to verify SocketIOCheck tag is working
         Log.d("SocketIOCheck", "🎯 BaseApplication.onCreate() STARTED - SocketIOCheck tag is working!")
 
+        // Emoji rendering: the androidx.startup InitializationProvider is removed in
+        // the manifest, so EmojiCompat's default initializer never runs — leaving
+        // emojis to the device's own (often dull/flat) vendor font. Initialise it
+        // manually with the BUNDLED Noto Color Emoji font and replaceAll=true so
+        // AppCompat text views render the same vibrant emoji on every device (chat
+        // input, the emoji picker grid, message bubbles). Wrapped so a font-load
+        // failure can never block process start.
+        runCatching {
+            val emojiConfig = androidx.emoji2.bundled.BundledEmojiCompatConfig(this)
+                .setReplaceAll(true)
+            androidx.emoji2.text.EmojiCompat.init(emojiConfig)
+        }.onFailure { Log.w("EmojiCompat", "init failed; falling back to system emoji", it) }
+
         mInstance = this
 
         // 2026-06-05 v1108 FIX: cold-start cannot have an active call. If
