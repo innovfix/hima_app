@@ -99,10 +99,36 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         // removeCallbacks before postDelayed makes this idempotent in both directions.
         aliveHandler.removeCallbacks(alivePollRunnable)
         aliveHandler.postDelayed(alivePollRunnable, aliveIntervalMs)
+        // Arm the hard ring cap alongside the poll (idempotent).
+        ringTimeoutHandler.removeCallbacks(ringTimeoutRunnable)
+        ringTimeoutHandler.postDelayed(ringTimeoutRunnable, ringTimeoutMs)
     }
 
     private fun stopAlivePolling() {
         aliveHandler.removeCallbacks(alivePollRunnable)
+        ringTimeoutHandler.removeCallbacks(ringTimeoutRunnable)
+    }
+
+    // TC-HMA-002b (2026-07-18): callee-side HARD ring cap — male port of the fix in
+    // FemaleCallAcceptActivity. The alive-poll above tears the ring down only when
+    // the backend reports the call ENDED with a non-null end_reason. When the CALLER
+    // loses network mid-ring it can send neither the "callDeclined" push NOR its ring
+    // heartbeats, so check_call_alive flips alive=false with reason=null (the 30s
+    // age-guard) — which the poll deliberately ignores, so a slow-but-legit ring
+    // isn't cut at 30s. The result was a ring screen that stayed up and answerable
+    // indefinitely (the 45s sound watchdog only silences audio; it never closed this
+    // Activity). This backstop finishes the ring screen at 45s — safely AFTER the
+    // caller's own 40s give-up, so it can never cut a legitimate ring. No status is
+    // posted (a timeout is not a decline); teardown reuses the proven peer-ended path.
+    private val ringTimeoutHandler = Handler(Looper.getMainLooper())
+    private val ringTimeoutMs = 45_000L
+    private val ringTimeoutRunnable = Runnable {
+        if (peerEndedHandled || terminalStarted || isFinishing || isDestroyed) return@Runnable
+        Log.d(
+            "CreatorCallDiag",
+            "MAccept.ringTimeout -> ring exceeded ${ringTimeoutMs}ms with no answer/cancel; dismissing stuck ring callId=$call_Id"
+        )
+        exitBecausePeerEnded()
     }
 
     /**
