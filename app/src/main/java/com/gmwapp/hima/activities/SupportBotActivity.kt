@@ -209,8 +209,9 @@ class SupportBotActivity : BaseActivity() {
 
         ask.visibility = View.GONE
         thanks.visibility = View.VISIBLE
-        // Auto-dismiss after ~1.5s; the user can also tap Done.
-        thanks.postDelayed({ if (!isFinishing) sheet.dismiss() }, 1500)
+        // Stays up long enough to read; the user can dismiss early via Done or by
+        // swiping the sheet down.
+        thanks.postDelayed({ if (!isFinishing) sheet.dismiss() }, 15000)
     }
 
     override fun onDestroy() {
