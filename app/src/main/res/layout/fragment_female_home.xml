@@ -1413,7 +1413,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    android:text="@string/approx_earnings"
+                    android:text="Call earnings"
                     android:fontFamily="@font/poppins_medium"
                     android:textColor="@color/grey_medium"
                     android:textSize="14sp"
@@ -1435,6 +1435,68 @@
                     app:layout_constraintBottom_toBottomOf="parent" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
+            <!-- Divider (before Gift earnings) -->
+            <View
+                android:id="@+id/v_divider_gift"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="8dp"
+                android:background="@color/grey_extra_light"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/cl_earnings_row" />
+
+            <!-- Gift Earnings Row with Icon (split-earnings) -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/cl_gift_earnings_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:padding="8dp"
+                android:background="@drawable/d_button_bg"
+                android:backgroundTint="#F3F4F6"
+                app:layout_constraintTop_toBottomOf="@id/v_divider_gift">
+
+                <ImageView
+                    android:id="@+id/iv_gift_earnings_icon"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="6dp"
+                    android:background="@drawable/d_button_bg"
+                    android:backgroundTint="#FDF0D9"
+                    android:src="@drawable/ic_gift_box"
+                    app:tint="#F59E0B"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_gift_earnings_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="Gift earnings"
+                    android:fontFamily="@font/poppins_medium"
+                    android:textColor="@color/grey_medium"
+                    android:textSize="14sp"
+                    app:layout_constraintStart_toEndOf="@id/iv_gift_earnings_icon"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_gift_earnings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="₹0"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:textColor="@color/green"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
             <!-- Divider -->
             <View
                 android:id="@+id/v_divider"
@@ -1444,7 +1506,7 @@
                 android:background="@color/grey_extra_light"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/cl_earnings_row" />
+                app:layout_constraintTop_toBottomOf="@+id/cl_gift_earnings_row" />
 
             <!-- Total Calls Row with Icon -->
             <androidx.constraintlayout.widget.ConstraintLayout

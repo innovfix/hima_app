@@ -736,6 +736,10 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     // initial text used. Same value source as tv_approx_earnings above.
                     binding.tvApproxEarningsOld.text = "₹${it.data[0].today_earnings}"
 
+                    // Split-earnings: show today's GIFT income in its own row, separate
+                    // from Call earnings above. Old backend omits the field → shows ₹0.
+                    binding.tvGiftEarnings.text = "₹${it.data[0].today_gift_earnings ?: "0"}"
+
                     // TC_020: the calls twin of the v1110 fix above was missed.
                     // tv_total_calls_old — the "Total Calls" value inside the same
                     // visible "Today's Activity" card — is never written by any other
