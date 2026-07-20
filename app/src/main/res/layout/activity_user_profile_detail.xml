@@ -48,12 +48,18 @@
                     android:background="@drawable/profile_gradient_shade" />
 
                 <!-- User Info Overlay at Bottom -->
+                <!-- B_025: extra bottom padding lifts the username/age off the white
+                     details card below. With a flat 24dp the 28sp name's descenders
+                     rendered right on the card's top edge (looked cramped/touching). -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom"
                     android:orientation="vertical"
-                    android:padding="24dp">
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="24dp"
+                    android:paddingBottom="40dp">
 
                     <TextView
                         android:id="@+id/tv_user_name"
