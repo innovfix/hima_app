@@ -44,6 +44,18 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MaleCallAcceptActivity : AppCompatActivity() {
+    companion object {
+        // FORCE_CLOSE_REJECT parity (male port of FemaleCallAcceptActivity) —
+        // identity of the CURRENT ring instance. When a duplicate incoming
+        // surface recreates this screen, the newer onCreate overwrites this
+        // BEFORE the older instance's onDestroy runs, so onDestroy force-close-
+        // rejects ONLY while it is still the live instance (liveInstance === this).
+        // A superseded duplicate can therefore never reject the call the newer
+        // instance is actively ringing.
+        @Volatile
+        private var liveInstance: MaleCallAcceptActivity? = null
+    }
+
     private lateinit var binding: ActivityMaleCallAcceptBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
@@ -157,6 +169,10 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         // to roughly the FSI->process-start latency instead of ~300ms of
         // onCreate setup. Cleared early on every entry, including cold-start.
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+        // FORCE_CLOSE_REJECT parity — claim "live instance" as early as possible
+        // so a duplicate surface that recreates this screen supersedes us, and our
+        // onDestroy won't reject the newer instance's call. Mirrors FemaleCallAccept.
+        liveInstance = this
         // Route the volume rocker to STREAM_RING while this activity is on
         // screen so volume up/down adjusts the incoming ringtone (B027).
         // Without this the default STREAM_MUSIC is targeted and the rocker
@@ -723,6 +739,41 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // FORCE_CLOSE_REJECT parity (male port of FemaleCallAcceptActivity:877) —
+        // he left the ring WITHOUT accepting or declining (task swipe / system
+        // finish). Treat it as a Decline so the server row is stamped rejected
+        // (clears pending so the ring can't be resurrected on reopen) and the
+        // caller (female creator) stops ringing. This is the second layer to
+        // FcmCallService.onTaskRemoved — and the ONLY layer when the ring is shown
+        // with the app foreground+unlocked, where FcmCallService is never started
+        // (B030 skip), so without this the MALE ring lingered while the female
+        // caller's screen dropped. Guard on isFinishing so a config-change recreate
+        // (rotation) does NOT drop a still-live ring.
+        if (isFinishing) {
+            // Only act if the still-armed incoming call is OURS. If a NEWER call has
+            // re-armed the flag with a different tag (pendingTag != our call_Id),
+            // leave it — rejecting/clearing would wipe the newer call's live ring.
+            val pendingTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
+            val ourTag = if (call_Id != 0) call_Id.toString() else null
+            if (pendingTag == null || ourTag == null || pendingTag == ourTag) {
+                // terminalStarted is set by BOTH Accept and Decline taps (before any
+                // teardown), so this fires only for a genuine no-action exit;
+                // peerEndedHandled suppresses it when the caller already cancelled
+                // (peer-end / ring-timeout already stamped the terminal state).
+                // liveInstance === this: a duplicate surface that recreated this
+                // screen has NOT superseded us, so this is a genuine abandon.
+                if (liveInstance === this &&
+                    !terminalStarted && !peerEndedHandled &&
+                    call_Id > 0 && receiverId != -1) {
+                    val selfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                    Log.d("CallStatus", "MaleAccept.onDestroy no-action exit → force-close reject callId=$call_Id")
+                    BaseApplication.getInstance()?.rejectCallOnAppClose(
+                        selfId, receiverId, call_Id, callType, channelName
+                    )
+                }
+                BaseApplication.getInstance()?.clearIncomingCall()
+            }
+        }
         stopAlivePolling() // TC-HMA-002 (male port): never leak the ring poll past teardown
         // Stop animations
         try {
@@ -733,6 +784,10 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("MaleCallAccept_Anim", "Error clearing animations: ${e.message}")
         }
+        // FORCE_CLOSE_REJECT parity — only relinquish the "live instance" claim if
+        // we still hold it; a newer instance that took over must keep its claim so
+        // ITS onDestroy can still act.
+        if (liveInstance === this) liveInstance = null
     }
 
 }
