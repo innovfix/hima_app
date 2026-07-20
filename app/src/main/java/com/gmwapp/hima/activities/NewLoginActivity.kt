@@ -424,9 +424,11 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         setupKeyboardCompaction()
         observeReferralCodeResponse()
 
-        CoroutineScope(Dispatchers.IO).launch {
-            OneSignal.Notifications.requestPermission(true)
-        }
+        // Notification permission is intentionally NOT requested on the login screen.
+        // Asking before the user has entered anything (or seen any value) hurts grant
+        // rates; the OS prompt now first appears on Home (MainActivity.onCreate,
+        // throttled once/24h) after login. OneSignal opt-in is unaffected — it still
+        // happens on OTP success below and is re-asserted in MainActivity.
 
         val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
 
