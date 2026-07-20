@@ -349,7 +349,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 //                Log.d("responsecheck", "Audio Status: $audioStatus")
 //            }
 
-            if (it?.data != null) {
+            // B_036 — only paint the creators list when a creators tab is active. rvProfiles
+            // is shared with the Chats list (loadMyChats), so a stray or cached female-users
+            // response landing while the user is on "Chats" must NOT overwrite it — otherwise
+            // the Chats chip stays highlighted while the creator list shows underneath.
+            if (it?.data != null && filterType != "my_chats") {
                 binding.rvProfiles.layoutManager =
                     LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
 
@@ -1150,6 +1154,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         // message beyond the watermark restores the preview — WhatsApp-style.
                         val clearedUpto = com.gmwapp.hima.utils.ClearedChatsPrefsHelper.getClearedUpto(activityCtx, userId, item.user.id)
                         val isCleared = clearedUpto > 0L && (incomingSec * 1000L) <= clearedUpto
+                        // B_028 — blank the preview when the thread's last message was
+                        // "deleted for me" (device-local hide the server doesn't know
+                        // about). Ids match the chat screen's ChatMessage.id space; a
+                        // newer message restores the preview automatically.
+                        val lastMsgId = item.lastMessage?.id?.toString().orEmpty()
+                        val isLastLocallyDeleted = lastMsgId.isNotEmpty() &&
+                            com.gmwapp.hima.utils.LocallyDeletedMessagesStore.isLocallyDeleted(activityCtx, userId, item.user.id, lastMsgId)
+                        val hideLastPreview = isCleared || isLastLocallyDeleted
                         // B080 + B097 — resolve once so isOnline can also check
                         // availability. For female viewers, the other party is
                         // male and there are no audio/video toggles to honor —
@@ -1166,8 +1178,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             userId = item.user.id.toString(),
                             userName = item.user.name,
                             userImage = item.user.image ?: "",
-                            lastMessage = if (isCleared) "" else item.lastMessage?.message ?: "",
-                            lastMessageType = if (isCleared) "text" else item.lastMessage?.messageType ?: "text",
+                            lastMessage = if (hideLastPreview) "" else item.lastMessage?.message ?: "",
+                            lastMessageType = if (hideLastPreview) "text" else item.lastMessage?.messageType ?: "text",
                             lastMessageTime = ts,
                             unreadCount = if (isCleared) 0 else effectiveUnread,
                             // B097 — green dot now requires BOTH recent activity
