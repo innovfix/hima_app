@@ -261,9 +261,10 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
             requireCallsDisabledBeforeEnablingDnd = true,
             cvDnd = binding.cvDnd,
             femaleUsersViewModel = femaleUsersViewModel,
-            onDndEnabled = {
-                // TC-DND-001 — once DND is on the creator is unavailable, so drop them back to
-                // Home where that state is visible (toggles repaint off from the prefs we just set).
+            onDndToggled = {
+                // TC-DND-001 / B_030 — after toggling DND either way, drop the creator back to
+                // Home so the availability state is visible and enable/disable behave the same
+                // (toggles repaint from the prefs we just set). Was enable-only before B_030.
                 (activity as? com.gmwapp.hima.activities.MainActivity)
                     ?.binding?.bottomNavigationView?.let { it.selectedItemId = R.id.home }
             }

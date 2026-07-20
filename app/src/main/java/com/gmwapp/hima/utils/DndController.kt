@@ -50,10 +50,11 @@ class DndController(
      */
     private val femaleUsersViewModel: FemaleUsersViewModel? = null,
     /**
-     * Invoked after DND is successfully enabled (TC-DND-001 — creator is taken back to Home so
-     * the "you're unavailable" state is obvious). No-op on disable.
+     * Invoked after DND is successfully toggled in EITHER direction. TC-DND-001 takes the
+     * creator back to Home on enable so the "you're unavailable" state is obvious; B_030 makes
+     * disable navigate Home too, so both directions behave the same (was enable-only before).
      */
-    private val onDndEnabled: (() -> Unit)? = null
+    private val onDndToggled: (() -> Unit)? = null
 ) {
     // Authoritative audio/video availability from the latest server fetch (getUsers) —
     // the SAME value the Home toggles display. The DND confirm-guard must use this,
@@ -316,7 +317,7 @@ class DndController(
                                         fragment.getString(R.string.dnd_updated),
                                         Toast.LENGTH_SHORT
                                     ).show()
-                                    if (wantedEnabled == 1) onDndEnabled?.invoke()
+                                    onDndToggled?.invoke() // B_030 — navigate on enable AND disable
                                 } else {
                                     toastAndRollback(
                                         fragment.getString(R.string.dnd_err_http, response.code())
@@ -364,7 +365,7 @@ class DndController(
                                     body.message ?: fragment.getString(R.string.dnd_updated),
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                if (wantedEnabled == 1) onDndEnabled?.invoke()
+                                onDndToggled?.invoke() // B_030 — navigate on enable AND disable
                             }
                         }
                         switchDnd.isEnabled = true
