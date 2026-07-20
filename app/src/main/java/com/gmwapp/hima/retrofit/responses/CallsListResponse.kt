@@ -36,4 +36,10 @@ data class CallsListResponseData(
     // cooldown. Old backend omits it → defaults false.
     @SerializedName("call_blocked")
     val call_blocked: Boolean? = false,
+    // B_005 — true when EITHER party blocked the other (any direction, call or chat).
+    // Greys the Recent call buttons for blocks in both directions (the legacy 'blocked'
+    // field only covers creator-blocked-me). Distinct from the profile-view gate, which
+    // stays on 'blocked'==2. Old backend omits it → defaults false.
+    @SerializedName("either_blocked")
+    val either_blocked: Boolean = false,
 )

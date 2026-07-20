@@ -309,7 +309,11 @@ class RecentCallsAdapter(
 
         }
 
-        if (call.blocked==2){
+        // B_005 — grey both call buttons when EITHER party blocked the other (either
+        // direction). blocked==2 is the legacy creator-blocked-me case; either_blocked
+        // adds male-blocked-creator and the female-viewer cases. The profile-view gate
+        // below stays on blocked==2 only, so blocking someone doesn't hide their card.
+        if (call.blocked==2 || call.either_blocked){
             holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
             holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
             holder.binding.ivVideo.isEnabled = false
