@@ -79,6 +79,10 @@
     <string name="no_favourites">No favourites</string>
     <string name="recent">Recent</string>
     <string name="favourite">Favourite</string>
+    <!-- B_015 / Suggestion #7: bottom-nav label for the male Friends hub (the parent
+         section was misleadingly named "Favourite" though it hosts Friends/Requests/
+         Sent/Favourite). The "favourite" string stays for the Favourite SUB-tab. -->
+    <string name="nav_friends">Friends</string>
     <string name="chat_now">Chat Now</string>
     <string name="missed_call_label">Missed</string>
     <!-- TC_022: chat-list indicator for a blocked conversation -->

@@ -24,11 +24,11 @@ import javax.inject.Inject
 
 /**
  * Male bottom-nav "Friends" destination (Friends-Gated Chat; replaces the standalone
- * "Favourite" page). Four underline tabs (Variant A):
+ * "Favourite" page). Four underline tabs (Suggestion #7 order — primary tabs first):
  *  - Friends   -> [FriendsTabFragment.TYPE_CHAT_FRIENDS]
+ *  - Favourite -> the existing starred-creators list ([FavouriteFragment] embedded).
  *  - Requests  -> [FriendsTabFragment.TYPE_THEIR_REQUESTS] (Accept/Reject)
  *  - Sent      -> [FriendsTabFragment.TYPE_MY_REQUESTS]
- *  - Favourites-> the existing starred-creators list ([FavouriteFragment] embedded).
  */
 @AndroidEntryPoint
 class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
@@ -65,19 +65,20 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
 
         binding.vpFriendsHub.adapter = object : FragmentStateAdapter(this) {
             override fun getItemCount(): Int = 4
+            // Suggestion #7 tab order: Friends, Favourite, Requests, Sent — primary tabs first.
             override fun createFragment(position: Int): Fragment = when (position) {
                 0 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_CHAT_FRIENDS)
-                1 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_THEIR_REQUESTS)
-                2 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_MY_REQUESTS)
-                else -> FavouriteFragment.newInstance(embedded = true)
+                1 -> FavouriteFragment.newInstance(embedded = true)
+                2 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_THEIR_REQUESTS)
+                else -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_MY_REQUESTS)
             }
         }
         TabLayoutMediator(binding.tabsFriendsHub, binding.vpFriendsHub) { tab, position ->
             tab.text = when (position) {
                 0 -> getString(R.string.chat_tab_friends)
-                1 -> getString(R.string.chat_tab_requests)
-                2 -> getString(R.string.chat_tab_sent)
-                else -> getString(R.string.favourite)
+                1 -> getString(R.string.favourite)
+                2 -> getString(R.string.chat_tab_requests)
+                else -> getString(R.string.chat_tab_sent)
             }
         }.attach()
 
@@ -92,12 +93,20 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
 
     /**
      * If a friend-request notification deep-link requested a specific sub-tab,
-     * jump to it (0=Friends, 1=Requests, 2=Sent). No-op when none requested.
+     * jump to it. The deep-link value is SEMANTIC (0=Friends, 1=Requests, 2=Sent) and
+     * shared with the female Chat hub, so remap it to this hub's physical tab position
+     * after the Suggestion #7 reorder (Friends=0, Favourite=1, Requests=2, Sent=3).
      */
     fun applyPendingSubTab() {
         if (_binding == null) return
         val sub = (activity as? com.gmwapp.hima.activities.MainActivity)?.consumePendingFriendsSubTab() ?: -1
-        if (sub in 0..2) binding.vpFriendsHub.setCurrentItem(sub, false)
+        val targetPos = when (sub) {
+            0 -> 0  // Friends
+            1 -> 2  // Requests
+            2 -> 3  // Sent
+            else -> -1
+        }
+        if (targetPos >= 0) binding.vpFriendsHub.setCurrentItem(targetPos, false)
     }
 
     /** Called by child FriendsTabFragment after accept/reject/remove to sync badges. */
@@ -122,14 +131,15 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
                         val base = getString(resId)
                         return if (count > 0) "$base ($count)" else base
                     }
+                    // Positions match the Suggestion #7 order: Friends, Favourite, Requests, Sent.
                     binding.tabsFriendsHub.getTabAt(0)?.text =
                         labelWithCount(R.string.chat_tab_friends, d.friends_count)
                     binding.tabsFriendsHub.getTabAt(1)?.text =
-                        labelWithCount(R.string.chat_tab_requests, d.received_requests_count)
-                    binding.tabsFriendsHub.getTabAt(2)?.text =
-                        labelWithCount(R.string.chat_tab_sent, d.my_requests_count)
-                    binding.tabsFriendsHub.getTabAt(3)?.text =
                         labelWithCount(R.string.favourite, d.favourites_count)
+                    binding.tabsFriendsHub.getTabAt(2)?.text =
+                        labelWithCount(R.string.chat_tab_requests, d.received_requests_count)
+                    binding.tabsFriendsHub.getTabAt(3)?.text =
+                        labelWithCount(R.string.chat_tab_sent, d.my_requests_count)
                     // Mirror pending requests on the bottom-nav "Friends" icon too.
                     (activity as? com.gmwapp.hima.activities.MainActivity)?.setFriendsRequestCount(receivedCount)
                 }

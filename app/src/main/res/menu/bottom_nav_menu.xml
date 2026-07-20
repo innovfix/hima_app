@@ -29,7 +29,7 @@
         android:id="@+id/favourite"
         android:enabled="true"
         android:icon="@drawable/ic_nav_favourite_state"
-        android:title="@string/favourite"
+        android:title="@string/nav_friends"
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
