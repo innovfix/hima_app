@@ -39,6 +39,7 @@ data class TicketDataResponse(
     val screenshot: String? = null, // Legacy single screenshot field
     val screenshots: List<String>? = null, // New multiple screenshots array
     val reply: String? = null, // Can be null if no reply yet
+    val reply_images: List<String>? = null, // Support/admin's reply attachments (shown to the user)
     val status: Int, // 0 = active/pending, 1 = resolved
     val created_at: String,
     val updated_at: String

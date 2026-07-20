@@ -73,25 +73,24 @@ class TicketsAdapter(
                 binding.llReplySection.visibility = View.GONE
             }
             
-            // Screenshots - support both single screenshot and screenshots array
-            val screenshotUrls = when {
-                !ticket.screenshots.isNullOrEmpty() -> ticket.screenshots
-                !ticket.screenshot.isNullOrEmpty() -> listOf(ticket.screenshot!!)
-                else -> emptyList()
-            }
-            
-            if (screenshotUrls.isNotEmpty()) {
+            // Attachments shown here are the SUPPORT team's reply attachments
+            // (reply_images), NOT the user's own screenshots — the user already
+            // knows what they sent; what's useful to them is what support sent
+            // back. Anything support attaches while resolving shows up here.
+            val attachmentUrls = ticket.reply_images ?: emptyList()
+
+            if (attachmentUrls.isNotEmpty()) {
                 binding.llScreenshots.visibility = View.VISIBLE
-                val attachmentText = if (screenshotUrls.size == 1) {
+                val attachmentText = if (attachmentUrls.size == 1) {
                     "1 attachment"
                 } else {
-                    "${screenshotUrls.size} attachments"
+                    "${attachmentUrls.size} attachments"
                 }
                 binding.tvScreenshotsCount.text = attachmentText
-                
+
                 // Make clickable to view attachments
                 binding.llScreenshots.setOnClickListener {
-                    onAttachmentClick(screenshotUrls)
+                    onAttachmentClick(attachmentUrls)
                 }
                 binding.llScreenshots.isClickable = true
             } else {
