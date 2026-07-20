@@ -138,6 +138,22 @@ class SupportBotActivity : BaseActivity() {
         binding.rvChat.layoutManager = LinearLayoutManager(this)
         binding.rvChat.adapter = adapter
 
+        // Keep the latest message visible when the keyboard opens. Tapping the
+        // input shrinks the list (its bottom rises); without this the newest bot
+        // message is left hidden behind the keyboard and the user has to scroll
+        // by hand. On any shrink, snap to the last row.
+        binding.rvChat.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
+            if (bottom < oldBottom) {
+                binding.rvChat.post {
+                    val n = binding.rvChat.adapter?.itemCount ?: 0
+                    if (n > 0) binding.rvChat.scrollToPosition(n - 1)
+                }
+            }
+        }
+        binding.etMessage.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) scrollToEnd()
+        }
+
         binding.ivSend.setOnSingleClickListener { sendTyped() }
         binding.etMessage.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
