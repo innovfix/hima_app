@@ -197,6 +197,12 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
                         binding.tvRemainingText.visibility = View.VISIBLE
                         binding.tvDescription.visibility = View.VISIBLE
                         binding.cvDescription.visibility = View.VISIBLE
+                        // B_040 — scroll the just-revealed description field into view so the
+                        // user doesn't have to hunt for it below the reason options. post{}
+                        // waits for the visibility change to lay out before scrolling.
+                        binding.svDetails.post {
+                            binding.svDetails.smoothScrollTo(0, binding.cvDescription.bottom)
+                        }
                     }
                 } else {
                     if (reason.isSelected == true) {
