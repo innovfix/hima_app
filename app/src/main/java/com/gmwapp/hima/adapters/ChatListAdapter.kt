@@ -338,18 +338,27 @@ class ChatListAdapter(
             // Show a badge when EITHER I blocked them (isBlocked) OR they blocked me
             // (peerBlockedMe). Either way the call buttons are swapped for the badge so
             // the row reads as blocked instead of looking normal.
-            val showBlockedBadge = conversation.isBlocked || conversation.peerBlockedMe
+            val isBlockedRow = conversation.isBlocked || conversation.peerBlockedMe
+            // Product decision (2026-07): a blocked peer must still SHOW the call
+            // buttons, just GREYED OUT / disabled — not hidden. So we no longer swap
+            // the buttons for the "Blocked" text badge on the male side; instead the
+            // buttons render in their grey (unavailable) state below, with NO sub-label.
+            // The text badge is kept ONLY for female (creator) viewers, who have no
+            // call buttons at all (CM_001) and so need some blocked indicator.
             binding.tvBlockedBadge.text = if (conversation.isBlocked)
                 activity.getString(R.string.chat_blocked_indicator)
             else
                 activity.getString(R.string.chat_peer_blocked_indicator)
-            binding.tvBlockedBadge.visibility = if (showBlockedBadge) View.VISIBLE else View.GONE
+            binding.tvBlockedBadge.visibility =
+                if (isBlockedRow && isViewerFemale) View.VISIBLE else View.GONE
             // CM_001: call buttons hidden for female (creator) viewers (see bell gate above).
             binding.callButtonsRow.visibility =
-                if (showBlockedBadge || isViewerFemale) View.GONE else View.VISIBLE
+                if (isViewerFemale) View.GONE else View.VISIBLE
 
-            val showAudio = conversation.audioStatus == 1
-            val showVideo = conversation.videoStatus == 1
+            // Blocked forces the grey/disabled state regardless of the peer's actual
+            // online/availability, so a blocked contact can never be called from here.
+            val showAudio = conversation.audioStatus == 1 && !isBlockedRow
+            val showVideo = conversation.videoStatus == 1 && !isBlockedRow
             val disabledTextColor = activity.getColor(R.color.chat_list_call_disabled_text)
             val whiteColor = activity.getColor(R.color.white)
 
@@ -391,13 +400,16 @@ class ChatListAdapter(
 
             val offlineLabel = activity.getString(R.string.call_status_offline)
             val onlineLabel = activity.getString(R.string.call_status_online)
+            // Blocked: greyed buttons with NO sub-label (no "Offline"/"Blocked"/rate text).
             binding.tvAudioRate.text = when {
+                isBlockedRow -> ""
                 !showAudio -> offlineLabel
                 isViewerFemale -> onlineLabel
                 else -> "${conversation.coinPerMinAudio}/min"
             }
             binding.tvAudioRate.setTextColor(if (showAudio) rateTextColor else greyIconColor)
             binding.tvVideoRate.text = when {
+                isBlockedRow -> ""
                 !showVideo -> offlineLabel
                 isViewerFemale -> onlineLabel
                 else -> "${conversation.coinPerMinVideo}/min"
