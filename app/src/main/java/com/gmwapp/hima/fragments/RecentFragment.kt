@@ -43,6 +43,10 @@ class RecentFragment : BaseFragment(), Refreshable {
     private val recentViewModel: RecentViewModel by viewModels()
     private lateinit var recentCallsAdapter: RecentCallsAdapter
     private var isLoading = false
+    // B_017 — set for a silent (deferred, post-call) reset-load: the observer then
+    // diff-replaces the list in place instead of appending onto a cleared list, so
+    // the second refresh doesn't blank+refill (no visible flicker).
+    private var pendingSilentReplace = false
     private var offset = 0
     private val limit = 10
     private var currentSortType = "recent"  // Default: recent
@@ -165,7 +169,7 @@ class RecentFragment : BaseFragment(), Refreshable {
         loadCallsList(currentSortType, resetData = true, searchQuery = currentSearchQuery)
     }
 
-    private fun loadCallsList(sortType: String, resetData: Boolean, searchQuery: String = "") {
+    private fun loadCallsList(sortType: String, resetData: Boolean, searchQuery: String = "", silent: Boolean = false) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         val days = if (sortType == "talk_time") currentDaysFilter else 0
         if (sortType == "talk_time" && days <= 0) {
@@ -175,12 +179,18 @@ class RecentFragment : BaseFragment(), Refreshable {
             return
         }
 
+        // B_017 — a silent reset keeps the current rows on screen and diff-replaces
+        // them when the response lands (no clear, no spinner). Used by the deferred
+        // post-call refresh so the second refresh doesn't flicker.
+        pendingSilentReplace = silent && resetData
         if (resetData) {
             offset = 0
             isLoading = true
-            setLoading(true)
-            if (::recentCallsAdapter.isInitialized) {
-                recentCallsAdapter.clearData()
+            if (!silent) {
+                setLoading(true)
+                if (::recentCallsAdapter.isInitialized) {
+                    recentCallsAdapter.clearData()
+                }
             }
         }
         
@@ -228,17 +238,28 @@ class RecentFragment : BaseFragment(), Refreshable {
             if (it != null && it.success && it.data != null && it.data.isNotEmpty()) {
                 binding.tlTitle.visibility = View.GONE
                 binding.rvCalls.visibility = View.VISIBLE
-                recentCallsAdapter.addData(it.data)
+                // B_017 — a silent (deferred, post-call) refresh replaces the rows in
+                // place via DiffUtil so the list never blanks; a normal reset already
+                // cleared the list, so it appends as before.
+                if (pendingSilentReplace) {
+                    recentCallsAdapter.setData(it.data)
+                } else {
+                    recentCallsAdapter.addData(it.data)
+                }
             } else if (recentCallsAdapter.itemCount == 0) {
                 binding.tlTitle.visibility = View.VISIBLE
                 binding.rvCalls.visibility = View.GONE
             }
+            // A silent refresh that returned empty deliberately leaves the existing
+            // rows untouched (don't blank on a transient empty post-call response).
+            pendingSilentReplace = false
         })
 
         recentViewModel.callsListErrorLiveData.observe(viewLifecycleOwner, Observer {
             binding.swipeRefreshLayout.isRefreshing = false
             isLoading = false
             setLoading(false)
+            pendingSilentReplace = false
             if (recentCallsAdapter.itemCount == 0) {
                 binding.tlTitle.visibility = View.VISIBLE
                 binding.rvCalls.visibility = View.GONE
@@ -378,7 +399,8 @@ class RecentFragment : BaseFragment(), Refreshable {
                     if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
                     recentCallsAdapter.setFilter(currentSortType)
                     if (changed) {
-                        loadCallsList(currentSortType, resetData = true)
+                        // B_027 — keep the active search filter when switching tabs.
+                        loadCallsList(currentSortType, resetData = true, searchQuery = currentSearchQuery)
                     }
                 },
                 // Cancelled — leave selection where it was.
@@ -394,7 +416,8 @@ class RecentFragment : BaseFragment(), Refreshable {
         if (!::recentCallsAdapter.isInitialized) return
         recentCallsAdapter.setFilter(currentSortType)
         if (changed) {
-            loadCallsList(currentSortType, resetData = true)
+            // B_027 — keep the active search filter when switching tabs.
+            loadCallsList(currentSortType, resetData = true, searchQuery = currentSearchQuery)
         }
         if (currentSortType == "missed") {
             loadMissedCallCount(seen = 1)
@@ -532,7 +555,10 @@ class RecentFragment : BaseFragment(), Refreshable {
                 loadCallsList(
                     currentSortType,
                     resetData = true,
-                    searchQuery = currentSearchQuery
+                    searchQuery = currentSearchQuery,
+                    // B_017 — silent in-place replace so this second (post-call)
+                    // refresh updates durations without the visible blank+refill.
+                    silent = true
                 )
             }
         }
