@@ -104,6 +104,21 @@ class UserProfileDetailActivity : AppCompatActivity() {
         binding = ActivityUserProfileDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Bottom-nav overlap fix: on edge-to-edge (Android 15 default) the scroll content
+        // draws under the system navigation bar, so the last actions (Report/Block user)
+        // sat under it. Pad the content by the real nav-bar inset on top of the base 140dp,
+        // so it clears on both gesture and 3-button nav.
+        run {
+            val baseBottomPx = (140 * resources.displayMetrics.density).toInt()
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.llProfileContent) { v, insets ->
+                val navBottom = insets.getInsets(
+                    androidx.core.view.WindowInsetsCompat.Type.navigationBars()
+                ).bottom
+                v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, baseBottomPx + navBottom)
+                insets
+            }
+        }
+
         // Get data from intent
         getUserDataFromIntent()
 

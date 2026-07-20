@@ -48,9 +48,12 @@
                     android:background="@drawable/profile_gradient_shade" />
 
                 <!-- User Info Overlay at Bottom -->
-                <!-- B_025: extra bottom padding lifts the username/age off the white
-                     details card below. With a flat 24dp the 28sp name's descenders
-                     rendered right on the card's top edge (looked cramped/touching). -->
+                <!-- B_025 / age-clip: the name + "N years old" line sit at the very
+                     bottom of the header image, and the white details card begins
+                     exactly at the image's bottom edge. This bottom padding lifts the
+                     WHOLE block (name AND age — age is the lowest line, so it's the one
+                     that got clipped by the card) clear of that edge. 24dp left the age
+                     tucked under the card; 56dp gives both lines comfortable clearance. -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -59,7 +62,7 @@
                     android:paddingStart="24dp"
                     android:paddingEnd="24dp"
                     android:paddingTop="24dp"
-                    android:paddingBottom="40dp">
+                    android:paddingBottom="56dp">
 
                     <TextView
                         android:id="@+id/tv_user_name"
@@ -176,6 +179,7 @@
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
+            android:id="@+id/ll_profile_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:clipChildren="false"
