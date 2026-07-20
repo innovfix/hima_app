@@ -298,6 +298,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var peerVideoStatus: Int? = null   // 0 or 1
     private var isCallBlocked: Boolean = false  // true if male user is blocked by female user (blocked = 1 or 2)
     private var peerCallBlocked: Boolean = false  // FEMALE_3_REJECT_BLOCK — female auto-blocked this male (3 rejects/5min), 60-min cooldown
+    private var peerDnd: Boolean = false  // B_003 — the peer (callee being viewed) is on DND; grey the call buttons
     private var callStatusAudioSwitch: com.google.android.material.switchmaterial.SwitchMaterial? = null
     private var callStatusVideoSwitch: com.google.android.material.switchmaterial.SwitchMaterial? = null
     private var isApplyingCallStatusToggleState = false
@@ -5058,6 +5059,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                         if (responseData != null) {
                             isCallBlocked = responseData.is_blocked
                             peerCallBlocked = responseData.call_blocked
+                            // B_003 — the callee is the peer being viewed: for a female
+                            // creator that's the male, otherwise the female. Grey when
+                            // that party is on DND (covers both call directions).
+                            peerDnd = if (isCurrentUserFemale) responseData.male_dnd else responseData.female_dnd
                             peerAudioStatus = responseData.audio_status
                             peerVideoStatus = responseData.video_status
                             
@@ -5101,10 +5106,12 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun updateCallButtonsState() {
         Log.d("CallButtons", "Updating call buttons state. Blocked: $isCallBlocked, Audio: $peerAudioStatus, Video: $peerVideoStatus")
         
-        // If blocked (is_blocked = true) OR auto-blocked by 3 rejects (call_blocked),
-        // disable both buttons. FEMALE_3_REJECT_BLOCK greys them for the 60-min cooldown.
-        if (isCallBlocked || peerCallBlocked) {
-            Log.d("CallButtons", "User is BLOCKED (is_blocked=$isCallBlocked call_blocked=$peerCallBlocked) - disabling both audio and video buttons")
+        // If blocked (is_blocked = true) OR auto-blocked by 3 rejects (call_blocked)
+        // OR the peer/callee is on DND (B_003), disable both buttons. The DND branch
+        // is checked here (before the audio/video gate) so it also overrides the
+        // female-creator force-enable below — greying the reverse (female→male-on-DND) case.
+        if (isCallBlocked || peerCallBlocked || peerDnd) {
+            Log.d("CallButtons", "Peer unavailable (is_blocked=$isCallBlocked call_blocked=$peerCallBlocked dnd=$peerDnd) - disabling both audio and video buttons")
             mainHandler.post {
                 if (!isUiSafe()) return@post
                 // DISABLED - Gray for both buttons
