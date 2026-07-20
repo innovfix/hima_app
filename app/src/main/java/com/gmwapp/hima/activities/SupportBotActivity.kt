@@ -514,8 +514,16 @@ class SupportBotActivity : BaseActivity() {
     private fun showInput(mode: String?) {
         binding.llTextInput.visibility = if (mode == BotInputMode.TEXT) View.VISIBLE else View.GONE
         binding.llYesno.visibility = if (mode == BotInputMode.YESNO) View.VISIBLE else View.GONE
-        binding.tvViewTicket.visibility =
-            if (mode == BotInputMode.NONE && ticketId != null) View.VISIBLE else View.GONE
+        // The "View ticket #N" button. Always set its label here so it can never
+        // show as an empty pink bar: some escalation paths made it visible
+        // (ticketId set, mode NONE) without the branch that sets its text having
+        // run. Guaranteeing the text whenever it is shown closes that gap.
+        val tid = ticketId ?: 0
+        val showTicket = mode == BotInputMode.NONE && tid > 0
+        binding.tvViewTicket.visibility = if (showTicket) View.VISIBLE else View.GONE
+        if (showTicket) {
+            binding.tvViewTicket.text = getString(R.string.support_bot_view_ticket, tid)
+        }
     }
 
     private fun scrollToEnd() {
