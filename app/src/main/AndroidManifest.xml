@@ -293,7 +293,9 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity android:name=".activities.TicketsListActivity" />
-        <activity android:name=".activities.DeleteAccountActivity" />
+        <activity
+            android:name=".activities.DeleteAccountActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.EditProfileActivity"
             android:windowSoftInputMode="adjustResize" />
         <activity

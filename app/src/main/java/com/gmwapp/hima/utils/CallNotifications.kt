@@ -280,6 +280,39 @@ object CallNotifications {
             .build()
     }
 
+    /**
+     * B_007 — re-post the ongoing CallStyle incoming banner when the callee sends
+     * the ring screen to the background (Home / Recents) without answering or
+     * declining.
+     *
+     * On the foreground+unlocked FCM path the banner is deliberately skipped
+     * (B030): the full-screen accept activity IS the call UI, so a system heads-up
+     * on top of it would be a duplicate. But once the user presses Home, that
+     * activity is backgrounded and NOTHING is left in the tray — the incoming call
+     * becomes unreachable until the app is reopened (the exact B_007 defect). This
+     * posts the same [calls_silent_v1] full-screen banner the background path uses,
+     * so the call shows as a heads-up + persistent tray entry the user can tap to
+     * return to (or Accept/Decline directly).
+     *
+     * The channel is SILENT (`setSound(null,null)`), so this never double-rings
+     * with the in-app MediaPlayer that keeps looping while the ring screen is
+     * alive. Every accept/decline/return/end path already calls
+     * [BaseApplication.cancelIncomingCallStyleNotification] — a channel-wide sweep
+     * that includes [CALLS_NOTIFICATION_CHANNEL_ID] — so this banner is torn down
+     * with no extra wiring.
+     */
+    fun repostIncomingForBackground(context: Context, payload: IncomingPayload) {
+        if (!canPostNotifications(context)) return
+        // Never resurrect a banner for a call that already ended or was busy-rejected.
+        if (BaseApplication.getInstance()?.wasCallRecentlyEnded(payload.callId) == true) return
+        if (BaseApplication.getInstance()?.wasCallBusyRejected(payload.callId) == true) return
+        val notif = runCatching { buildIncomingCallNotification(context, payload) }.getOrNull() ?: return
+        runCatching {
+            NotificationManagerCompat.from(context)
+                .notify(payload.callId.toString(), INCOMING_CALL_NOTIFICATION_ID, notif)
+        }.onFailure { Log.w(TAG, "repostIncomingForBackground failed: ${it.message}") }
+    }
+
     fun showIncoming(context: Context, payload: IncomingPayload) {
         // Guard against stale / duplicate / delayed incoming-call pushes. If this
         // call_id was already ended (creator answered, declined, or the call was torn

@@ -405,6 +405,35 @@ class RecentCallsAdapter(
         notifyDataSetChanged()
     }
 
+    /**
+     * B_017 — replace the list in place with a minimal DiffUtil update instead of
+     * clear()+addData(). The silent post-call refresh (RecentFragment's ~1.5s
+     * deferred re-query) uses this so the list never blanks to empty and refills —
+     * only the rows that actually changed rebind, eliminating the visible flicker.
+     *
+     * Row identity is (peer id + date + started_time): `id` alone is the PEER user
+     * id, not a per-call key (the list is one row per call, so a peer can appear
+     * more than once). An imperfect key at worst causes a few extra rebinds — never
+     * a blank flash — so this is strictly safer than the old clear+refill.
+     */
+    fun setData(newData: List<CallsListResponseData>) {
+        val old = ArrayList(callList)
+        val diff = androidx.recyclerview.widget.DiffUtil.calculateDiff(
+            object : androidx.recyclerview.widget.DiffUtil.Callback() {
+                override fun getOldListSize() = old.size
+                override fun getNewListSize() = newData.size
+                override fun areItemsTheSame(o: Int, n: Int): Boolean {
+                    val a = old[o]; val b = newData[n]
+                    return a.id == b.id && a.date == b.date && a.started_time == b.started_time
+                }
+                override fun areContentsTheSame(o: Int, n: Int): Boolean = old[o] == newData[n]
+            }
+        )
+        callList.clear()
+        callList.addAll(newData)
+        diff.dispatchUpdatesTo(this)
+    }
+
     fun sortByRecent() {
         // Sort by date and started_time (most recent first)
         callList.sortWith(compareByDescending<CallsListResponseData> { 

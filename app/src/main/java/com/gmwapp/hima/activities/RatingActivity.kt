@@ -434,7 +434,38 @@ class RatingActivity : BaseActivity() {
         if (userid != null && callUserId != 0) {
             binding.chipFriend.isClickable = false
             checkAndUpdateFriendChipState(userid, callUserId)
+            // B_024 — pre-fill the Favourite chip so an already-favourited creator
+            // shows "Already Favourite" instead of the default "Add to Favourite"
+            // (mirrors the Already-Friends pre-fill above). Male/User side only.
+            if (isMale) {
+                binding.chipFavourite.isClickable = false
+                checkAndUpdateFavouriteChipState(userid, callUserId)
+            }
         }
+    }
+
+    /** B_024 — queries favourite status and pre-fills the chip's already-favourite state. */
+    private fun checkAndUpdateFavouriteChipState(userId: Int, callUserId: Int) {
+        apiManager.checkFavorite(userId, callUserId, object : NetworkCallback<CheckFavoriteResponse> {
+            override fun onResponse(
+                call: Call<CheckFavoriteResponse>,
+                response: Response<CheckFavoriteResponse>
+            ) {
+                if (response.isSuccessful && response.body()?.success == true &&
+                    response.body()?.is_favorite == true
+                ) {
+                    setFavouriteChipAlreadyFavourited()
+                } else {
+                    binding.chipFavourite.isClickable = true  // re-enable for a normal add
+                }
+            }
+            override fun onFailure(call: Call<CheckFavoriteResponse>, t: Throwable) {
+                binding.chipFavourite.isClickable = true  // re-enable on error so user can still add
+            }
+            override fun onNoNetwork() {
+                binding.chipFavourite.isClickable = true
+            }
+        })
     }
 
     /** Queries the friend-request status and pre-fills the chip accordingly. */
@@ -490,6 +521,20 @@ class RatingActivity : BaseActivity() {
             binding.tvChipFavourite.setTextColor(ContextCompat.getColor(this, R.color.colorAccent))
             binding.tvChipFavourite.text = "♡ Add to Favourite"
         }
+    }
+
+    /**
+     * B_024 — the creator is already in the user's Favourites, so show a settled
+     * "Already Favourite" state (mirrors setFriendChipAlreadyFriends). Sets
+     * isFavouriteSelected so the tap guard blocks a redundant re-add — the label is
+     * informational only, no add_favorite call is made.
+     */
+    private fun setFavouriteChipAlreadyFavourited() {
+        isFavouriteSelected = true   // disable tap
+        binding.chipFavourite.setCardBackgroundColor(ContextCompat.getColor(this, R.color.colorAccent))
+        binding.chipFavourite.strokeWidth = 0
+        binding.tvChipFavourite.setTextColor(ContextCompat.getColor(this, R.color.white))
+        binding.tvChipFavourite.text = "✓ Already Favourite"
     }
 
     /** Instant favourite add from the chip — does NOT close the sheet (unlike addToFavorite). */

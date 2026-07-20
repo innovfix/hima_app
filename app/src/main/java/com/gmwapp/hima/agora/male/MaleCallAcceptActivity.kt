@@ -737,6 +737,46 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    /**
+     * B_007 (male port of FemaleCallAcceptActivity.onUserLeaveHint) — user pressed
+     * Home / Recents while this ring is still unanswered. The foreground+unlocked
+     * FCM path skipped the tray banner (B030), so once this activity is
+     * backgrounded nothing is left in the notification bar and the incoming call is
+     * unreachable until the app is reopened. Re-post the silent CallStyle heads-up
+     * so the call stays reachable — tap to return, or Accept/Decline from the banner.
+     *
+     * Guarded to the pristine ringing state: terminalStarted is set the instant
+     * Accept OR Decline is tapped, so this never re-posts once the user has acted;
+     * peerEndedHandled covers a peer-cancel. Auto-cancelled on return by onResume
+     * and by every teardown path's cancelIncomingCallStyleNotification sweep.
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (terminalStarted || peerEndedHandled || isFinishing || isDestroyed) return
+        if (call_Id <= 0) return
+        if (BaseApplication.getInstance()?.isIncomingCall() != true) return
+        Log.d("HimaIncomingCall", "MaleAccept.onUserLeaveHint -> re-posting ring banner callId=$call_Id (B_007)")
+        com.gmwapp.hima.utils.CallNotifications.repostIncomingForBackground(
+            this,
+            com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
+                isMale = true,
+                callType = callType,
+                senderId = receiverId,
+                callId = call_Id,
+                channelName = channelName.orEmpty(),
+                callerName = callerName,
+                callerImage = callerImage,
+            )
+        )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // B_007: back in the foreground, this activity owns the call presentation
+        // again — clear any tray banner re-posted by onUserLeaveHint. Idempotent.
+        BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         // FORCE_CLOSE_REJECT parity (male port of FemaleCallAcceptActivity:877) —

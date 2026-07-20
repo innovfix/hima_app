@@ -61,11 +61,17 @@
                 app:civ_border_color="#FFE5F1" />
 
             <LinearLayout
+                android:id="@+id/ll_header_identity"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical"
-                android:layout_marginStart="12dp">
+                android:layout_marginStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground">
 
                 <TextView
                     android:id="@+id/tv_user_name"

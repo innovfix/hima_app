@@ -364,6 +364,17 @@ class RecentFragment : BaseFragment(), Refreshable {
             ) {}
             override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
         })
+        // B_039 — the RecyclerView listener above only sees touches while the list is
+        // shown; on an empty tab rv_calls is GONE and the "No Data Found" state is up,
+        // so swipes over that area were never detected → you couldn't swipe into OR
+        // out of an empty tab. Feed the SAME detector from swipeRefreshLayout, which is
+        // match_parent and always present; when rv_calls is GONE its touches (and the
+        // non-consuming empty-state view's) fall through to it. Returns false so
+        // pull-to-refresh and normal list touches are never affected.
+        binding.swipeRefreshLayout.setOnTouchListener { _, e ->
+            detector.onTouchEvent(e)
+            false
+        }
     }
 
     /** Move to the pill `dir` steps away (no wrap-around) and reveal it. */
@@ -436,14 +447,21 @@ class RecentFragment : BaseFragment(), Refreshable {
         val grey = ContextCompat.getColor(requireContext(), R.color.grey_medium)
         items.forEach { (card, tv, sort) ->
             val inner = card.getChildAt(0)
+            // B_029 — the pill icon is the first child of the inner row. Its tint was
+            // never updated on selection, so it stayed grey_medium against the dark
+            // purple-pink gradient and was hard to see. Flip it white when selected
+            // (matching the text) and back to grey when not, for clear contrast.
+            val icon = (inner as? android.view.ViewGroup)?.getChildAt(0) as? android.widget.ImageView
             if (sort == selected) {
                 inner.setBackgroundResource(R.drawable.bg_chip_gradient)
                 card.strokeWidth = 0
                 tv.setTextColor(android.graphics.Color.WHITE)
+                icon?.setColorFilter(android.graphics.Color.WHITE)
             } else {
                 inner.setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 card.strokeWidth = (1.2f * density).toInt()
                 tv.setTextColor(grey)
+                icon?.setColorFilter(grey)
             }
         }
         // Keep the Missed badge text/colour in sync with the selection.

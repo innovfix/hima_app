@@ -1656,10 +1656,14 @@ class ChatActivityInHouse : AppCompatActivity() {
             showOptionsMenu()
         }
 
-        // Profile icon click - open UserProfileDetailActivity
-        ivUser.setOnClickListener {
-            openUserProfile()
-        }
+        // B_016 — open the profile from the whole header identity area (avatar +
+        // name + status), not just a precise tap on the small avatar. The name text
+        // used to have no click handler at all, and the avatar's hit target was tiny
+        // (QA: ~4-5 taps needed). The identity column spans the full width between
+        // the avatar and the call buttons, giving a comfortable single-tap target.
+        val openProfile = View.OnClickListener { openUserProfile() }
+        ivUser.setOnClickListener(openProfile)
+        findViewById<View>(R.id.ll_header_identity)?.setOnClickListener(openProfile)
     }
 
     private fun setupComposer() {

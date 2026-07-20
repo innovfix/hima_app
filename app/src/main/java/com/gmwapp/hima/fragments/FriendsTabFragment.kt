@@ -856,13 +856,23 @@ class FriendsTabFragment : Fragment() {
         val clearedUpto = if (ctx != null && myId > 0)
             com.gmwapp.hima.utils.ClearedChatsPrefsHelper.getClearedUpto(ctx, myId, u.id) else 0L
         val isCleared = clearedUpto > 0L && (lastMessageTime?.toDate()?.time ?: 0L) <= clearedUpto
+        // B_028 — if the thread's last message was "deleted for me" (device-local
+        // hide, never sent to the server), the my_chat API still returns it as the
+        // last message, so blank the preview here too. Ids match: the chat screen
+        // stores ChatMessage.id = apiMsg.id.toString(), same id space as LastMessage.id.
+        // Self-healing: a newer message changes lastMessage.id, which won't be in the
+        // deleted set, so the preview restores automatically.
+        val lastMsgId = lastMessage?.id?.toString().orEmpty()
+        val isLastLocallyDeleted = ctx != null && myId > 0 && lastMsgId.isNotEmpty() &&
+            com.gmwapp.hima.utils.LocallyDeletedMessagesStore.isLocallyDeleted(ctx, myId, u.id, lastMsgId)
+        val hideLastPreview = isCleared || isLastLocallyDeleted
         return ChatConversation(
             threadId = chatItem.chatId,
             userId = u.id.toString(),
             userName = u.name,
             userImage = u.image ?: "",
-            lastMessage = if (isCleared) "" else lastMessage?.message ?: "",
-            lastMessageType = if (isCleared) "text" else lastMessage?.messageType ?: "text",
+            lastMessage = if (hideLastPreview) "" else lastMessage?.message ?: "",
+            lastMessageType = if (hideLastPreview) "text" else lastMessage?.messageType ?: "text",
             lastMessageTime = lastMessageTime,
             unreadCount = if (isCleared) 0 else chatItem.unreadCount,
             // B097 — green dot now requires recent activity AND at least one

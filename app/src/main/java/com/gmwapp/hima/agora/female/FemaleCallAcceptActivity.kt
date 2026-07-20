@@ -862,6 +862,50 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    /**
+     * B_007 — the user pressed Home / Recents while this ring is still unanswered.
+     * The foreground+unlocked FCM path deliberately skipped the tray banner (B030),
+     * so once this activity is backgrounded there is NOTHING left in the
+     * notification bar and the incoming call is unreachable until the app is
+     * reopened. Re-post the silent CallStyle heads-up so the call stays reachable —
+     * the user can tap it to return, or Accept/Decline straight from the banner.
+     *
+     * Guarded to the pristine ringing state: callButtonsLocked is set by BOTH the
+     * Accept and Decline taps, so this never fires once the user has acted;
+     * acceptInFlight / acceptLaunchHandled / peerEndedHandled are belt-and-braces so
+     * launching the call screen or a peer-end never re-posts a stale banner. The
+     * re-post is auto-cancelled on return by onResume (and by every teardown path's
+     * cancelIncomingCallStyleNotification sweep).
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (callButtonsLocked || acceptInFlight || acceptLaunchHandled ||
+            peerEndedHandled || isFinishing || isDestroyed) return
+        if (call_Id <= 0) return
+        if (BaseApplication.getInstance()?.isIncomingCall() != true) return
+        Log.d("HimaIncomingCall", "FemaleAccept.onUserLeaveHint -> re-posting ring banner callId=$call_Id (B_007)")
+        com.gmwapp.hima.utils.CallNotifications.repostIncomingForBackground(
+            this,
+            com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
+                isMale = false,
+                callType = callType,
+                senderId = receiverId,
+                callId = call_Id,
+                channelName = channelName.orEmpty(),
+                callerName = callerName,
+                callerImage = callerImage,
+            )
+        )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // B_007: back in the foreground, this activity owns the call presentation
+        // again — clear any tray banner re-posted by onUserLeaveHint (mirrors the
+        // onCreate cancel on first launch). Idempotent; a no-op when no banner is up.
+        BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         // C-04/B6: drop any pending "Connecting…" hint so it can't fire post-teardown.
