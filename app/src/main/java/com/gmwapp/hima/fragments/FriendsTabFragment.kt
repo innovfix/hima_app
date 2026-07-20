@@ -351,9 +351,16 @@ class FriendsTabFragment : Fragment() {
                     friendsList.add(friendData.toFriendData())
                     requestIdMap[friendData.friend_data.id] = friendData.request_id
                 }
-                
-                // Check chat history for Friends tab
+
+                // QA bug #8 — sink blocked friends to the bottom, mirroring the chat
+                // list. FINAL stable partition over the server order: normal rows keep
+                // their exact position, blocked rows (either direction) move to the end
+                // preserving their relative order. With an un-upgraded backend every
+                // flag is false, so this is a no-op and ordering is unchanged. Applied
+                // before checkChatHistoryForFriends() so its per-row notifyItemChanged
+                // indices resolve against the final positions.
                 if (tabType == TYPE_FRIENDS) {
+                    sinkBlockedFriendsToBottom()
                     checkChatHistoryForFriends()
                 }
             }
@@ -1153,6 +1160,21 @@ class FriendsTabFragment : Fragment() {
      * Check if chat history exists for each friend in the Friends tab
      * This checks if a Firestore chat thread document exists (lightweight check)
      */
+    /**
+     * QA bug #8 — reorder [friendsList] in place so blocked friends (either I blocked
+     * them, or they blocked me) sit at the very bottom, matching the chat-list behavior.
+     * Stable partition: the server's ordering is preserved within each group, so this is
+     * a pure no-op when nothing is blocked (or when the backend hasn't started returning
+     * the block flags yet).
+     */
+    private fun sinkBlockedFriendsToBottom() {
+        val (blocked, normal) = friendsList.partition { it.isBlocked || it.peerBlockedMe }
+        if (blocked.isEmpty()) return
+        friendsList.clear()
+        friendsList.addAll(normal)
+        friendsList.addAll(blocked)
+    }
+
     private fun checkChatHistoryForFriends() {
         if (friendsList.isEmpty()) return
         

@@ -1,5 +1,7 @@
 package com.gmwapp.hima.retrofit.responses
 
+import com.google.gson.annotations.SerializedName
+
 data class FriendRequestResponse(
     val success: Boolean,
     val message: String,
@@ -44,7 +46,15 @@ data class FriendUserData(
     val voice: String,
     val status: Int,
     val balance: Int,
-    val online_status: String
+    val online_status: String,
+    // QA bug #8 — block state so the Friends screen can sink blocked friends to the
+    // bottom, mirroring the chat list. Same serialized names the chat-list endpoint
+    // (MyChatResponse.ChatItem) already returns. Nullable + default false: if the
+    // backend hasn't been updated yet, these stay false and ordering is unchanged.
+    @SerializedName("i_have_blocked_this_user")
+    val iHaveBlockedThisUser: Boolean? = false,
+    @SerializedName("peer_blocked_me")
+    val peerBlockedMe: Boolean? = false
 )
 
 fun FriendListData.toFriendData(): FriendData {
@@ -57,7 +67,9 @@ fun FriendListData.toFriendData(): FriendData {
         audio_status = 0,
         video_status = 0,
         is_online = this.friend_data.online_status.isNotEmpty(),
-        last_seen = this.friends_since
+        last_seen = this.friends_since,
+        isBlocked = this.friend_data.iHaveBlockedThisUser == true,
+        peerBlockedMe = this.friend_data.peerBlockedMe == true
     )
 }
 
@@ -71,7 +83,11 @@ data class FriendData(
     val video_status: Int,
     val is_online: Boolean,
     val last_seen: String?,
-    var hasChatHistory: Boolean = false  // Track if chat exists with this friend
+    var hasChatHistory: Boolean = false,  // Track if chat exists with this friend
+    // QA bug #8 — sink blocked friends to the bottom of the Friends screen. Default
+    // false so an un-upgraded backend (no block fields) leaves ordering untouched.
+    val isBlocked: Boolean = false,
+    val peerBlockedMe: Boolean = false
 )
 
 // Response for checking friend status
