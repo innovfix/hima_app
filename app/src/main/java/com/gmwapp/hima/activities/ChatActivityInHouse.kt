@@ -4907,6 +4907,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                             applyComposerGate()
                             showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User blocked successfully")
+                            // B_014 — grey the header call buttons immediately (they used
+                            // to stay enabled until the chat was exited and reopened).
+                            // Blocking always disables calling, so no refetch is needed.
+                            isCallBlocked = true
+                            updateCallButtonsState()
                             // Reload chat history to update blocked status
                             loadMessages()
                         } else {
@@ -4950,6 +4955,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                             applyComposerGate()
                             showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User unblocked successfully")
+                            // B_014 — re-evaluate the header call buttons right away. Can't
+                            // just re-enable: the peer may still be blocking me (or on DND),
+                            // so refetch the authoritative availability instead of assuming.
+                            checkCallAvailability()
                             // Reload chat history to update blocked status
                             loadMessages()
                         } else {
