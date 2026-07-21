@@ -196,6 +196,13 @@ class SupportBotActivity : BaseActivity() {
     private var csatSheet: BottomSheetDialog? = null
 
     /**
+     * True while a request is in flight. Blocks a second send — a typed message
+     * followed by a Skip tap (chips were left enabled) fired two requests at
+     * once and wedged the typing dots forever. Reset by loadingLiveData.
+     */
+    private var busy = false
+
+    /**
      * CSAT as a bottom-sheet popup (not an inline chat row). Shown once, after
      * the user confirmed the issue was resolved.
      */
@@ -407,6 +414,7 @@ class SupportBotActivity : BaseActivity() {
         }
 
         viewModel.loadingLiveData.observe(this) { loading ->
+            busy = loading
             if (loading) adapter.showTyping() else adapter.hideTyping()
             scrollToEnd()
         }
@@ -447,6 +455,9 @@ class SupportBotActivity : BaseActivity() {
     }
 
     private fun onChipTapped(chip: BotChip) {
+        // A request is already running — ignore taps (incl. Skip) until it lands,
+        // so we never fire two overlapping requests and wedge the typing dots.
+        if (busy) return
         when (chip.key) {
             "__attach" -> {
                 // Wildcard: image, video or audio in one picker.
@@ -491,9 +502,13 @@ class SupportBotActivity : BaseActivity() {
 
     private fun sendTyped() {
         val text = binding.etMessage.text.toString().trim()
-        if (text.isEmpty()) return
+        if (busy || text.isEmpty()) return
+        busy = true
         binding.etMessage.setText("")
         adapter.addMessage(AiChatMessage(text, isUser = true))
+        // Disable the chips (the Skip button) the moment they type — leaving it
+        // live let a Skip tap fire a second request and freeze the typing dots.
+        adapter.setChipsEnabled(false)
         scrollToEnd()
         lastAction = BotAction(userMessage = text)
         viewModel.reply(sessionId, userMessage = text)
