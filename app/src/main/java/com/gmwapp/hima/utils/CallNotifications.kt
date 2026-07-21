@@ -71,6 +71,34 @@ object CallNotifications {
     const val INCOMING_CALL_NOTIFICATION_ID = 1
 
     /**
+     * DUP_RING_STACK_2026_07_21 — the incoming-call banner is identified in the
+     * tray by the (tag, id) PAIR. The id is fixed ([INCOMING_CALL_NOTIFICATION_ID]),
+     * so the TAG decides whether a fresh ring REPLACES the previous banner or STACKS
+     * a new one beside it.
+     *
+     * It used to be tagged by callId — unique for every attempt — so when a receiver
+     * force-killed the app during a ring, the dying call's banner was orphaned in the
+     * tray (the in-process teardown sweep never ran) and the caller's NEXT attempt
+     * (new callId → new tag) posted a SECOND banner instead of overwriting the first.
+     * Repeat kill→recall and 3-4 identical "X is calling" banners piled up.
+     *
+     * Tagging by SENDER (caller) fixes it: one person can't ring you twice at the same
+     * instant, so every re-ring from the same caller shares this tag and Android
+     * overwrites the previous banner — at the OS level, so it works even across the
+     * receiver's process death (no in-memory dedup state needed). Two DIFFERENT
+     * callers still get distinct tags → distinct banners (unchanged, correct).
+     *
+     * MUST stay in lockstep with the cancel side in
+     * [BaseApplication.setIncomingCall] / `lastIncomingCallNotifTag`, which targets the
+     * banner by this same per-caller tag. (This is deliberately SEPARATE from
+     * `lastIncomingCallTag`, which stays per-call because the accept-screen stale-launch
+     * guards compare it against their own call_Id. The channel-wide sweep in
+     * [BaseApplication.cancelAllIncomingCallNotifications] is tag-agnostic and remains
+     * the safety net on every teardown.)
+     */
+    fun incomingCallTag(senderId: Int): String = senderId.toString()
+
+    /**
      * Missed-call notification re-uses the chat channel + group so it renders
      * inside the WhatsApp-style "Conversations" section on Android 11+ next
      * to actual chat messages from the same peer.
@@ -309,7 +337,7 @@ object CallNotifications {
         val notif = runCatching { buildIncomingCallNotification(context, payload) }.getOrNull() ?: return
         runCatching {
             NotificationManagerCompat.from(context)
-                .notify(payload.callId.toString(), INCOMING_CALL_NOTIFICATION_ID, notif)
+                .notify(incomingCallTag(payload.senderId), INCOMING_CALL_NOTIFICATION_ID, notif)
         }.onFailure { Log.w(TAG, "repostIncomingForBackground failed: ${it.message}") }
     }
 
@@ -443,7 +471,9 @@ object CallNotifications {
                 .build()
         }
 
-        val notifTag = callId.toString()
+        // DUP_RING_STACK_2026_07_21 — tag by CALLER, not callId, so repeat rings from
+        // the same caller overwrite one banner instead of stacking (see [incomingCallTag]).
+        val notifTag = incomingCallTag(senderId)
         try {
             Log.d(
                 TAG,
@@ -466,7 +496,9 @@ object CallNotifications {
                 .apply(RequestOptions.circleCropTransform())
                 .into(object : CustomTarget<Bitmap>() {
                     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        val currentTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
+                        // DUP_RING_STACK_2026_07_21 — notifTag is now the per-caller tray
+                        // tag, so compare against the notif tag, not the per-call identity.
+                        val currentTag = BaseApplication.getInstance()?.getLastIncomingCallNotifTag()
                         if (currentTag != notifTag) {
                             Log.d(TAG, "avatar refresh skipped: call $notifTag no longer pending (current=$currentTag)")
                             return

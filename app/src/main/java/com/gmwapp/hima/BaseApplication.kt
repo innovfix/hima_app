@@ -2529,9 +2529,24 @@ class BaseApplication : Application(), Configuration.Provider {
     @Volatile
     private var incomingCallSetAt: Long = 0L
 
-    /** Notification tag for the current CallStyle incoming notification (matches [callId]). */
+    /**
+     * CALL IDENTITY of the current ring (= callId). The accept-screen stale-launch /
+     * abandon guards compare this against their own call_Id to detect whether a NEWER
+     * call has superseded theirs, so it MUST remain per-call. Do NOT reuse it as the
+     * notification tray tag — see [lastIncomingCallNotifTag].
+     */
     @Volatile
     private var lastIncomingCallTag: String? = null
+
+    /**
+     * DUP_RING_STACK_2026_07_21 — TRAY TAG of the current incoming banner (= senderId,
+     * via [CallNotifications.incomingCallTag]). Separate from [lastIncomingCallTag] on
+     * purpose: the banner is tagged by CALLER so repeat rings from the same caller
+     * OVERWRITE one banner instead of stacking, while the call-identity guards above
+     * still need per-call granularity. Used to target the banner for cancel/refresh.
+     */
+    @Volatile
+    private var lastIncomingCallNotifTag: String? = null
 
     /**
      * True while the user is inside an Agora audio/video call (any of the four
@@ -2575,17 +2590,22 @@ class BaseApplication : Application(), Configuration.Provider {
         this.callIdForSplashActivity = callId
         this.incomingCall = true
         this.incomingCallSetAt = System.currentTimeMillis()
+        // Call IDENTITY (per-call) — the accept-screen guards compare this to call_Id.
         this.lastIncomingCallTag = callId.toString()
+        // DUP_RING_STACK_2026_07_21 — tray banner TAG is per-CALLER so repeat rings from
+        // the same caller overwrite one banner instead of stacking. Matches the post tag
+        // in CallNotifications.incomingCallTag().
+        this.lastIncomingCallNotifTag = senderId.toString()
         // FCM is the primary call path (it owns the ringtone + foreground service). Claim
         // this call so the OneSignal handler defers and won't post a duplicate banner.
         markCallOwnedByFcm(senderId)
         // If OneSignal's banner already beat FCM to the tray, remove ONLY it. Its
-        // notification is (tag=callId, id=INCOMING_CALL_NOTIFICATION_ID); FcmCallService's
+        // notification is (tag=senderId, id=INCOMING_CALL_NOTIFICATION_ID); FcmCallService's
         // foreground ring notification is (tag=null, id=INCOMING_CALL_NOTIFICATION_ID), so
         // cancelling by this tag never touches the ring/foreground banner.
         runCatching {
             (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
-                ?.cancel(callId.toString(), INCOMING_CALL_NOTIFICATION_ID)
+                ?.cancel(senderId.toString(), INCOMING_CALL_NOTIFICATION_ID)
         }
     }
 
@@ -2628,7 +2648,11 @@ class BaseApplication : Application(), Configuration.Provider {
         this.callIdForSplashActivity = callId
         this.incomingCall = true
         this.incomingCallSetAt = System.currentTimeMillis()
+        // Call IDENTITY (per-call) for the accept-screen guards …
         this.lastIncomingCallTag = callId.toString()
+        // … and the per-CALLER tray tag (DUP_RING_STACK_2026_07_21), matching
+        // CallNotifications.incomingCallTag() and the FCM path above.
+        this.lastIncomingCallNotifTag = senderId.toString()
     }
 
     // ── C-10 accept/decline race guard ───────────────────────────────────────
@@ -2675,6 +2699,9 @@ class BaseApplication : Application(), Configuration.Provider {
 
     fun getLastIncomingCallTag(): String? = lastIncomingCallTag
 
+    /** DUP_RING_STACK_2026_07_21 — per-caller tray tag of the current incoming banner. */
+    fun getLastIncomingCallNotifTag(): String? = lastIncomingCallNotifTag
+
     /**
      * Cancels the CallStyle incoming notification using [lastIncomingCallTag] when set,
      * otherwise legacy `cancel(1)`.
@@ -2701,8 +2728,11 @@ class BaseApplication : Application(), Configuration.Provider {
     fun cancelAllIncomingCallNotifications() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         // Always wipe the legacy CallStyle id + any tagged variant we know about.
+        // DUP_RING_STACK_2026_07_21 — the banner is now posted under the per-caller
+        // tray tag ([lastIncomingCallNotifTag]); cancel THAT. Fall back to the legacy
+        // per-call tag for safety. Either way the channel sweep below is the backstop.
         runCatching {
-            val tag = lastIncomingCallTag
+            val tag = lastIncomingCallNotifTag ?: lastIncomingCallTag
             if (tag != null) nm.cancel(tag, INCOMING_CALL_NOTIFICATION_ID)
             nm.cancel(INCOMING_CALL_NOTIFICATION_ID)
         }
@@ -2751,6 +2781,7 @@ class BaseApplication : Application(), Configuration.Provider {
         this.incomingCall = false
         this.incomingCallSetAt = 0L
         this.lastIncomingCallTag = null
+        this.lastIncomingCallNotifTag = null
         this.incomingCallerName = null
         this.incomingCallerImage = null
         // The incoming-call ring banner is FcmCallService's FOREGROUND notification.
