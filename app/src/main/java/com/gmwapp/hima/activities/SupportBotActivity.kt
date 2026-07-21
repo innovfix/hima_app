@@ -57,14 +57,27 @@ class SupportBotActivity : BaseActivity() {
     /** Matches the server's 5MB ceiling — checked here so we never copy 200MB to be told no. */
     private val MAX_ATTACHMENT_BYTES = 5L * 1024 * 1024
 
+    /** Matches the server's per-ticket cap (support_bot_attach: >= 3 -> too_many). */
+    private val MAX_ATTACHMENTS = 3
+
     /**
-     * Spec #8. GetContent() with a wildcard so a screenshot, a screen recording
-     * or a voice note all work from one picker — same contract
-     * SubmitTicketActivity already uses, so no new permissions.
+     * Spec #8. GetMultipleContents() with a wildcard so a screenshot, a screen
+     * recording or several files can be picked AT ONCE from one picker (QA
+     * HS_002: single-select was one-file-at-a-time). Same contract family
+     * SubmitTicketActivity uses, so no new permissions.
      */
     private val pickAttachment = registerForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? -> uri?.let { uploadAttachment(it) } }
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> -> if (uris.isNotEmpty()) uploadAttachments(uris) }
+
+    // Uploads are serialised by the ViewModel (attachInFlight), and the server
+    // appends each to the ticket, so a multi-pick is uploaded ONE AT A TIME off
+    // this queue. A single "Added" confirmation is shown at the end, not one per
+    // file (QA HS_003).
+    private val uploadQueue: ArrayDeque<Uri> = ArrayDeque()
+    private var uploadsActive = false
+    private var anyUploadSucceeded = false
+    private var uploadConfirmMsg: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -258,8 +271,39 @@ class SupportBotActivity : BaseActivity() {
      * does not — so the file is never deleted mid-upload. We just hand it the
      * uri and observe the outcome.
      */
-    private fun uploadAttachment(uri: Uri) {
+    private fun uploadAttachments(uris: List<Uri>) {
+        uploadQueue.clear()
+        uris.take(MAX_ATTACHMENTS).forEach { uploadQueue.addLast(it) }
+        if (uploadQueue.isEmpty()) return
+        if (uris.size > MAX_ATTACHMENTS) {
+            showAppToast(getString(R.string.support_bot_attach_too_many), Toast.LENGTH_SHORT)
+        }
+        uploadsActive = true
+        anyUploadSucceeded = false
+        uploadConfirmMsg = null
+        startNextUpload()
+    }
+
+    /** Kick off the next queued upload. Uploads stay serial: continueUploads()
+     *  starts the next one only after the current has settled. */
+    private fun startNextUpload() {
+        val uri = uploadQueue.removeFirstOrNull() ?: return
         viewModel.uploadAttachment(applicationContext, uri, sessionId, MAX_ATTACHMENT_BYTES)
+    }
+
+    /** After each upload settles (success or failure): start the next queued
+     *  file, or — when the whole batch is done — show ONE "Added" confirmation. */
+    private fun continueUploads() {
+        if (!uploadsActive) return
+        if (uploadQueue.isNotEmpty()) {
+            startNextUpload()
+            return
+        }
+        uploadsActive = false
+        if (anyUploadSucceeded) {
+            botSays(uploadConfirmMsg, null)
+            anyUploadSucceeded = false
+        }
     }
 
     /** The last thing the user actually did, so "Try again" replays IT. */
@@ -384,7 +428,13 @@ class SupportBotActivity : BaseActivity() {
         // flag now). A server-side reject (too_many, etc.) still comes back as
         // success=false in the body.
         viewModel.attachLiveData.observe(this) { r ->
-            if (!r.success) {
+            if (r.success) {
+                // Record success + keep the confirmation text, but do NOT post it
+                // per file — one "Added" is shown when the whole batch finishes
+                // (QA HS_003).
+                anyUploadSucceeded = true
+                uploadConfirmMsg = r.ai_message
+            } else {
                 showAppToast(
                     when (r.code) {
                         "too_large" -> getString(R.string.support_bot_attach_too_big)
@@ -394,9 +444,10 @@ class SupportBotActivity : BaseActivity() {
                     },
                     Toast.LENGTH_LONG
                 )
-                return@observe
             }
-            botSays(r.ai_message, null)
+            // Continue the batch AFTER this frame, once the ViewModel's cleanup
+            // has reset attachInFlight (it resets it right after emitting here).
+            binding.rvChat.post { continueUploads() }
         }
 
         // Client-side validation / network failure for an attachment. Distinct
@@ -411,6 +462,9 @@ class SupportBotActivity : BaseActivity() {
                 else -> getString(R.string.support_bot_error)
             }
             showAppToast(msg, Toast.LENGTH_LONG)
+            // A client-side reject (too_big/bad_type) skips the upload entirely
+            // and never flips attachInFlight, so continue the batch from here too.
+            binding.rvChat.post { continueUploads() }
         }
 
         viewModel.loadingLiveData.observe(this) { loading ->
