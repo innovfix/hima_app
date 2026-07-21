@@ -37,11 +37,13 @@ data class TicketDataResponse(
     val user_id: Int,
     val message: String,
     val screenshot: String? = null, // Legacy single screenshot field
-    val screenshots: List<String>? = null, // New multiple screenshots array
+    val screenshots: List<String>? = null, // New multiple screenshots array (user's own)
     val reply: String? = null, // Can be null if no reply yet
-    val reply_images: List<String>? = null, // Support/admin's reply attachments (shown to the user)
+    val reply_images: List<String>? = null, // Support/admin's reply attachments
+    val category: String? = null, // topic, for the detail page header
+    val sub_category: String? = null,
     val status: Int, // 0 = active/pending, 1 = resolved
     val created_at: String,
     val updated_at: String
-)
+) : java.io.Serializable
 

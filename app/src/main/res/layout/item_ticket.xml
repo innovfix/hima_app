@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/card_ticket"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
     app:cardBackgroundColor="@android:color/white"
     app:cardCornerRadius="12dp"
-    app:cardElevation="2dp">
+    app:cardElevation="2dp"
+    app:rippleColor="#22E91E63">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -57,89 +62,49 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Message Title -->
+        <!-- Message preview (max 2 lines) -->
         <TextView
             android:id="@+id/tv_message"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text=""
             android:textColor="#212121"
-            android:textSize="15sp"
-            android:fontFamily="@font/poppins_semibold"
+            android:textSize="14.5sp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:lineSpacingExtra="2dp"
+            android:fontFamily="@font/poppins_medium"
             android:layout_marginTop="12dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/tv_status_badge" />
 
-        <!-- Reply Section (Visible only if reply exists) -->
-        <LinearLayout
-            android:id="@+id/ll_reply_section"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginTop="12dp"
-            android:padding="12dp"
-            android:background="@drawable/rounded_background"
-            android:backgroundTint="#F5F5F5"
-            android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tv_message">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Reply from Support"
-                android:textColor="#1976D2"
-                android:textSize="12sp"
-                android:fontFamily="@font/poppins_semibold" />
-
-            <TextView
-                android:id="@+id/tv_reply"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Your issue has been resolved"
-                android:textColor="#424242"
-                android:textSize="13sp"
-                android:fontFamily="@font/poppins_regular"
-                android:layout_marginTop="4dp" />
-
-        </LinearLayout>
-
-        <!-- Screenshots Label (Visible only if screenshots exist) -->
-        <LinearLayout
-            android:id="@+id/ll_screenshots"
+        <!-- Footer: reply status hint (left) + tap-to-open (right) -->
+        <TextView
+            android:id="@+id/tv_reply_hint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
-            android:visibility="gone"
-            android:clickable="true"
-            android:focusable="true"
-            android:padding="4dp"
+            android:layout_marginTop="12dp"
+            android:text="Awaiting reply"
+            android:textColor="#9E9E9E"
+            android:textSize="12sp"
+            android:fontFamily="@font/poppins_medium"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/ll_reply_section">
+            app:layout_constraintTop_toBottomOf="@+id/tv_message"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_paperclip"
-                app:tint="#E91E63" />
-
-            <TextView
-                android:id="@+id/tv_screenshots_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="2 attachments"
-                android:textColor="#E91E63"
-                android:textSize="12sp"
-                android:fontFamily="@font/poppins_medium"
-                android:layout_marginStart="4dp" />
-
-        </LinearLayout>
+        <TextView
+            android:id="@+id/tv_view_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="View details ›"
+            android:textColor="#E91E63"
+            android:textSize="12sp"
+            android:fontFamily="@font/poppins_semibold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/tv_reply_hint"
+            app:layout_constraintBottom_toBottomOf="@+id/tv_reply_hint" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>
-

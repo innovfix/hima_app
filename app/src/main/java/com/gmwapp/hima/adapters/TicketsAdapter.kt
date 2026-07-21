@@ -1,7 +1,6 @@
 package com.gmwapp.hima.adapters
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.databinding.ItemTicketBinding
@@ -12,7 +11,7 @@ import java.util.Locale
 
 class TicketsAdapter(
     private val tickets: MutableList<TicketDataResponse>,
-    private val onAttachmentClick: (List<String>) -> Unit
+    private val onTicketClick: (TicketDataResponse) -> Unit
 ) : RecyclerView.Adapter<TicketsAdapter.TicketViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TicketViewHolder {
@@ -36,7 +35,7 @@ class TicketsAdapter(
         fun bind(ticket: TicketDataResponse) {
             // Ticket ID
             binding.tvTicketId.text = "#${ticket.id}"
-            
+
             // Status badge
             if (ticket.status == 0) {
                 binding.tvStatusBadge.text = "Active"
@@ -49,11 +48,11 @@ class TicketsAdapter(
                     android.graphics.Color.parseColor("#4CAF50") // Green for resolved
                 )
             }
-            
-            // Message - unescape common escape sequences
+
+            // Message preview (layout caps it at 2 lines + ellipsis)
             val messageText = ticket.message ?: ""
             binding.tvMessage.text = messageText.unescapeHelpContent()
-            
+
             // Created date - format from "2025-11-05 12:11:14" to "5 Nov 2025"
             try {
                 val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -63,40 +62,19 @@ class TicketsAdapter(
             } catch (e: Exception) {
                 binding.tvCreatedDate.text = ticket.created_at
             }
-            
-            // Reply section - unescape common escape sequences
-            val replyText = ticket.reply ?: ""
-            if (replyText.isNotEmpty()) {
-                binding.llReplySection.visibility = View.VISIBLE
-                binding.tvReply.text = replyText.unescapeHelpContent()
-            } else {
-                binding.llReplySection.visibility = View.GONE
-            }
-            
-            // Attachments shown here are the SUPPORT team's reply attachments
-            // (reply_images), NOT the user's own screenshots — the user already
-            // knows what they sent; what's useful to them is what support sent
-            // back. Anything support attaches while resolving shows up here.
-            val attachmentUrls = ticket.reply_images ?: emptyList()
 
-            if (attachmentUrls.isNotEmpty()) {
-                binding.llScreenshots.visibility = View.VISIBLE
-                val attachmentText = if (attachmentUrls.size == 1) {
-                    "1 attachment"
-                } else {
-                    "${attachmentUrls.size} attachments"
-                }
-                binding.tvScreenshotsCount.text = attachmentText
-
-                // Make clickable to view attachments
-                binding.llScreenshots.setOnClickListener {
-                    onAttachmentClick(attachmentUrls)
-                }
-                binding.llScreenshots.isClickable = true
+            // Reply-status hint — the full reply + attachments live on the detail page.
+            val hasReply = !ticket.reply.isNullOrBlank()
+            if (hasReply) {
+                binding.tvReplyHint.text = "✓ Support replied"
+                binding.tvReplyHint.setTextColor(android.graphics.Color.parseColor("#4CAF50"))
             } else {
-                binding.llScreenshots.visibility = View.GONE
+                binding.tvReplyHint.text = "Awaiting reply"
+                binding.tvReplyHint.setTextColor(android.graphics.Color.parseColor("#9E9E9E"))
             }
+
+            // Whole card opens the detail page.
+            binding.root.setOnClickListener { onTicketClick(ticket) }
         }
     }
 }
-

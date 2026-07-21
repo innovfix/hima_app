@@ -58,50 +58,14 @@ class TicketsTabFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        ticketsAdapter = TicketsAdapter(ticketsList) { screenshotUrls ->
-            // Open attachment viewer
-            showAttachmentViewer(screenshotUrls)
+        ticketsAdapter = TicketsAdapter(ticketsList) { ticket ->
+            // Open the full ticket detail page (user issue + reply, both attachments)
+            val intent = android.content.Intent(requireContext(), com.gmwapp.hima.activities.TicketDetailActivity::class.java)
+            intent.putExtra(com.gmwapp.hima.activities.TicketDetailActivity.EXTRA_TICKET, ticket)
+            startActivity(intent)
         }
         binding.rvTickets.layoutManager = LinearLayoutManager(context)
         binding.rvTickets.adapter = ticketsAdapter
-    }
-    
-    private fun showAttachmentViewer(screenshotUrls: List<String>) {
-        val dialog = android.app.Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-        dialog.setContentView(com.gmwapp.hima.R.layout.dialog_attachments_viewer)
-        dialog.window?.setLayout(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        )
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        
-        val viewPager = dialog.findViewById<ViewPager2>(com.gmwapp.hima.R.id.view_pager_attachments)
-        val btnClose = dialog.findViewById<android.widget.ImageView>(com.gmwapp.hima.R.id.btn_close)
-        val tvImageCount = dialog.findViewById<android.widget.TextView>(com.gmwapp.hima.R.id.tv_image_count)
-        
-        if (viewPager != null && btnClose != null && tvImageCount != null) {
-            val adapter = com.gmwapp.hima.adapters.AttachmentViewPagerAdapter(screenshotUrls)
-            viewPager.adapter = adapter
-            
-            tvImageCount.text = "1 / ${screenshotUrls.size}"
-            
-            viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-                override fun onPageSelected(position: Int) {
-                    super.onPageSelected(position)
-                    tvImageCount.text = "${position + 1} / ${screenshotUrls.size}"
-                }
-            })
-            
-            btnClose.setOnClickListener {
-                dialog.dismiss()
-            }
-            
-            // Also make the dialog dismissible by clicking outside
-            dialog.setCancelable(true)
-            dialog.setCanceledOnTouchOutside(true)
-            
-            dialog.show()
-        }
     }
 
     fun updateTickets(tickets: List<TicketDataResponse>) {
