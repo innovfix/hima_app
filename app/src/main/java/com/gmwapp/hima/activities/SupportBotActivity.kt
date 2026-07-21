@@ -188,10 +188,22 @@ class SupportBotActivity : BaseActivity() {
         }
 
         binding.tvViewTicket.setOnSingleClickListener {
-            startActivity(Intent(this, TicketsListActivity::class.java))
+            openTickets()
             finish()
         }
 
+    }
+
+    /**
+     * Open the tickets screen, landing directly ON the ticket the bot just
+     * raised (its detail page) when we know its id — not a list to hunt through.
+     */
+    private fun openTickets() {
+        val intent = Intent(this, TicketsListActivity::class.java)
+        (ticketId ?: 0).takeIf { it > 0 }?.let {
+            intent.putExtra(TicketsListActivity.EXTRA_OPEN_TICKET_ID, it)
+        }
+        startActivity(intent)
     }
 
     /**
@@ -585,7 +597,7 @@ class SupportBotActivity : BaseActivity() {
                 return
             }
             "__view_ticket" -> {
-                startActivity(Intent(this, TicketsListActivity::class.java)); finish(); return
+                openTickets(); finish(); return
             }
             "__skip" -> {
                 adapter.addMessage(AiChatMessage(chip.label, isUser = true))

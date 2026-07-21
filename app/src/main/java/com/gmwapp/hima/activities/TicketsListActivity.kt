@@ -29,6 +29,12 @@ class TicketsListActivity : BaseActivity() {
     private val accountViewModel: AccountViewModel by viewModels()
     private lateinit var viewPagerAdapter: TicketsViewPagerAdapter
 
+    // When launched from the support bot's "View ticket #N", the id of the
+    // ticket to open directly once the list loads — so the user lands ON their
+    // ticket, not a list to search. Opened once (onResume reloads the list).
+    private var openTicketId = 0
+    private var alreadyOpenedTicket = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityTicketsListBinding.inflate(layoutInflater)
@@ -50,11 +56,17 @@ class TicketsListActivity : BaseActivity() {
             insets
         }
         
+        openTicketId = intent.getIntExtra(EXTRA_OPEN_TICKET_ID, 0)
+
         initUI()
         setupViewPager()
         loadTickets()
         observeTickets()
         onBackPressedBtn()
+    }
+
+    companion object {
+        const val EXTRA_OPEN_TICKET_ID = "OPEN_TICKET_ID"
     }
 
     private fun initUI() {
@@ -126,6 +138,18 @@ class TicketsListActivity : BaseActivity() {
                 val activeCount = tickets.count { it.status == 0 }
                 val resolvedCount = tickets.count { it.status == 1 }
                 Log.d("TicketsListActivity", "Active: $activeCount, Resolved: $resolvedCount")
+
+                // Came from "View ticket #N" — open that ticket's detail directly,
+                // once, so the user lands on their ticket instead of a list.
+                if (openTicketId > 0 && !alreadyOpenedTicket) {
+                    tickets.firstOrNull { it.id == openTicketId }?.let { ticket ->
+                        alreadyOpenedTicket = true
+                        startActivity(
+                            Intent(this, TicketDetailActivity::class.java)
+                                .putExtra(TicketDetailActivity.EXTRA_TICKET, ticket)
+                        )
+                    }
+                }
             } else {
                 showAppToast(response?.message ?: "Failed to load tickets", Toast.LENGTH_SHORT)
             }
