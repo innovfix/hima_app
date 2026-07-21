@@ -30,7 +30,10 @@ data class AiChatMessage(
      * Server-driven options rendered under this message (support bot only).
      * Defaulted to null so AI onboarding is completely unaffected.
      */
-    val chips: List<BotChip>? = null
+    val chips: List<BotChip>? = null,
+    /** Local content:// URIs of the attachment(s) the user just picked, shown as
+     *  small thumbnails on the user's side. Support bot only. */
+    val attachmentUris: List<android.net.Uri>? = null
 )
 
 class AiChatAdapter(
@@ -45,6 +48,7 @@ class AiChatAdapter(
         private const val TYPE_TYPING = 2
         private const val TYPE_CREATOR_DELIVERY = 3
         private const val TYPE_CHIPS = 4
+        private const val TYPE_ATTACHMENT = 5
     }
 
     /** Chips are only ever tappable on the LAST message — an old row is history. */
@@ -89,6 +93,7 @@ class AiChatAdapter(
         return when {
             m.creator != null -> TYPE_CREATOR_DELIVERY
             m.isTyping -> TYPE_TYPING
+            m.attachmentUris != null -> TYPE_ATTACHMENT
             m.chips != null -> TYPE_CHIPS
             m.isUser -> TYPE_USER
             else -> TYPE_AI
@@ -104,6 +109,7 @@ class AiChatAdapter(
                 inflater.inflate(R.layout.item_ai_chat_creator_delivery, parent, false)
             )
             TYPE_CHIPS -> ChipsViewHolder(inflater.inflate(R.layout.item_ai_chat_chips, parent, false))
+            TYPE_ATTACHMENT -> AttachmentViewHolder(inflater.inflate(R.layout.item_ai_chat_attachment, parent, false))
             else -> ChatViewHolder(inflater.inflate(R.layout.item_ai_chat_ai, parent, false))
         }
     }
@@ -120,6 +126,7 @@ class AiChatAdapter(
                 enabled = chipsEnabled && position == messages.size - 1,
                 onClick = onChipClick
             )
+            is AttachmentViewHolder -> holder.bind(messages[position].attachmentUris)
         }
     }
 
@@ -133,6 +140,36 @@ class AiChatAdapter(
 
     class ChatViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvMessage: TextView = view.findViewById(R.id.tv_chat_message)
+    }
+
+    /** The attachment(s) the user just picked, shown as small rounded thumbnails
+     *  on the user's side of the chat. Non-image URIs fall back to a placeholder. */
+    class AttachmentViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val container: android.widget.LinearLayout = view.findViewById(R.id.attachment_container)
+
+        fun bind(uris: List<android.net.Uri>?) {
+            container.removeAllViews()
+            val list = uris ?: return
+            val ctx = container.context
+            val d = ctx.resources.displayMetrics.density
+            val size = (72 * d).toInt()
+            val gap = (6 * d).toInt()
+            val radius = (10 * d).toInt()
+            list.forEach { uri ->
+                val iv = android.widget.ImageView(ctx)
+                val lp = android.widget.LinearLayout.LayoutParams(size, size)
+                lp.marginStart = gap
+                iv.layoutParams = lp
+                iv.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                Glide.with(ctx)
+                    .load(uri)
+                    .transform(com.bumptech.glide.load.resource.bitmap.RoundedCorners(radius))
+                    .placeholder(R.drawable.bg_chat_ai_bubble)
+                    .error(R.drawable.bg_chat_ai_bubble)
+                    .into(iv)
+                container.addView(iv)
+            }
+        }
     }
 
     class TypingViewHolder(view: View) : RecyclerView.ViewHolder(view) {

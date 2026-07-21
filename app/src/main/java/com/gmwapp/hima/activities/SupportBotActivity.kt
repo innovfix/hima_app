@@ -79,6 +79,10 @@ class SupportBotActivity : BaseActivity() {
     private var anyUploadSucceeded = false
     private var uploadConfirmMsg: String? = null
 
+    /** Attachments can be added only ONCE per ticket — after the first pick the
+     *  "Add screenshot / proof" option is not offered again. */
+    private var attachmentAdded = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySupportBotBinding.inflate(layoutInflater)
@@ -272,12 +276,20 @@ class SupportBotActivity : BaseActivity() {
      * uri and observe the outcome.
      */
     private fun uploadAttachments(uris: List<Uri>) {
-        uploadQueue.clear()
-        uris.take(MAX_ATTACHMENTS).forEach { uploadQueue.addLast(it) }
-        if (uploadQueue.isEmpty()) return
+        val picked = uris.take(MAX_ATTACHMENTS)
+        if (picked.isEmpty()) return
         if (uris.size > MAX_ATTACHMENTS) {
             showAppToast(getString(R.string.support_bot_attach_too_many), Toast.LENGTH_SHORT)
         }
+        // Show the picked files as small thumbnails on the user's side, and take
+        // away the "Add" option — attachments can be added only once.
+        adapter.addMessage(AiChatMessage("", isUser = true, attachmentUris = picked))
+        adapter.setChipsEnabled(false)
+        attachmentAdded = true
+        scrollToEnd()
+
+        uploadQueue.clear()
+        picked.forEach { uploadQueue.addLast(it) }
         uploadsActive = true
         anyUploadSucceeded = false
         uploadConfirmMsg = null
@@ -494,6 +506,9 @@ class SupportBotActivity : BaseActivity() {
 
     /** Spec #8 — always optional, always after the ticket exists. */
     private fun offerAttachment(prompt: String?) {
+        // Attachments can be added only once — if they already added, don't offer
+        // the option again (e.g. on a resumed session or a repeated escalation).
+        if (attachmentAdded) return
         if (!prompt.isNullOrBlank()) {
             adapter.addMessage(AiChatMessage(prompt, isUser = false))
         }
@@ -514,6 +529,8 @@ class SupportBotActivity : BaseActivity() {
         if (busy) return
         when (chip.key) {
             "__attach" -> {
+                // Add only once.
+                if (attachmentAdded) return
                 // Wildcard: image, video or audio in one picker.
                 pickAttachment.launch("*/*")
                 return
