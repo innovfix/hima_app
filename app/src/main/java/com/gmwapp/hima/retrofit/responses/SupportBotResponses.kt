@@ -113,7 +113,9 @@ data class SupportBotSessionResponse(
     val ai_message: String? = null,
     val input_mode: String? = null,
     val chips: List<BotChip>? = null,
-    val feedback_prompt: String? = null
+    val feedback_prompt: String? = null,
+    /** true = a reply is still running server-side; show typing + poll again. */
+    val in_progress: Boolean = false
 )
 
 data class SupportBotAttachResponse(

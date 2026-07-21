@@ -71,6 +71,14 @@ class AiChatAdapter(
         notifyItemInserted(messages.size - 1)
     }
 
+    /** Wipe every row — used to rebuild a resumed transcript from scratch so a
+     *  re-poll of the same session never stacks duplicate bubbles. */
+    fun clear() {
+        if (messages.isEmpty()) return
+        messages.clear()
+        notifyDataSetChanged()
+    }
+
     fun showTyping() {
         if (messages.lastOrNull()?.isTyping == true) return
         messages.add(AiChatMessage("", isUser = false, isTyping = true))

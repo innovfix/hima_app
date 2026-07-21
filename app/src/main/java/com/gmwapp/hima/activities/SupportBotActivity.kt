@@ -146,7 +146,6 @@ class SupportBotActivity : BaseActivity() {
         runCatching { ZohoSalesIQ.showLauncher(true) }
     }
 
-
     private fun initUI() {
         binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.support_bot_title)
         binding.includeProfileToolbar.cvBack.setOnSingleClickListener { finish() }
@@ -220,6 +219,38 @@ class SupportBotActivity : BaseActivity() {
     private var busy = false
 
     /**
+     * Polls support_bot_session while a reply is in flight on a resumed session,
+     * until the model's answer lands (step advances) or the ceiling passes. 2.5s
+     * cadence, capped so a genuinely dead request cannot poll forever.
+     */
+    private val resumePollHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var resumePollAttempts = 0
+    private val resumePollRunnable = Runnable {
+        if (isFinishing || isDestroyed) return@Runnable
+        if (sessionId > 0) viewModel.session(sessionId)
+    }
+
+    private fun scheduleResumePoll() {
+        resumePollAttempts++
+        // Backstop only. The server flips in_progress=false once the session goes
+        // stale (~40s), which resolves the poll cleanly before this ever trips;
+        // this just stops a hung network from polling forever.
+        if (resumePollAttempts > 20) { // ~50s
+            adapter.hideTyping()
+            busy = false
+            showRetry()
+            return
+        }
+        resumePollHandler.removeCallbacks(resumePollRunnable)
+        resumePollHandler.postDelayed(resumePollRunnable, 2500)
+    }
+
+    private fun cancelResumePoll() {
+        resumePollAttempts = 0
+        resumePollHandler.removeCallbacks(resumePollRunnable)
+    }
+
+    /**
      * CSAT as a bottom-sheet popup (not an inline chat row). Shown once, after
      * the user confirmed the issue was resolved.
      */
@@ -255,6 +286,7 @@ class SupportBotActivity : BaseActivity() {
     }
 
     override fun onDestroy() {
+        cancelResumePoll()
         csatSheet?.dismiss()
         csatSheet = null
         super.onDestroy()
@@ -665,9 +697,27 @@ class SupportBotActivity : BaseActivity() {
         saveActiveSession()
         ticketId = r.ticket_id
 
+        // Rebuild from scratch — this runs on every resume AND on every in-flight
+        // poll below, so appending would stack duplicate transcripts.
+        adapter.clear()
         r.history?.forEach { turn ->
             adapter.addMessage(AiChatMessage(turn.text, isUser = turn.role == "user"))
         }
+
+        // A reply is still running server-side (the user sent a message, then
+        // backgrounded the app before the model answered). The pending message is
+        // already spliced into history above; show the typing dots, keep input
+        // locked, and poll until the real answer lands — instead of dropping the
+        // message and then rejecting their next send with "one moment".
+        if (r.in_progress) {
+            busy = true
+            showInput(BotInputMode.NONE)
+            adapter.showTyping()
+            scrollToEnd()
+            scheduleResumePoll()
+            return
+        }
+        cancelResumePoll()
 
         when (r.input_mode) {
             BotInputMode.CHIPS -> {
