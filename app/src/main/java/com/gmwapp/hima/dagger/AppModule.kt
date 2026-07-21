@@ -172,7 +172,14 @@ object AppModule {
             override fun intercept(chain: Chain): Response {
                 val path = chain.request().url.encodedPath
                 return if (path.endsWith("support_bot_reply") || path.endsWith("support_bot_feedback")) {
-                    chain.withReadTimeout(30, TimeUnit.SECONDS).proceed(chain.request())
+                    // The backend session ceiling is 35s, and a single answer can
+                    // stack retries (mixed-script rewrite + grounding rewrite +
+                    // language-guard rewrite), so a Telugu/native-script reply has
+                    // been seen at ~18s and can climb toward the ceiling. The app
+                    // MUST wait longer than the server's own limit or it shows
+                    // "Something went wrong" while a valid answer is still coming.
+                    // 45s > 35s ceiling, with margin for network.
+                    chain.withReadTimeout(45, TimeUnit.SECONDS).proceed(chain.request())
                 } else {
                     chain.proceed(chain.request())
                 }
