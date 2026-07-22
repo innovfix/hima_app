@@ -61,13 +61,15 @@ class SupportBotActivity : BaseActivity() {
     private val MAX_ATTACHMENTS = 3
 
     /**
-     * Spec #8. GetMultipleContents() with a wildcard so a screenshot, a screen
-     * recording or several files can be picked AT ONCE from one picker (QA
-     * HS_002: single-select was one-file-at-a-time). Same contract family
-     * SubmitTicketActivity uses, so no new permissions.
+     * Spec #8. The Android Photo Picker (PickMultipleVisualMedia), capped at
+     * MAX_ATTACHMENTS. The old GetMultipleContents() opened ACTION_GET_CONTENT,
+     * whose picker on many devices (Samsung/Xiaomi) only lets you pick ONE image
+     * unless you manually enter multi-select — testers hit exactly that ("can't
+     * select 3 at once"). The photo picker shows a real multi-select grid with a
+     * built-in "up to 3" limit, images only, no storage permission.
      */
     private val pickAttachment = registerForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
+        ActivityResultContracts.PickMultipleVisualMedia(MAX_ATTACHMENTS)
     ) { uris: List<Uri> -> if (uris.isNotEmpty()) uploadAttachments(uris) }
 
     // Uploads are serialised by the ViewModel (attachInFlight), and the server
@@ -179,11 +181,18 @@ class SupportBotActivity : BaseActivity() {
 
         binding.btnSolved.setOnSingleClickListener {
             // The ONLY thing in the whole system that resolves a ticket.
+            // Echo the tap as a user bubble first (like chip taps do) so the
+            // conversation reads back consistently — otherwise the live screen
+            // shows only typing, while a resume shows the recorded bubble.
+            adapter.addMessage(AiChatMessage(binding.btnSolved.text.toString(), isUser = true))
             showInput(BotInputMode.NONE)
+            scrollToEnd()
             viewModel.feedback(sessionId, solved = true)
         }
         binding.btnNotSolved.setOnSingleClickListener {
+            adapter.addMessage(AiChatMessage(binding.btnNotSolved.text.toString(), isUser = true))
             showInput(BotInputMode.NONE)
+            scrollToEnd()
             viewModel.feedback(sessionId, solved = false)
         }
 
@@ -575,9 +584,12 @@ class SupportBotActivity : BaseActivity() {
             "__attach" -> {
                 // Add only once.
                 if (attachmentAdded) return
-                // Images only — a screenshot. The app does NOT support audio/voice
-                // notes, so the picker must not offer them (owner).
-                pickAttachment.launch("image/*")
+                // Images only (screenshots), multi-select up to MAX_ATTACHMENTS.
+                pickAttachment.launch(
+                    androidx.activity.result.PickVisualMediaRequest(
+                        ActivityResultContracts.PickVisualMedia.ImageOnly
+                    )
+                )
                 return
             }
             "__retry" -> {

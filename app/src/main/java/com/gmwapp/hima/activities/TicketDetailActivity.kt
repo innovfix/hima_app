@@ -6,6 +6,10 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
@@ -34,6 +38,18 @@ class TicketDetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTicketDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Sit below the system status bar on every phone (edge-to-edge safe):
+        // white status bar with dark icons, and pad the app bar down by exactly
+        // the status-bar inset so the title never overlaps the clock/battery.
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        val appBarBaseTop = binding.appBar.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBar) { v, insets ->
+            val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            v.setPadding(v.paddingLeft, appBarBaseTop + top, v.paddingRight, v.paddingBottom)
+            insets
+        }
 
         val ticket = (intent.getSerializableExtra(EXTRA_TICKET) as? TicketDataResponse)
         if (ticket == null) {

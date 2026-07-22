@@ -112,6 +112,7 @@
     <string name="peer_unavailable_audio">This user is not available for audio calls right now.</string>
     <string name="peer_unavailable_video">This user is not available for video calls right now.</string>
     <string name="peer_calls_blocked">You can\'t call this user.</string>
+    <string name="peer_dnd_unavailable">This user is on Do Not Disturb and can\'t take calls right now.</string>
 
     <!-- Chat list card -->
     <string name="chat_pin_action">Pin chat</string>
@@ -751,7 +752,7 @@
     <string name="support_bot_attach_bad_type">Please pick an image screenshot.</string>
     <string name="support_bot_attach_too_many">You\'ve already added 3 files to this ticket.</string>
     <string name="support_bot_attach_wait">Please wait for the current upload to finish.</string>
-    <string name="support_bot_attach_cta">Add screenshot</string>
+    <string name="support_bot_attach_cta">Add screenshots (up to 3)</string>
     <string name="support_bot_retry">Try again</string>
     <string name="support_bot_error">Something went wrong. Please try again.</string>
 </resources>
