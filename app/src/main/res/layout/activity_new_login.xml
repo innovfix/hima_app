@@ -707,6 +707,19 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- B_059: OTP helper text sits directly under the mobile number field
+                 (it refers to the number, not the referral code below). -->
+            <TextView
+                android:id="@+id/tv_otp_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="16dp"
+                android:textColor="@color/grey_medium"
+                android:fontFamily="@font/poppins_regular"
+                android:text="@string/you_will_receive_an_otp_on_this_number" />
+
             <!-- Referral code checkbox -->
             <CheckBox
                 android:id="@+id/referCode_checkbox"
@@ -778,16 +791,6 @@
                     </RelativeLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
-
-            <TextView
-                android:id="@+id/tv_otp_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:layout_marginBottom="18dp"
-                android:textColor="@color/grey_medium"
-                android:fontFamily="@font/poppins_regular"
-                android:text="@string/you_will_receive_an_otp_on_this_number" />
 
             <!-- Send OTP Button -->
             <RelativeLayout

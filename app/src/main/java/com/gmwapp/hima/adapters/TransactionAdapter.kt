@@ -11,6 +11,7 @@ import java.util.Locale
 import com.gmwapp.hima.databinding.AdapterTransactionBinding
 import com.gmwapp.hima.retrofit.responses.TransactionsResponseData
 import com.gmwapp.hima.utils.DateTimeUtils
+import kotlin.math.abs
 
 
 class TransactionAdapter(
@@ -34,10 +35,10 @@ class TransactionAdapter(
 
         // Set coins amount and color based on transaction type
         if(transaction.payment_type == "Credit"){
-            holder.binding.tvCoins.text = "+${transaction.coins}"
+            holder.binding.tvCoins.text = "+${abs(transaction.coins)}"
             holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
         } else{
-            holder.binding.tvCoins.text = "-${transaction.coins}"
+            holder.binding.tvCoins.text = "-${abs(transaction.coins)}"
             holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#EF4444"))
         }
 
@@ -99,7 +100,7 @@ class TransactionAdapter(
                 }
             }
             transaction.type == "refer_bonus" -> {
-                holder.binding.tvCoins.text = "+${transaction.coins}"
+                holder.binding.tvCoins.text = "+${abs(transaction.coins)}"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = "Referral Earning"
                 holder.binding.tvTransactionDate.text = transaction.date
@@ -107,7 +108,7 @@ class TransactionAdapter(
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
             }
             transaction.type == "send_gift" -> {
-                holder.binding.tvCoins.text = "-${transaction.coins}"
+                holder.binding.tvCoins.text = "-${abs(transaction.coins)}"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#EF4444"))
                 holder.binding.tvTransactionTitle.text = "Gift Sent"
                 holder.binding.tvTransactionDate.text = transaction.date

@@ -18,9 +18,9 @@
         android:id="@+id/cv_back"
         android:layout_width="42dp"
         android:layout_height="42dp"
-        app:cardBackgroundColor="#F8F9FA"
+        app:cardBackgroundColor="#FFFFFF"
         app:cardCornerRadius="12dp"
-        app:cardElevation="1dp">
+        app:cardElevation="2dp">
 
         <ImageView
             android:id="@+id/iv_back"
@@ -28,8 +28,7 @@
             android:layout_height="20dp"
             android:layout_gravity="center"
             android:contentDescription="@string/edit"
-            android:rotation="180"
-            android:src="@drawable/right_arrow"
+            android:src="@drawable/ic_back"
             app:tint="#374151" />
     </androidx.cardview.widget.CardView>
 

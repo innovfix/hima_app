@@ -15,37 +15,47 @@
         android:background="@color/white"
         android:elevation="2dp"
         android:fitsSystemWindows="true"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="20dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="16dp">
+        android:orientation="vertical">
+
+        <!-- Inner row carries the real header padding. fitsSystemWindows on the
+             OUTER header overwrites its own padding with the status-bar insets
+             (start/end/bottom become 0), which is what pulled the back button
+             flush to the left edge (B_048) and killed the bottom spacing (B_049).
+             The inner container is untouched by that, so its padding survives. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="20dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="16dp">
 
         <!-- Back Button -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cv_back"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            app:cardBackgroundColor="@color/onboarding_back_btn_bg"
-            app:cardCornerRadius="13dp"
-            app:cardElevation="0dp">
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp">
 
             <ImageView
+                android:id="@+id/iv_back"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_gravity="center"
                 android:contentDescription="Back"
-                android:rotation="180"
-                android:src="@drawable/right_arrow"
-                app:tint="@color/onboarding_title" />
+                android:src="@drawable/ic_back"
+                app:tint="#374151" />
         </androidx.cardview.widget.CardView>
 
         <!-- Title & Subtitle -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -54,9 +64,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_semibold"
+                android:includeFontPadding="false"
                 android:text="My Warnings"
                 android:textColor="@color/onboarding_title"
-                android:textSize="22sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -88,6 +99,7 @@
                 app:tint="@color/onboarding_title" />
         </androidx.cardview.widget.CardView>
 
+        </LinearLayout>
     </LinearLayout>
 
     <!-- ===== SCROLLABLE CONTENT ===== -->

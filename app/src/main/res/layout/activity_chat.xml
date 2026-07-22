@@ -31,22 +31,21 @@
 
             <androidx.cardview.widget.CardView
                 android:id="@+id/cv_back"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="1dp"
-                app:cardBackgroundColor="@color/chat_header_control_bg"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="#FFFFFF"
                 app:contentPadding="0dp">
 
                 <ImageView
                     android:id="@+id/iv_back"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:padding="11dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_back"
                     android:contentDescription="@string/chat_back_desc"
-                    app:tint="@color/chat_attach_tint" />
+                    app:tint="#374151" />
 
             </androidx.cardview.widget.CardView>
 

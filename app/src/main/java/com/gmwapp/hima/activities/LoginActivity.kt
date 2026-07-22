@@ -163,7 +163,8 @@ class LoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         val content = getString(R.string.terms_and_conditions_text, getString(R.string.app_name))
         val clickableSpan = object : ClickableSpan() {
             override fun onClick(textView: View) {
-                val intent = Intent(this@LoginActivity, WebviewActivity::class.java)
+                // B_057: native card Terms screen (with header), matching Profile → Terms.
+                val intent = Intent(this@LoginActivity, TermsPolicyActivity::class.java)
                 startActivity(intent)
             }
 

@@ -1793,7 +1793,21 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun toggleEmojiPanel() {
-        if (emojiGrid.visibility == View.VISIBLE) hideEmojiPanel() else showEmojiPanel()
+        if (emojiGrid.visibility == View.VISIBLE) switchToKeyboard() else showEmojiPanel()
+    }
+
+    /**
+     * Emoji-button tap while the panel is open: close the panel AND bring the soft
+     * keyboard back, so the toggle actually switches to typing (B_044). This is the
+     * toggle-only path — the silent hideEmojiPanel() is kept for back-press, input
+     * tap and moderation-disable, which must NOT force the keyboard up.
+     */
+    private fun switchToKeyboard() {
+        hideEmojiPanel()
+        etMessage.requestFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE)
+            as? android.view.inputmethod.InputMethodManager
+        imm?.showSoftInput(etMessage, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
 
     private fun showEmojiPanel() {

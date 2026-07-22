@@ -24,6 +24,11 @@ class CommunityGuidelineActivity : AppCompatActivity() {
         setContentView(binding.root)
         applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
         binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.CommunityGuidelines)
+        // B_058: this title ("Community Guidelines & Moderation Policy") is too long for
+        // the shared toolbar's default single line, so it truncated with an ellipsis.
+        // Allow two lines here (this screen's own inflated copy — other screens unaffected).
+        binding.includeProfileToolbar.tvFlowTitle.maxLines = 2
+        binding.includeProfileToolbar.tvFlowTitle.ellipsize = null
         binding.includeProfileToolbar.cvBack.setOnClickListener { finish() }
 
         // Enable JavaScript in WebView

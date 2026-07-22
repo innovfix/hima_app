@@ -898,6 +898,12 @@
                         app:tint="#C5CAD5" />
                 </LinearLayout>
 
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="74dp"
+                    android:background="#F0F0F0" />
+
                 <!-- DND -->
                 <LinearLayout
                     android:id="@+id/cv_dnd"

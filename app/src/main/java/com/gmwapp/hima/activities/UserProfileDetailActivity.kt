@@ -1312,7 +1312,8 @@ class UserProfileDetailActivity : AppCompatActivity() {
      * Check if the current user has already favorited this profile
      */
     private fun checkFavoriteStatus() {
-        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val currentUserId = userData?.id ?: 0
 
         if (currentUserId == 0) {
             Log.e("UserProfileDetail", "Unable to check favorite status - invalid user ID")
@@ -1320,10 +1321,17 @@ class UserProfileDetailActivity : AppCompatActivity() {
             return
         }
 
-        // Hide on self-profile — you can't favourite yourself. The favourite
-        // toggle itself is gender-agnostic (both male and creator/female users
-        // can favourite other users); FavouriteFragment already filters by the
-        // viewer's gender so the result list is correct on either side.
+        // Suggestion #9 — Favourites is a User→Creator feature: only the male User side
+        // has a Favourites list (the male "Friends" hub tab). A Creator (female) can tap
+        // this heart and the API stores it, but she has NO Favourites screen anywhere in
+        // her navigation to view or manage them — a dead-end control. So show the heart
+        // only to male Users; hide it for Creators (and any unknown gender).
+        if (userData?.gender?.lowercase() != DConstants.MALE) {
+            binding.cvFavourite.visibility = View.GONE
+            return
+        }
+
+        // Hide on self-profile — you can't favourite yourself.
         if (currentUserId == userId) {
             binding.cvFavourite.visibility = View.GONE
             return

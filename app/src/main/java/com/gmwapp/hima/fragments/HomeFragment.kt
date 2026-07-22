@@ -1310,8 +1310,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         hideDimBackground()
 
-        // Reset the bg color to blue when collapsed
-        binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.blue)
+        // Reset the bg color to the resting brand pink when collapsed. Must match
+        // the XML default (app:backgroundTint="@color/colorAccent" in fragment_home.xml)
+        // so the Random FAB has a single consistent resting color — otherwise the
+        // runtime blue never persists and reverts to pink on view recreation (B_051).
+        binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.colorAccent)
 
         // Reset the icon tint to white
         binding.fabRandom.setIconTintResource(R.color.white)

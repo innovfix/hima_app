@@ -725,7 +725,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             spannableString,
             "terms & conditions"
         ) {
-            startActivity(Intent(this, WebviewActivity::class.java))
+            // B_057: open the native card Terms screen (with header), same as
+            // Profile → Terms, instead of the old headerless WebviewActivity.
+            startActivity(Intent(this, TermsPolicyActivity::class.java))
         }
 
 
