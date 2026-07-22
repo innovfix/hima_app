@@ -3,6 +3,7 @@ package com.gmwapp.hima.onesignal
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.ActiveChatTracker
 import com.gmwapp.hima.utils.ChatNotificationStore
 import com.gmwapp.hima.utils.ChatNotifications
@@ -62,6 +63,13 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             val context: Context = event.context
             val prefs = DPreferences(context)
             val userData = prefs.getUserData()
+
+            // AVAILABILITY_DISABLED_SYNC — reflect a server-side auto-disable in the
+            // local cache so Home's availability toggle stops showing a stale ON.
+            // OFF-only / never auto-re-enable (v1109 ghost-online guard). Cache-only
+            // here; the creator taps the toggle to come back online. Does not
+            // preventDefault, so the explanatory push still shows.
+            syncAvailabilityDisabledToCache(prefs, userData, event.notification.additionalData)
 
             if (isDndActive(userData)) {
                 Log.d(TAG, "DND is active — suppressing OneSignal notification")
@@ -124,6 +132,60 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         } catch (e: Exception) {
             Log.e(TAG, "DND check failed: ${e.message}")
             // On error, fall through and let the notification show normally
+        }
+    }
+
+    /**
+     * AVAILABILITY_DISABLED_SYNC (app-side, cache-only). When the server's
+     * missed-call auto-disable cron turns this creator's availability off it
+     * sends a `type=availability_disabled` push carrying `disabled_types`
+     * (e.g. ["Audio","Video"]). We mirror that into the cached UserData so the
+     * Home toggle reflects the real (OFF) state instead of a stale ON.
+     *
+     * Strictly OFF-only and display-only: we NEVER write status=1 from a push
+     * (that auto-re-online path was the v1109 "ghost online" bug, removed in
+     * v1110). The creator consciously taps the toggle to come back online.
+     * Uses the direct setUserData (NOT the preserve-merge, which keeps
+     * prev.audio_status and would drop this update). Wrapped so it can never
+     * break the notification flow.
+     */
+    private fun syncAvailabilityDisabledToCache(
+        prefs: DPreferences,
+        userData: UserData?,
+        data: JSONObject?
+    ) {
+        try {
+            if (userData == null || data == null) return
+            val type = data.optString("type", "").lowercase()
+            if (type != "availability_disabled" && type != "call_status_disabled") return
+
+            // Only turn OFF the channel(s) the server actually disabled. If the
+            // payload omits disabled_types, fall back to both (the cron's common
+            // full-disable case).
+            var offAudio = true
+            var offVideo = true
+            val types = data.optJSONArray("disabled_types")
+            if (types != null && types.length() > 0) {
+                offAudio = false
+                offVideo = false
+                for (i in 0 until types.length()) {
+                    when (types.optString(i, "").lowercase()) {
+                        "audio" -> offAudio = true
+                        "video" -> offVideo = true
+                    }
+                }
+            }
+
+            val newAudio = if (offAudio) 0 else userData.audio_status
+            val newVideo = if (offVideo) 0 else userData.video_status
+            if (newAudio == userData.audio_status && newVideo == userData.video_status) return
+
+            // Direct write so the OFF sticks; the preserve-merge would keep the
+            // stale ON. Never writes 1 from here.
+            prefs.setUserData(userData.copy(audio_status = newAudio, video_status = newVideo))
+            Log.d(TAG, "availability_disabled sync -> audio=$newAudio video=$newVideo")
+        } catch (e: Exception) {
+            Log.e(TAG, "availability_disabled sync failed: ${e.message}")
         }
     }
 

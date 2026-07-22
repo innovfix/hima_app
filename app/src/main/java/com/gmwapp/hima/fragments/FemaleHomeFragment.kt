@@ -1487,7 +1487,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         language?.let { whatsappLinkViewModel.fetchLink(it) }
 
         return when (userlanguage) {
-            "Tamil" -> "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f"
+            "Tamil" -> "https://chat.whatsapp.com/JVQB42dDPQsBV9MwSUB2kv?s=cl&p=i&ilr=4"
             "Hindi" -> "https://whatsapp.com/channel/0029Vazay5MHVvTZuoDKOv1h"
             "Punjabi" -> "https://whatsapp.com/channel/0029Vb3h23eLCoX5GRLz0y2B"
             "Telugu" -> "https://whatsapp.com/channel/0029Vb3CXKIFSAt2vcFGUC09"
