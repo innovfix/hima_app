@@ -72,30 +72,24 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSkip"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/Widget.Hima.Button.Secondary"
                     android:layout_width="0dp"
-                    android:layout_height="48dp"
+                    android:layout_height="56dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
                     android:text="Skip"
-                    android:textAllCaps="false"
                     android:textColor="@color/colorAccent"
-                    android:textSize="15sp"
-                    app:cornerRadius="8dp"
                     app:strokeColor="@color/colorAccent" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSubmit"
+                    style="@style/Widget.Hima.Button.Primary"
                     android:layout_width="0dp"
-                    android:layout_height="48dp"
+                    android:layout_height="56dp"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
                     android:text="Submit"
-                    android:textAllCaps="false"
-                    android:textColor="@android:color/white"
-                    android:textSize="15sp"
-                    app:backgroundTint="@color/colorAccent"
-                    app:cornerRadius="8dp" />
+                    app:backgroundTint="@color/colorAccent" />
             </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>

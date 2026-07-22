@@ -313,17 +313,26 @@ class RecentCallsAdapter(
         // direction). blocked==2 is the legacy creator-blocked-me case; either_blocked
         // adds male-blocked-creator and the female-viewer cases. The profile-view gate
         // below stays on blocked==2 only, so blocking someone doesn't hide their card.
+        //
+        // B_003 — otherwise, grey the CALL button(s) when the peer being called is on
+        // DND. The peer is the opposite party for this row: a male viewer calls a
+        // female (read female_dnd), a female viewer calls a male (read male_dnd).
+        // Block takes precedence over DND (stronger + more accurate message). DND mutes
+        // CALLS only, so the female-side chat button (the repurposed video circle) is
+        // left untouched — only the male path greys the video (a real video call).
+        // Inert until calls_list returns male_dnd/female_dnd (both default false).
+        val peerDnd = if (userData?.gender == DConstants.MALE) call.female_dnd else call.male_dnd
         if (call.blocked==2 || call.either_blocked){
             holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
             holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
             holder.binding.ivVideo.isEnabled = false
             holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
-            
+
             holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
             holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
             holder.binding.ivAudio.isEnabled = false
             holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
-            
+
             holder.binding.ivAudioCircle.setOnSingleClickListener {
                 CallUnavailableFeedback.showBlocked(activity, holder.binding.root)
             }
@@ -332,6 +341,27 @@ class RecentCallsAdapter(
                 CallUnavailableFeedback.showBlocked(activity, holder.binding.root)
             }
 
+        } else if (peerDnd) {
+            // Grey the audio call button on both sides.
+            holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            holder.binding.ivAudio.isEnabled = false
+            holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+            holder.binding.ivAudioCircle.setOnSingleClickListener {
+                CallUnavailableFeedback.showDnd(activity, holder.binding.root)
+            }
+            // Male viewer: the video circle is a real video call — grey it too.
+            // Female viewer: the video circle is the Chat button (calls-only DND
+            // doesn't block chat), so leave it enabled.
+            if (userData?.gender == DConstants.MALE) {
+                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivVideo.isEnabled = false
+                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+                holder.binding.ivVideoCircle.setOnSingleClickListener {
+                    CallUnavailableFeedback.showDnd(activity, holder.binding.root)
+                }
+            }
         }
         
         // "Audio" / "Video" coin labels under each call button. Text is static
@@ -576,14 +606,17 @@ class RecentCallsAdapter(
         b.cardChatNow.setOnSingleClickListener { openChatActivity(call) }
 
         val blocked = call.blocked == 2
+        // B_003 — Favourite is male-only (4-tab nav), so the peer is always a female
+        // creator; read female_dnd. On DND, treat the callback buttons as unavailable.
+        val peerDnd = call.female_dnd
         configureFavouriteButton(
-            online = call.audio_status == 1 && !blocked, blocked = blocked, forAudio = true,
+            online = call.audio_status == 1 && !blocked && !peerDnd, blocked = blocked, dnd = peerDnd, forAudio = true,
             circle = b.flAudio, icon = b.ivAudio, rateRow = b.llAudioRate, statusLabel = b.tvAudioStatus,
             onlineCircleBg = R.drawable.circle_bg_pink_light, onlineIconTint = R.color.colorAccent,
             root = b.root, call = call
         )
         configureFavouriteButton(
-            online = call.video_status == 1 && !blocked, blocked = blocked, forAudio = false,
+            online = call.video_status == 1 && !blocked && !peerDnd, blocked = blocked, dnd = peerDnd, forAudio = false,
             circle = b.flVideo, icon = b.ivVideo, rateRow = b.llVideoRate, statusLabel = b.tvVideoStatus,
             onlineCircleBg = R.drawable.circle_bg_purple_light, onlineIconTint = R.color.purple,
             root = b.root, call = call
@@ -610,7 +643,7 @@ class RecentCallsAdapter(
     }
 
     private fun configureFavouriteButton(
-        online: Boolean, blocked: Boolean, forAudio: Boolean,
+        online: Boolean, blocked: Boolean, dnd: Boolean = false, forAudio: Boolean,
         circle: View, icon: android.widget.ImageView, rateRow: View, statusLabel: View,
         onlineCircleBg: Int, onlineIconTint: Int, root: View, call: CallsListResponseData
     ) {
@@ -628,8 +661,11 @@ class RecentCallsAdapter(
             rateRow.visibility = View.GONE
             statusLabel.visibility = View.VISIBLE
             circle.setOnSingleClickListener {
-                if (blocked) CallUnavailableFeedback.showBlocked(activity, root)
-                else CallUnavailableFeedback.show(activity, root, forAudio = forAudio)
+                when {
+                    blocked -> CallUnavailableFeedback.showBlocked(activity, root)
+                    dnd -> CallUnavailableFeedback.showDnd(activity, root)          // B_003
+                    else -> CallUnavailableFeedback.show(activity, root, forAudio = forAudio)
+                }
             }
         }
     }

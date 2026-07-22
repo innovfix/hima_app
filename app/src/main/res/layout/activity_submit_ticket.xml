@@ -265,18 +265,14 @@
             <!-- Submit Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_submit"
+                style="@style/Widget.Hima.Button.Primary"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp"
-                android:fontFamily="@font/poppins_semibold"
                 android:text="Submit Ticket"
-                android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
                 android:background="@drawable/bg_submit_button"
                 app:backgroundTint="@color/pink"
-                app:cornerRadius="12dp"
                 app:elevation="4dp"
                 app:rippleColor="#FFFFFF" />
 

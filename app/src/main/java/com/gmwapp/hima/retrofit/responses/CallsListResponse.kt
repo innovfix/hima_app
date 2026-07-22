@@ -42,4 +42,15 @@ data class CallsListResponseData(
     // stays on 'blocked'==2. Old backend omits it → defaults false.
     @SerializedName("either_blocked")
     val either_blocked: Boolean = false,
+    // B_003 — DND state of each party on this row's peer, mirroring the
+    // check_call_availability endpoint's male_dnd/female_dnd naming. The Recent/
+    // Favourite list greys its callback button when the PEER being called is on DND:
+    //   * male viewer (calling a female) reads female_dnd
+    //   * female viewer (calling a male) reads male_dnd
+    // Old backend omits these → default false → no behavior change until the
+    // calls_list endpoint starts returning them.
+    @SerializedName("male_dnd")
+    val male_dnd: Boolean = false,
+    @SerializedName("female_dnd")
+    val female_dnd: Boolean = false,
 )

@@ -140,14 +140,21 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
                         labelWithCount(R.string.chat_tab_requests, d.received_requests_count)
                     binding.tabsFriendsHub.getTabAt(3)?.text =
                         labelWithCount(R.string.chat_tab_sent, d.my_requests_count)
-                    // Mirror pending requests on the bottom-nav "Friends" icon too.
-                    (activity as? com.gmwapp.hima.activities.MainActivity)?.setFriendsRequestCount(receivedCount)
+                    // B_015 — the bottom-nav "Friends" badge counts UNSEEN requests
+                    // (watermark-filtered), matching MainActivity.loadFriendsRequestCountBadge.
+                    // The Requests tab chip above keeps the raw total; the badge must use the
+                    // filtered count or it disagrees with the other feed path and re-appears
+                    // after being cleared (which also breaks clear-on-visit).
+                    val unseenRequests = if (d.received_requests_new_count >= 0)
+                        d.received_requests_new_count.coerceAtLeast(0)
+                    else d.received_requests_count.coerceAtLeast(0)
+                    (activity as? com.gmwapp.hima.activities.MainActivity)?.setFriendsRequestCount(unseenRequests)
                 }
             }
 
             override fun onFailure(call: Call<FriendTabsCountsResponse>, t: Throwable) {}
             override fun onNoNetwork() {}
-        })
+        }, com.gmwapp.hima.utils.RequestsSeenPrefs.getSeenRequestId(requireContext(), userId))
     }
 
     private fun currentChild(): Fragment? =

@@ -4321,6 +4321,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Log status report
         logSocketIOStatus()
 
+        // B_006 — capture the "returning from a screen that can block/unblock this peer"
+        // signal BEFORE the reload block consumes+resets it below. The history reload
+        // already refreshes the composer/banner/3-dot menu (iHaveBlockedThisUser comes
+        // from the history payload), but the header audio/video CALL buttons are only
+        // rendered by checkCallAvailability(), which onResume did not re-run — so after
+        // blocking from the Profile screen the call buttons stayed enabled until exit+
+        // reopen. Re-query availability on this path so they refresh immediately too
+        // (covers both block → disable and unblock → re-enable).
+        val refreshCallButtonsOnResume = forceHistoryReloadOnNextResume
+
         // Re-fetch history when returning to this screen (fixes missing messages after tab / background).
         // Skip once: onCreate already called loadMessages(); first onResume would duplicate the request.
         if (suppressNextResumeHistoryReload) {
@@ -4349,6 +4359,18 @@ class ChatActivityInHouse : AppCompatActivity() {
             loadMessages()
         }
         forceHistoryReloadOnNextResume = false
+
+        // B_006 — refresh header call-button state after returning from the Profile
+        // screen (block/unblock there doesn't touch the in-chat button state otherwise).
+        // Mirror setupUI's guard so we only hit the endpoint when the buttons are shown.
+        if (refreshCallButtonsOnResume) {
+            val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+            val isMale = gender?.equals(DConstants.MALE, ignoreCase = true) == true
+            val isFemale = gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+            if ((isMale || isFemale) && peerUserId > 0 && myUserId > 0) {
+                checkCallAvailability()
+            }
+        }
     }
 
     override fun onPause() {

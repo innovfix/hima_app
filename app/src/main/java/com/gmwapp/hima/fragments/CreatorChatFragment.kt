@@ -203,7 +203,11 @@ class CreatorChatFragment : Fragment() {
             override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
                 if (!isAdded) return
                 friendsUnread = if (response.isSuccessful && response.body()?.success == true) {
-                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
+                    // B_010 — number of conversations with unread, not total messages, so the
+                    // "Friends (N)" tab and the Chat bottom-nav badge both mean "N chats need
+                    // attention" (badge = this + pending requests, and stays derivable from
+                    // the two visible tab counts).
+                    response.body()?.data?.chats?.count { it.unreadCount > 0 } ?: 0
                 } else {
                     0
                 }

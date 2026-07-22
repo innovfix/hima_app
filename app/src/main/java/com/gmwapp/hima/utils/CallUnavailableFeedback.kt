@@ -34,4 +34,17 @@ object CallUnavailableFeedback {
         snackbar.animationMode = Snackbar.ANIMATION_MODE_FADE
         snackbar.show()
     }
+
+    /** B_003 — the peer being called has Do Not Disturb on, so they can't be reached. */
+    fun showDnd(activity: Activity, anchor: View) {
+        val snackbar = Snackbar.make(
+            anchor,
+            activity.getString(R.string.peer_dnd_unavailable),
+            Snackbar.LENGTH_SHORT
+        )
+        snackbar.setBackgroundTint(ContextCompat.getColor(activity, R.color.pink_bold))
+        snackbar.setTextColor(ContextCompat.getColor(activity, R.color.white))
+        snackbar.animationMode = Snackbar.ANIMATION_MODE_FADE
+        snackbar.show()
+    }
 }

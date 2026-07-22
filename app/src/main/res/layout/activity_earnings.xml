@@ -67,7 +67,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:text="@string/earnings"
+        android:text="@string/transactions"
         android:textColor="#111827"
         android:textSize="22sp"
         android:fontFamily="@font/poppins_semibold"
@@ -260,7 +260,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_semibold"
-                android:text="Earnings History"
+                android:text="Transactions History"
                 android:textColor="#111827"
                 android:textSize="17sp"
                 tools:ignore="HardcodedText" />

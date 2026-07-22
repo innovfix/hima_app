@@ -232,8 +232,22 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var chatGeneralUnread: Int = 0
     // Pending received friend-requests — shown on the female Chat icon alongside unread messages.
     private var chatRequestsUnread: Int = 0
+    // B_010 — Instagram-style "seen the tab" watermark. Opening the Chat tab clears the
+    // bottom-nav badge even if messages/requests are still unread; it stays clear until the
+    // total climbs ABOVE the level seen at that visit (genuinely new activity), which re-shows
+    // it. A watermark, not a boolean, so later activity is never silently swallowed (mirrors
+    // RequestsSeenPrefs). Per-session (not persisted): a cold start recomputes from the server,
+    // so the badge reappears if unread genuinely remains — over-notifying is the safe direction.
+    private var chatBadgeSeen: Boolean = false
+    private var chatBadgeSeenLevel: Int = 0
     // Male "Friends" hub (favourite tab) — pending received friend-requests badge.
     private var friendsRequestsUnread: Int = 0
+    // B_015 — Instagram-style "seen the tab" watermark for the Friends (favourite) badge,
+    // mirroring the B_010 Chat-badge treatment. Opening the Friends tab clears the badge even
+    // with a pending request; it re-shows only when the count climbs above the level seen at
+    // that visit. Per-session (not persisted): a cold start recomputes from the server.
+    private var friendsBadgeSeen: Boolean = false
+    private var friendsBadgeSeenLevel: Int = 0
     private val paywallVideoContentPrefsKey = "paywall_video_content_response"
     private val showPaywallInsufficientIntentKey = "show_paywall_insufficient"
 
@@ -1008,6 +1022,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.chat -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                // B_010 — opening the Chat tab acknowledges the badge (Instagram-style):
+                // clear it now, and mark the current unread+requests total as "seen" so it
+                // stays clear until something NEW pushes the total above this level.
+                chatBadgeSeen = true
+                chatBadgeSeenLevel = (chatFriendsUnread.coerceAtLeast(0) + chatRequestsUnread.coerceAtLeast(0))
+                binding.bottomNavigationView.removeBadge(R.id.chat)
                 transaction.replace(R.id.flFragment, CreatorChatFragment()).commit()
                 return true
             }
@@ -1021,7 +1041,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.favourite -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-
+                // B_015 — opening the Friends tab acknowledges the badge (Instagram-style):
+                // clear it now and keep it clear until a new request pushes the count above
+                // this level.
+                friendsBadgeSeen = true
+                friendsBadgeSeenLevel = friendsRequestsUnread.coerceAtLeast(0)
+                binding.bottomNavigationView.removeBadge(R.id.favourite)
                 transaction.replace(R.id.flFragment, FriendsHubFragment()).commit()
                 return true
             }
@@ -1636,7 +1661,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 }
                 // Optimistic bump on the friends bucket — `loadChatUnreadCountBadge`
                 // immediately afterward corrects the split if the peer actually
-                // belongs in `general`.
+                // belongs in `general`. B_010: this pushes the total above the "seen"
+                // watermark, so updateChatBadge() re-shows the badge for genuinely new
+                // activity even after the tab was previously opened.
                 chatFriendsUnread = (chatFriendsUnread + 1).coerceAtLeast(0)
                 updateChatBadge()
                 loadChatUnreadCountBadge()
@@ -1774,7 +1801,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
             ) {
                 chatFriendsUnread = if (response.isSuccessful && response.body()?.success == true) {
-                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
+                    // B_010 — count CONVERSATIONS that have unread, not the total message
+                    // count. A friend who sends 10 messages is one unread chat (1), not 10,
+                    // so the badge stays a small, meaningful "how many chats need me" number
+                    // and lines up with the "Friends (N)" tab (also unread-chat count).
+                    response.body()?.data?.chats?.count { it.unreadCount > 0 } ?: 0
                 } else {
                     0
                 }
@@ -1861,6 +1892,19 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // The general bucket is intentionally excluded — it has no tab in the female
         // Chats UI, so counting it would over-report vs. what she can actually open.
         val total = (chatFriendsUnread.coerceAtLeast(0) + chatRequestsUnread.coerceAtLeast(0))
+        // B_010 — Instagram-style watermark. After the Chat tab was opened, keep the badge
+        // cleared while the total stays at or below the level seen then, even if some
+        // messages/requests are still unread. Ratchet the level DOWN as counts fall (so a
+        // later increase re-badges); a total ABOVE the level means genuinely new activity,
+        // which clears the ack and shows the badge again.
+        if (chatBadgeSeen) {
+            if (total <= chatBadgeSeenLevel) {
+                chatBadgeSeenLevel = total
+                binding.bottomNavigationView.removeBadge(R.id.chat)
+                return
+            }
+            chatBadgeSeen = false
+        }
         setNavBadge(R.id.chat, total, R.color.colorAccent)
     }
 
@@ -1918,7 +1962,20 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     private fun updateFriendsBadge() {
-        setNavBadge(R.id.favourite, friendsRequestsUnread.coerceAtLeast(0), R.color.colorAccent)
+        val count = friendsRequestsUnread.coerceAtLeast(0)
+        // B_015 — Instagram-style watermark (mirrors updateChatBadge). After the Friends tab
+        // was opened, keep the badge cleared while the count stays at or below the level seen
+        // then; ratchet the level down as it falls (so a later request re-badges); a count
+        // above the level is a genuinely new request, which clears the ack and shows it.
+        if (friendsBadgeSeen) {
+            if (count <= friendsBadgeSeenLevel) {
+                friendsBadgeSeenLevel = count
+                binding.bottomNavigationView.removeBadge(R.id.favourite)
+                return
+            }
+            friendsBadgeSeen = false
+        }
+        setNavBadge(R.id.favourite, count, R.color.colorAccent)
     }
 
     fun getSkuListID() {
