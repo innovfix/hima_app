@@ -137,8 +137,11 @@ class EditProfileActivity : BaseActivity() {
         binding.rvInterests.addItemDecoration(itemDecoration)
         binding.rvInterests.setLayoutManager(staggeredGridLayoutManager)
 
-        val interests = userData?.interests?.removeSurrounding("[", "]")?.split(",")?.map { it.trim() }
-      //  val interests = interestsString.removeSurrounding("[", "]").split(",").map { it.trim() }
+        // B_020: filter out blanks. split(",") on an empty/"[]"/trailing-comma value
+        // yields a phantom "" element, which silently inflates selectedInterests.size by
+        // one — so the size>=4 cap trips after only 3 real picks ("acts like max 3").
+        val interests = userData?.interests?.removeSurrounding("[", "]")?.split(",")
+            ?.map { it.trim() }?.filter { it.isNotEmpty() }
         interests?.let { selectedInterests.addAll(it) }
 
 
@@ -237,9 +240,20 @@ class EditProfileActivity : BaseActivity() {
             }
         }
         binding.btnUpdate.setOnClickListener(View.OnClickListener {
+            // B_021: zero interests isn't persistable (backend filled() drops an empty
+            // array yet still returns success -> a false "Profile updated" toast). Block
+            // it here with a validation toast, matching the onboarding About screen.
+            // Scoped to the creator/female side only: the interests picker is hidden for
+            // male users (cvInterests GONE, see gender branch above), so this must never
+            // block their username/avatar-only updates when they have no interests.
+            if (binding.cvInterests.visibility == View.VISIBLE && selectedInterests.isEmpty()) {
+                showAppToast(getString(R.string.please_select_at_least_1_interest), Toast.LENGTH_SHORT)
+                return@OnClickListener
+            }
+
             val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
             val visiblePosition = layoutManager.findFirstCompletelyVisibleItemPosition()
-            
+
             val avatarId = if (visiblePosition >= 0) {
                 selectedAvatarIdForUpdate(visiblePosition)
             } else {

@@ -344,6 +344,7 @@
     <string name="gender">Gender</string>
     <string name="preferred_language">Preferred Language</string>
     <string name="profile_updated">Profile updated</string>
+    <string name="please_select_at_least_1_interest">Please select at least 1 interest</string>
     <string name="session_id">"Session ID: "</string>
     <string name="india">India (+91)</string>
     <string name="saudi_arabia">Saudi Arabia (+966)</string>

@@ -115,6 +115,17 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
             }
         })
         binding.btnDeleteAccount.setOnSingleClickListener({
+            // B_034: enforce the screen's stated requirement — at least one reason (or a
+            // typed "Other" description) is mandatory. The button also starts disabled
+            // (XML android:enabled="false") and is enabled only by the reason/description
+            // listeners; this is the last-line guard against any enabled-state race before
+            // routing to Raise Ticket.
+            val hasReason = selectedReasons.isNotEmpty() ||
+                binding.etDescription.text.toString().trim().isNotEmpty()
+            if (!hasReason) {
+                showAppToast(getString(R.string.delete_reason_text), Toast.LENGTH_LONG)
+                return@setOnSingleClickListener
+            }
             // Account deletion is handled via a support ticket (the ticket queue is
             // monitored; the old mail flow was a dead-end). Route the user to Raise Ticket.
             showAppToast(getString(R.string.delete_account_raise_ticket_toast), Toast.LENGTH_LONG)
