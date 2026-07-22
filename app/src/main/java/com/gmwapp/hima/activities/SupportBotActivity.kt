@@ -575,8 +575,9 @@ class SupportBotActivity : BaseActivity() {
             "__attach" -> {
                 // Add only once.
                 if (attachmentAdded) return
-                // Wildcard: image, video or audio in one picker.
-                pickAttachment.launch("*/*")
+                // Images only — a screenshot. The app does NOT support audio/voice
+                // notes, so the picker must not offer them (owner).
+                pickAttachment.launch("image/*")
                 return
             }
             "__retry" -> {
