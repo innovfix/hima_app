@@ -670,9 +670,16 @@ class SupportBotActivity : BaseActivity() {
     }
 
     private fun scrollToEnd() {
-        binding.rvChat.post {
-            val n = binding.rvChat.adapter?.itemCount ?: 0
-            if (n > 0) binding.rvChat.smoothScrollToPosition(n - 1)
+        val rv = binding.rvChat
+        rv.post {
+            val n = rv.adapter?.itemCount ?: 0
+            if (n == 0) return@post
+            rv.scrollToPosition(n - 1)
+            // scrollToPosition top-aligns an item taller than the viewport, which
+            // leaves a long last message's BOTTOM below the fold — hidden behind
+            // the input bar (owner-reported). Nudge to the absolute bottom so the
+            // last line is always visible; RecyclerView clamps the over-scroll.
+            rv.post { rv.scrollBy(0, rv.height) }
         }
     }
 
