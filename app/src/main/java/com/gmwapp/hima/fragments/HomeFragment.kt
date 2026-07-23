@@ -296,7 +296,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 val displayCoins =
                     if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
                     else userData.coins
-                com.gmwapp.hima.utils.CoinAnimUtil.animateTo(binding.tvCoins, displayCoins ?: 0)
+                binding.tvCoins.text = (displayCoins ?: 0).toString()
                 Log.d("coinsvalue", "${userData.coins}")
                 Log.d("coinsvalue", "${userData.name}")
                 // Refresh IPL banner visibility once user data arrives from server
@@ -469,7 +469,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         // users.coins reflects the new total directly, no local bonus.
         val displayCoins = if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
                            else (cached.coins ?: 0)
-        com.gmwapp.hima.utils.CoinAnimUtil.animateTo(binding.tvCoins, displayCoins)
+        binding.tvCoins.text = (displayCoins).toString()
     }
 
     private fun refreshPremiumCrown() {
@@ -686,7 +686,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         dailyClaimViewModel.claimLiveData.observe(viewLifecycleOwner) { resp ->
             val total = resp?.data?.total_coins
             if (total != null && ::binding.isInitialized) {
-                com.gmwapp.hima.utils.CoinAnimUtil.animateTo(binding.tvCoins, total)
+                binding.tvCoins.text = (total).toString()
                 // Keep the cached UserData fresh so other screens see the new total.
                 BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                     profileViewModel.getUsers(it)
