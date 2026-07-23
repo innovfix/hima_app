@@ -173,6 +173,32 @@ class FcmCallService : Service() {
                         TAG,
                         "onTaskRemoved: accepted, newer, or already-cleared ring callId=${p.callId} — NOT rejecting"
                     )
+                    // RING_TELECOM_LEAK_2026_07_23 — `claimed` is ALSO false when the
+                    // accept activity's own onDestroy force-close-reject already ran and
+                    // consumed the claim (it wins this race on Realme/OPPO by ~18ms). In
+                    // that case the reject IS posted correctly, but the Telecom connection
+                    // and the stale accept-activity ref were only ever torn down in the
+                    // `else` branch below — so a self-managed connection stayed registered.
+                    // The next incoming FCM then evaluated maleOnAnotherAppCall==true and
+                    // auto-replied "userBusy" before ringing, which killed the caller's
+                    // NEXT call to this user ~1s in with "This call has already ended".
+                    // Safe here: skipped entirely when the ring was ACCEPTED (a live call),
+                    // and endIncomingCallIfMatches is id-matched, so a newer call's
+                    // connection is left untouched. Both calls are idempotent no-ops when
+                    // there is nothing left to clean up.
+                    if (!app.wasRingAcceptedFor(p.senderId)) {
+                        app.finishAcceptActivityIfMatches(p.senderId, p.callId)
+                        val ended = com.gmwapp.hima.agora.telecom.HimaTelecomManager
+                            .endIncomingCallIfMatches(
+                                senderId = p.senderId,
+                                callId = p.callId,
+                                reason = android.telecom.DisconnectCause.REJECTED
+                            )
+                        Log.d(
+                            TAG,
+                            "onTaskRemoved: post-claim telecom sweep callId=${p.callId} endedConnection=$ended"
+                        )
+                    }
                 } else {
                     // Do not leave a stale Activity object as BaseApplication.currentActivity.
                     // Realme/OPPO task removal can omit/delay onDestroy; the next FCM would

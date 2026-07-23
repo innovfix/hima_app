@@ -898,18 +898,50 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         )
     }
 
+    // DUAL_SURFACE_HIDE_2026_07_23 — the full-screen ring IS the primary UI; the
+    // heads-up popup banner is redundant while it's on screen. onCreate/onResume already
+    // cancel once, but the popup often races in ~1s LATER (the second push provider —
+    // FCM/OneSignal — delivering the same ring), after that one-shot cancel has run, so
+    // it lingers (the "full screen + popup both" screenshot). Re-sweep a few times over
+    // the first ~2.5s so a late banner is hidden almost immediately. cancelAllIncoming-
+    // CallNotifications only matches the incoming-call channels, so it never touches a
+    // live in-call notification; repeated calls are safe idempotent no-ops.
+    private val popupHideHandler = Handler(Looper.getMainLooper())
+    private val popupHideSweepDelays = longArrayOf(0L, 350L, 800L, 1400L, 2200L)
+    private fun startPopupHideSweeps() {
+        popupHideHandler.removeCallbacksAndMessages(null)
+        for (d in popupHideSweepDelays) {
+            popupHideHandler.postDelayed({
+                if (!isFinishing && !isDestroyed) {
+                    BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+                }
+            }, d)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // B_007: back in the foreground, this activity owns the call presentation
         // again — clear any tray banner re-posted by onUserLeaveHint (mirrors the
         // onCreate cancel on first launch). Idempotent; a no-op when no banner is up.
         BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+        // Catch a popup that arrives a beat AFTER this cancel (cross-provider race).
+        startPopupHideSweeps()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Stop sweeping the instant we leave the foreground so a scheduled sweep can't
+        // wipe the banner onUserLeaveHint deliberately re-posts for the background case.
+        popupHideHandler.removeCallbacksAndMessages(null)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         // C-04/B6: drop any pending "Connecting…" hint so it can't fire post-teardown.
         connectingHintHandler.removeCallbacksAndMessages(null)
+        // DUAL_SURFACE_HIDE_2026_07_23 — stop any pending popup-hide sweeps.
+        popupHideHandler.removeCallbacksAndMessages(null)
         // TC_003 ghost-block fix: clear the "incoming call" freshness flag on any
         // teardown that didn't already clear it — e.g. the launchCallScreen abort
         // at :438 (missing pending args), a swipe-away, or a system kill. Left set,
@@ -947,6 +979,19 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                     Log.d("CallStatus", "FemaleAccept.onDestroy no-action exit → force-close reject callId=$call_Id")
                     BaseApplication.getInstance()?.rejectCallOnAppClose(
                         selfId, receiverId, call_Id, callType, channelName
+                    )
+                    // RING_TELECOM_LEAK_2026_07_23 — symmetric twin of the male fix. This
+                    // onDestroy consumes the task-removal claim, so
+                    // FcmCallService.onTaskRemoved logs "NOT rejecting" and used to skip its
+                    // telecom sweep, leaving the self-managed connection registered. The next
+                    // incoming FCM then saw femaleOnAnotherAppCall==true and auto-replied
+                    // "userBusy" WITHOUT ringing. Mirrors the manual Decline path at :503,
+                    // which has always ended the connection. Id-matched, so it can never
+                    // disconnect a newer call's connection.
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endIncomingCallIfMatches(
+                        senderId = receiverId,
+                        callId = call_Id,
+                        reason = android.telecom.DisconnectCause.REJECTED
                     )
                 }
                 BaseApplication.getInstance()?.clearIncomingCall()

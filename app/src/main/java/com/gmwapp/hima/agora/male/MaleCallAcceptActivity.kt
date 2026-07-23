@@ -779,15 +779,44 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         )
     }
 
+    // DUAL_SURFACE_HIDE_2026_07_23 — male twin of the female fix. The full-screen ring is
+    // the primary UI; a heads-up popup that races in ~1s later (second push provider
+    // delivering the same ring) slips past onCreate/onResume's one-shot cancel. Re-sweep
+    // over the first ~2.5s so a late popup is hidden almost immediately. The sweep only
+    // matches incoming-call channels, so it can never touch a live in-call notification.
+    private val popupHideHandler = Handler(Looper.getMainLooper())
+    private val popupHideSweepDelays = longArrayOf(0L, 350L, 800L, 1400L, 2200L)
+    private fun startPopupHideSweeps() {
+        popupHideHandler.removeCallbacksAndMessages(null)
+        for (d in popupHideSweepDelays) {
+            popupHideHandler.postDelayed({
+                if (!isFinishing && !isDestroyed) {
+                    BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+                }
+            }, d)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // B_007: back in the foreground, this activity owns the call presentation
         // again — clear any tray banner re-posted by onUserLeaveHint. Idempotent.
         BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+        // Catch a popup that arrives a beat AFTER this cancel (cross-provider race).
+        startPopupHideSweeps()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Stop sweeping the instant we leave the foreground so a scheduled sweep can't
+        // wipe the banner onUserLeaveHint deliberately re-posts for the background case.
+        popupHideHandler.removeCallbacksAndMessages(null)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        // DUAL_SURFACE_HIDE_2026_07_23 — stop any pending popup-hide sweeps.
+        popupHideHandler.removeCallbacksAndMessages(null)
         // FORCE_CLOSE_REJECT parity (male port of FemaleCallAcceptActivity:877) —
         // he left the ring WITHOUT accepting or declining (task swipe / system
         // finish). Treat it as a Decline so the server row is stamped rejected
@@ -818,6 +847,20 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                     Log.d("CallStatus", "MaleAccept.onDestroy no-action exit → force-close reject callId=$call_Id")
                     BaseApplication.getInstance()?.rejectCallOnAppClose(
                         selfId, receiverId, call_Id, callType, channelName
+                    )
+                    // RING_TELECOM_LEAK_2026_07_23 — tear the self-managed Telecom
+                    // connection down HERE too. This onDestroy consumes the task-removal
+                    // claim, so FcmCallService.onTaskRemoved logs "NOT rejecting" and used
+                    // to skip its telecom sweep entirely, leaving the connection
+                    // registered. The next incoming FCM then saw maleOnAnotherAppCall==true
+                    // and auto-replied "userBusy" WITHOUT ringing — the caller's next call
+                    // died ~1s in with "This call has already ended". Mirrors the manual
+                    // Decline path, which has always ended the connection. Id-matched, so
+                    // it can never disconnect a newer call's connection.
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endIncomingCallIfMatches(
+                        senderId = receiverId,
+                        callId = call_Id,
+                        reason = android.telecom.DisconnectCause.REJECTED
                     )
                 }
                 BaseApplication.getInstance()?.clearIncomingCall()

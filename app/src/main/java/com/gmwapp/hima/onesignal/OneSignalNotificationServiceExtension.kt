@@ -63,6 +63,41 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         const val ACTION_FRIEND_STATUS_CHANGED = "com.gmwapp.hima.ACTION_FRIEND_STATUS_CHANGED"
     }
 
+    /**
+     * ONESIGNAL_SWIPE_PARITY_2026_07_23 — start the full-screen ring UI directly.
+     *
+     * Only used on the foreground+unlocked branch, where FcmCallService runs in
+     * backstop-only mode and therefore posts NO notification of its own. Mirrors the
+     * intent extras built by [com.gmwapp.hima.utils.CallNotifications] so the accept
+     * screen reads exactly the same keys on both delivery paths. Returns false if the
+     * launch is refused, letting the caller fall back to the foreground-service path
+     * rather than leaving the user with a silent, invisible call.
+     */
+    private fun launchAcceptActivity(
+        context: Context,
+        payload: com.gmwapp.hima.utils.CallNotifications.IncomingPayload
+    ): Boolean {
+        val target = if (payload.isMale) {
+            com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
+        } else {
+            com.gmwapp.hima.agora.female.FemaleCallAcceptActivity::class.java
+        }
+        val intent = Intent(context, target).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("CALL_TYPE", payload.callType)
+            putExtra("SENDER_ID", payload.senderId)
+            putExtra("CHANNEL_NAME", payload.channelName)
+            putExtra("CALL_ID", payload.callId)
+            putExtra("Caller_NAME", payload.callerName)
+            putExtra("Caller_Image", payload.callerImage.orEmpty())
+        }
+        return runCatching { context.startActivity(intent); true }
+            .getOrElse {
+                Log.e(TAG, "launchAcceptActivity threw senderId=${payload.senderId}: ${it.message}", it)
+                false
+            }
+    }
+
     override fun onNotificationReceived(event: INotificationReceivedEvent) {
         try {
             val context: Context = event.context
@@ -331,8 +366,46 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             putString(HimaConnection.EXTRA_RECEIVER_GENDER, if (isMale) "male" else "female")
         }
         val telecomOk = HimaTelecomManager.tryAddIncomingCall(context, telecomExtras)
-        val watcherStarted =
+
+        // ONESIGNAL_SWIPE_PARITY_2026_07_23 — mirror the FCM path's B030 decision.
+        //
+        // Bug: when OneSignal won the delivery race (it beat FCM by ~1.1s on the
+        // creator's device), this path ALWAYS took FcmCallService.start() — a real
+        // foreground service — while the FCM path under the same foreground+unlocked
+        // conditions takes startBackstopOnly(). On Realme/OPPO, swiping the ring away
+        // with the FGS up force-kills the process, so NEITHER the accept activity's
+        // onDestroy NOR FcmCallService.onTaskRemoved ever runs. The "rejected" relay is
+        // therefore never sent and the CALLER keeps ringing until his own 40s timeout.
+        // (Verified: an unconditional onDestroy log never printed, and her pid changed
+        // mid-call 10843 -> 12299.) The plain backstop-only Service survives the swipe
+        // and still receives onTaskRemoved, which is exactly why the FCM-delivered leg
+        // already worked. Only the foreground+unlocked branch changes; when the screen
+        // is locked or the app is backgrounded the FGS is genuinely required to ring, so
+        // that path is left completely untouched.
+        val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE)
+            as? android.app.KeyguardManager
+        val locked = keyguard?.isKeyguardLocked == true
+        val foreground = com.gmwapp.hima.BaseApplication.getInstance()?.isAppInForeground() == true
+
+        val watcherStarted = if (foreground && !locked) {
+            // backstopOnly returns early WITHOUT posting a notification or calling
+            // startForeground, so nothing would ring unless we launch the accept screen
+            // ourselves — exactly what MyFirebaseMessagingService does at :590.
+            val lightweightOk = FcmCallService.startBackstopOnly(context, payload) &&
+                launchAcceptActivity(context, payload)
+            if (lightweightOk) {
+                Log.d(TAG, "OneSignal call push -> backstop-only + accept screen (fg, unlocked) senderId=$senderId")
+                true
+            } else {
+                // Safety net: never leave the user with no visible ring. If either half of
+                // the lightweight path failed (e.g. a background-activity-launch block),
+                // fall straight back to the proven foreground-service path.
+                Log.w(TAG, "OneSignal backstop-only path failed — falling back to full FcmCallService.start")
+                (Build.VERSION.SDK_INT < 34 || telecomOk) && FcmCallService.start(context, payload)
+            }
+        } else {
             (Build.VERSION.SDK_INT < 34 || telecomOk) && FcmCallService.start(context, payload)
+        }
 
         if (watcherStarted) {
             // FcmCallService owns the custom CallStyle notification and the
