@@ -1163,15 +1163,23 @@ class BaseApplication : Application(), Configuration.Provider {
                         openFriendsHubFromNotification(2)
                     }
 
-                    else if (type == "creator_warning") {
+                    // A moderation warning carries the recipient's OWN type:
+                    // "creator_warning" for a female creator, "user_warning" for a male
+                    // caller (ModerationWarningPublisher derives notification_type from
+                    // person_type). Only the creator variant was handled here, so a male
+                    // tapping his warning fell through to the else branch and landed on
+                    // the home screen instead of his warnings. MyWarningsActivity is
+                    // user-agnostic — it loads by the logged-in user id, and the male
+                    // ProfileFragment already links to it — so both types open it.
+                    else if (type == "creator_warning" || type == "user_warning") {
 
                         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                         if (userData == null || userData.id <= 0) {
-                            Log.w("OneSignalClick", "creator_warning click ignored (userData is null/empty)")
+                            Log.w("OneSignalClick", "$type click ignored (userData is null/empty)")
                             return
                         }
 
-                        Log.d("OneSignalClick", "✅ App OPEN - Opening TicketsListActivity")
+                        Log.d("OneSignalClick", "✅ App OPEN - Opening MyWarningsActivity ($type)")
                         val intent = Intent(applicationContext, com.gmwapp.hima.activities.MyWarningsActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
