@@ -1445,6 +1445,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         val extrasName = intent.getStringExtra("USER_NAME")
             ?.let { extractNameOnly(it) }
             ?.takeIf { it.isNotBlank() && it != "User" }
+        // Cache the peer name by id so the in-app chat heads-up can name this sender later.
+        extrasName?.let { com.gmwapp.hima.utils.PeerNameCache.put(peerUserId, it) }
         val extrasImage = intent.getStringExtra("USER_IMAGE")?.takeIf { it.isNotBlank() }
 
         var resolvedName = extrasName

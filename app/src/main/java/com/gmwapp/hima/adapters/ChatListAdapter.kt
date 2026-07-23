@@ -231,6 +231,12 @@ class ChatListAdapter(
             // Set user name (extract name only, remove trailing numbers).
             // Pin state is shown only by iv_pin (filled/outline + tint), not a compound drawable on the name.
             binding.tvUserName.text = extractNameOnly(conversation.userName)
+            // Feed the id->name cache so the in-app chat heads-up (BaseApplication) can
+            // title itself "<name> sent you a message" — the socket payload has only the id.
+            com.gmwapp.hima.utils.PeerNameCache.put(
+                conversation.userId.toIntOrNull() ?: 0,
+                extractNameOnly(conversation.userName)
+            )
             binding.tvUserName.setCompoundDrawablesRelative(null, null, null, null)
 
             binding.ivPin.setImageResource(

@@ -82,6 +82,11 @@ import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import org.json.JSONObject
 import android.widget.Toast
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 
 @HiltAndroidApp
@@ -374,6 +379,13 @@ class BaseApplication : Application(), Configuration.Provider {
         // across app launches.
         isCallActive = false
         activeCallActivityCount.set(0)
+
+        // In-app chat heads-up: while the app is foreground the socket is connected,
+        // so the server sends NO push — a message from someone you're not currently
+        // viewing shows only a badge. Set up a one-time collector that posts the same
+        // heads-up the background push would (see setupInAppChatHeadsUp). Reads user/
+        // prefs lazily at message time, so socket-connect timing doesn't matter.
+        setupInAppChatHeadsUp()
 
         // 2026-06-05 v1108 FIX #2: Agora call sets AudioManager.mode to
         // MODE_IN_COMMUNICATION during the call and is supposed to reset to
@@ -3261,6 +3273,96 @@ class BaseApplication : Application(), Configuration.Provider {
             current::class.java.simpleName == "FriendsListActivity"
 
         } ?: false
+    }
+
+    // ===== In-app chat heads-up (foreground socket-delivered messages) =========
+    private val inAppChatScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /**
+     * One-time collector of the socket new-message stream. When the app is in the
+     * foreground the server does not send a push (receiver is socket-connected), so
+     * a message from a peer the user is NOT currently viewing would otherwise show
+     * only a badge. This posts the same "<name> sent you a message" heads-up the
+     * background push path would, gated so it never fires on the open chat, during a
+     * call, under DND, or when the male chat-notif master pref is off. Fully fail-open.
+     */
+    private fun setupInAppChatHeadsUp() {
+        if (!com.gmwapp.hima.utils.FeatureFlags.IN_APP_CHAT_HEADSUP_ENABLED) return
+        inAppChatScope.launch {
+            com.gmwapp.hima.socket.SocketManager.getInstance().newMessage.collect { msg ->
+                try {
+                    maybeShowInAppChatHeadsUp(msg)
+                } catch (t: Throwable) {
+                    Log.w("InAppChatNotif", "heads-up skipped: ${t.message}")
+                }
+            }
+        }
+    }
+
+    private fun maybeShowInAppChatHeadsUp(msg: com.gmwapp.hima.socket.ChatMessageSocket) {
+        val userData = getPrefs()?.getUserData() ?: return
+        val myId = userData.id
+        val fromId = msg.fromUserId ?: return
+
+        // Incoming only — never my own echoed message, never a self-target.
+        if (fromId <= 0 || fromId == myId) return
+        if (msg.toUserId != null && msg.toUserId != myId) return
+        if (msg.isDeleted) return
+        // Foreground only: a backgrounded receiver already gets the server push.
+        if (startedActivityCount <= 0) return
+        // Never over a live call screen.
+        if (activeCallActivityCount.get() > 0) return
+        // Already viewing that chat -> the thread updates live; no alert needed.
+        if (com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(fromId)) return
+        // Respect DND.
+        if (isDndActiveStatic(userData)) return
+        // Respect the male chat-notif master toggle (females always notify).
+        if (userData.gender?.equals("male", ignoreCase = true) == true) {
+            val on = getPrefs()?.getBoolPref(
+                com.gmwapp.hima.utils.MaleNotificationPreferenceKeys.CHAT_AND_FRIENDS, true
+            ) ?: true
+            if (!on) return
+        }
+
+        // Title matches the existing push style ("<name> sent you a message"); body
+        // mirrors the backend getChatMessagePreview (text, or Photo / Voice message).
+        // The socket payload has no sender name (msg.from is the numeric id), so resolve
+        // it from PeerNameCache (populated by the chat list + any opened chat); a cache
+        // miss falls back to "Someone" — the body preview still makes the alert useful.
+        val name = com.gmwapp.hima.utils.PeerNameCache.get(fromId) ?: "Someone"
+        val body = when (msg.messageType.lowercase()) {
+            "image" -> "Photo"
+            "audio" -> "Voice message"
+            else -> msg.message.trim().ifBlank { "New message" }
+        }
+
+        val tapIntent = android.content.Intent(this, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra("USER_ID", fromId)
+            putExtra("USER_NAME", name)
+        }
+        val pi = android.app.PendingIntent.getActivity(
+            this, fromId, tapIntent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = androidx.core.app.NotificationCompat.Builder(
+            this, "f49d2168-bc20-4a4b-a984-a7abffe0d6aa" // same channel id as ChatNotifications
+        )
+            .setSmallIcon(com.gmwapp.hima.R.drawable.logo)
+            .setContentTitle("$name sent you a message")
+            .setContentText(body)
+            .setAutoCancel(true)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
+            .setContentIntent(pi)
+
+        // notifIdFor(peerId) is the SAME id the push path uses, so repeat messages
+        // from one peer collapse instead of stacking, and a later real push replaces
+        // this in-app one rather than duplicating it. No-ops without POST_NOTIFICATIONS.
+        androidx.core.app.NotificationManagerCompat.from(this)
+            .notify(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(fromId), builder.build())
     }
 
     /**
