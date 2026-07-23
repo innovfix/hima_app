@@ -8,6 +8,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.view.ViewCompat
@@ -18,6 +19,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityVerifyOtpBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.showAppToast
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.socket.SocketManager
 //import com.zego.ve.Log
@@ -25,7 +27,20 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class VerifyOTPActivity : BaseActivity() {
+    private companion object {
+        /** How long a sent OTP stays valid on this screen. */
+        const val OTP_VALIDITY_MS = 2 * 60 * 1000L // 2 minutes
+    }
+
     private var timer: CountDownTimer?=null
+
+    // OTP validity window. `timer` above only controls when the "Resend OTP" button
+    // appears (60s) — it never invalidated the code, so an OTP stayed usable for as
+    // long as the screen was open. This one expires it after OTP_VALIDITY_MS; once
+    // expired, verification is refused and the user is told to resend.
+    private var otpExpiryTimer: CountDownTimer? = null
+    private var isOtpExpired = false
+
     private var isVerifyingOtp = false
     lateinit var binding: ActivityVerifyOtpBinding
     private val loginViewModel: LoginViewModel by viewModels()
@@ -42,6 +57,7 @@ class VerifyOTPActivity : BaseActivity() {
         }
         initUI()
         startTimer();
+        startOtpExpiryTimer()
     }
 
     private fun initUI() {
@@ -64,6 +80,8 @@ class VerifyOTPActivity : BaseActivity() {
             binding.btnResendOtp.visibility = View.GONE
             binding.tvDidntReceivedOtpTimer.visibility = View.VISIBLE
             startTimer()
+            // A fresh code was just sent — restart the validity window.
+            startOtpExpiryTimer()
         })
 
         loginViewModel.loginErrorLiveData.observe(this, Observer {
@@ -140,7 +158,12 @@ class VerifyOTPActivity : BaseActivity() {
             val enteredOTP = binding.pvOtp.text.toString()
             if (enteredOTP.length == 6) {
                 Log.d("VerifyOTP", "OTP entered: $enteredOTP")
-                if (enteredOTP == otp.toString() || enteredOTP == "011011") {
+                if (isOtpExpired) {
+                    // Past the validity window — refuse it and point the user at Resend
+                    // (which is already visible by now, and restarts this timer).
+                    Log.d("VerifyOTP", "OTP expired, refusing verification")
+                    showAppToast(getString(R.string.otp_expired_resend), Toast.LENGTH_LONG)
+                } else if (enteredOTP == otp.toString() || enteredOTP == "011011") {
                     Log.d("VerifyOTP", "OTP matched, calling login()")
                     isVerifyingOtp = true
                     binding.pbVerifyOtpLoader.visibility = View.VISIBLE
@@ -169,6 +192,34 @@ class VerifyOTPActivity : BaseActivity() {
                 binding.tvDidntReceivedOtpTimer.visibility = View.GONE
             }
         }.start()
+    }
+
+    /**
+     * Starts (or restarts) the OTP validity window. Called on entry and again after
+     * every successful resend, so the newest code always gets a full window.
+     */
+    private fun startOtpExpiryTimer() {
+        otpExpiryTimer?.cancel()
+        isOtpExpired = false
+        otpExpiryTimer = object : CountDownTimer(OTP_VALIDITY_MS, 1000) {
+            override fun onTick(millisUntilFinished: Long) {}
+
+            override fun onFinish() {
+                isOtpExpired = true
+                // Guarantee the user has a way forward even if the 60s resend timer
+                // was cancelled or never fired.
+                binding.btnResendOtp.visibility = View.VISIBLE
+                binding.tvDidntReceivedOtpTimer.visibility = View.GONE
+            }
+        }.start()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Neither timer was being cancelled before; they'd keep ticking and touch
+        // views after the activity was gone.
+        timer?.cancel()
+        otpExpiryTimer?.cancel()
     }
 
     private fun login(mobile: String) {

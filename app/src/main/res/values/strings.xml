@@ -49,6 +49,7 @@
     <string name="verify_otp">Verify OTP</string>
     <string name="didnt_receive_the_otp">Didn\'t receive the OTP?</string>
     <string name="resend_otp">Resend OTP</string>
+    <string name="otp_expired_resend">OTP expired. Please resend OTP.</string>
     <string name="hundred_coins">100 coins</string>
     <string name="used_by_text">Used by 296 people in the last 30 mins</string>
     <string name="add_coins">Add Coins</string>
