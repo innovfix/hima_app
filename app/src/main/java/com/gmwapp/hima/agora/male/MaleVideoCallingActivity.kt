@@ -60,6 +60,7 @@ import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.SwitchRequestIdentity
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
@@ -256,6 +257,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
     var switchCallID = 0
+    private val switchRequestIdentity = SwitchRequestIdentity()
     // B069 storm fix: register these once per activity so duplicate observers
     // don't stack on shared LiveData and multiply the clear↔observe churn.
     private var notificationSentObserverRegistered = false
@@ -772,6 +774,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         // the caller with "accepted" until they join (no-op for the caller side).
         startAcceptResend()
         callId = intent.getIntExtra("CALL_ID", 0)
+        switchRequestIdentity.captureRootCallId(callId)
 
         Log.d(
             TAG_END,
@@ -3330,12 +3333,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     fun getCallIdforCallSwitch(callType: String) {
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val switchContract = switchRequestIdentity.begin(callType)
 
         var userId = userData?.id
         receiverId?.let { it1 ->
             userId?.let {
                 femaleUsersViewModel.callFemaleUser(
-                    it, it1, callType,1
+                    it,
+                    it1,
+                    callType,
+                    1,
+                    rootCallId = switchContract?.rootCallId,
+                    switchRequestId = switchContract?.requestId,
+                    channelName = channelName
                 )
             }
             callIdObserver()
@@ -3417,6 +3427,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 if (switchType == "VideoAccepted" && receiverId == this.receiverId) {
 
                     isSwitchRequestPending=false
+                    switchRequestIdentity.complete("video")
 
                     val remainingTime =
                         binding.tvRemainingTime?.text.toString() // Get the current countdown time
@@ -3457,6 +3468,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 if (switchType == "AudioAccepted" && receiverId == this.receiverId) {
 
                     isSwitchRequestPending=false
+                    switchRequestIdentity.complete("audio")
 
                     Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                     stopCountdown()
@@ -3467,6 +3479,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 if (switchType == "SwitchDeclined" && receiverId == this.receiverId) {
 
                     isSwitchRequestPending=false
+                    switchRequestIdentity.complete()
                     FcmUtils.clearCallSwitch()
                     Toast.makeText(this, "Request is rejected", Toast.LENGTH_SHORT).show()
                 }

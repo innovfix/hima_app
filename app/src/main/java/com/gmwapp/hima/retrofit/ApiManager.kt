@@ -504,11 +504,22 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         callUserId: Int,
         callType: String,
         call_switch: Int,
+        rootCallId: Int?,
+        switchRequestId: String?,
+        channelName: String?,
         callback: NetworkCallback<CallFemaleUserResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<CallFemaleUserResponse> =
-                getApiInterface().callFemaleUser(userId, callUserId, callType,call_switch)
+                getApiInterface().callFemaleUser(
+                    userId,
+                    callUserId,
+                    callType,
+                    call_switch,
+                    rootCallId,
+                    switchRequestId,
+                    channelName
+                )
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -520,11 +531,22 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         callUserId: Int,
         callType: String,
         call_switch: Int,
+        rootCallId: Int?,
+        switchRequestId: String?,
+        channelName: String?,
         callback: NetworkCallback<CallMaleUserResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<CallMaleUserResponse> =
-                getApiInterface().callMaleUser(userId, callUserId, callType, call_switch)
+                getApiInterface().callMaleUser(
+                    userId,
+                    callUserId,
+                    callType,
+                    call_switch,
+                    rootCallId,
+                    switchRequestId,
+                    channelName
+                )
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2649,7 +2671,10 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("call_user_id") callUserId: Int,
         @Field("call_type") callType: String,
-        @Field("call_switch") call_switch: Int
+        @Field("call_switch") call_switch: Int,
+        @Field("root_call_id") rootCallId: Int?,
+        @Field("switch_request_id") switchRequestId: String?,
+        @Field("channelName") channelName: String?
     ): Call<CallFemaleUserResponse>
 
     @FormUrlEncoded
@@ -2658,7 +2683,10 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("call_user_id") callUserId: Int,
         @Field("call_type") callType: String,
-        @Field("call_switch") call_switch: Int
+        @Field("call_switch") call_switch: Int,
+        @Field("root_call_id") rootCallId: Int?,
+        @Field("switch_request_id") switchRequestId: String?,
+        @Field("channelName") channelName: String?
     ): Call<CallMaleUserResponse>
 
     @FormUrlEncoded
