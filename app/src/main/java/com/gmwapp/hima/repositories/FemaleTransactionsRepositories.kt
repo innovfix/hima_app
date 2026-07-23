@@ -12,11 +12,11 @@ class FemaleTransactionsRepositories @Inject constructor(private val apiManager:
         private const val TAG = "femaleTrasactionLog"
     }
     
-    fun getFemaleTransactions(userId: Int, offset: Int, limit: Int, callback: NetworkCallback<FemaleTransactionsResponse>) {
-        Log.d(TAG, "getFemaleTransactions: Repository called with userId=$userId, offset=$offset, limit=$limit")
+    fun getFemaleTransactions(userId: Int, offset: Int, limit: Int, type: String?, callback: NetworkCallback<FemaleTransactionsResponse>) {
+        Log.d(TAG, "getFemaleTransactions: Repository called with userId=$userId, offset=$offset, limit=$limit, type=$type")
         Log.d(TAG, "getFemaleTransactions: Calling ApiManager.getFemaleTransactions()")
         try {
-            apiManager.getFemaleTransactions(userId, offset, limit, callback)
+            apiManager.getFemaleTransactions(userId, offset, limit, type, callback)
             Log.d(TAG, "getFemaleTransactions: ApiManager call initiated successfully")
         } catch (e: Exception) {
             Log.e(TAG, "getFemaleTransactions: Exception in repository", e)

@@ -312,6 +312,16 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
             val intent = Intent(context, FemaleTransactionsActivity::class.java)
             startActivity(intent)
         }
+
+        // Same screen as Earnings/Transactions, opened in gift-filter mode.
+        binding.clGiftEarning.setOnSingleClickListener {
+            val intent = Intent(context, FemaleTransactionsActivity::class.java)
+            intent.putExtra(
+                FemaleTransactionsActivity.EXTRA_TYPE,
+                FemaleTransactionsActivity.TYPE_GIFT
+            )
+            startActivity(intent)
+        }
         
         // Edit profile via edit icon badge
         binding.ivEditProfile.setOnSingleClickListener( {
@@ -368,6 +378,8 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val showStarCreator = com.gmwapp.hima.utils.FeatureFlags.STAR_CREATOR_ENABLED &&
             (userData?.starcreator ?: 0) == 1 && userData?.star != 1
         binding.clStarCreatorApply.visibility = if (showStarCreator) View.VISIBLE else View.GONE
+        // Hide the divider with the row so it doesn't orphan-stack into a thick line.
+        binding.dividerStarCreator.visibility = if (showStarCreator) View.VISIBLE else View.GONE
 
         binding.clStarCreatorApply.setOnSingleClickListener {
             val intent = Intent(context, StarCreatorApplicationActivity::class.java)
@@ -499,6 +511,7 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val showStarCreator = com.gmwapp.hima.utils.FeatureFlags.STAR_CREATOR_ENABLED &&
             (userData?.starcreator ?: 0) == 1 && userData?.star != 1
         binding.clStarCreatorApply.visibility = if (showStarCreator) View.VISIBLE else View.GONE
+        binding.dividerStarCreator.visibility = if (showStarCreator) View.VISIBLE else View.GONE
     }
 
     override fun onNetworkRetry() {

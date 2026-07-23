@@ -28,9 +28,17 @@ class FemaleTransactionsActivity : BaseActivity() {
     private var isLoading = false
     private var offset = 0
     private val limit = 10
-    
+
+    // Optional server-side filter. null = normal Earnings; "gift" = Gift Earning.
+    // Same screen, same adapter, same API — only this filter and the header differ.
+    private var transactionType: String? = null
+
     companion object {
         private const val TAG = "femaleTrasactionLog"
+
+        /** Intent extra: pass TYPE_GIFT to open this screen in Gift Earning mode. */
+        const val EXTRA_TYPE = "extra_transaction_type"
+        const val TYPE_GIFT = "gift"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,10 +50,17 @@ class FemaleTransactionsActivity : BaseActivity() {
         window.statusBarColor = resources.getColor(R.color.pink)
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
+        transactionType = intent.getStringExtra(EXTRA_TYPE)
+
         // FI_02 (creator-side only): activity_transactions.xml is shared with the male
         // TransactionsActivity, so the female header is relabelled here at runtime to
         // "Earnings" while the male screen keeps the XML default "Transactions".
-        binding.tvTransactions.text = getString(R.string.earnings)
+        // Gift Earning reuses the same screen with a "Gift Earning" header.
+        binding.tvTransactions.text = if (transactionType == TYPE_GIFT) {
+            getString(R.string.gift_earning)
+        } else {
+            getString(R.string.earnings)
+        }
 
         initUI()
     }
@@ -136,8 +151,8 @@ class FemaleTransactionsActivity : BaseActivity() {
     private fun loadTransactions() {
         setLoading(true)
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { userData ->
-            Log.d(TAG, "loadTransactions: Calling API for user_id = ${userData.id}, offset = $offset, limit = $limit")
-            femaleTransactionsViewModel.getFemaleTransactions(userData.id, offset, limit)
+            Log.d(TAG, "loadTransactions: Calling API for user_id = ${userData.id}, offset = $offset, limit = $limit, type = $transactionType")
+            femaleTransactionsViewModel.getFemaleTransactions(userData.id, offset, limit, transactionType)
         } ?: run {
             Log.e(TAG, "loadTransactions: ERROR - User data is null, cannot load transactions")
         }

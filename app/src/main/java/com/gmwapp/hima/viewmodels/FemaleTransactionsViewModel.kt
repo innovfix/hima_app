@@ -26,10 +26,10 @@ class FemaleTransactionsViewModel @Inject constructor(
     val transactionsResponseLiveData = MutableLiveData<FemaleTransactionsResponse>()
     val transactionsErrorLiveData = MutableLiveData<String>()
 
-    fun getFemaleTransactions(userId: Int, offset: Int, limit: Int) {
-        Log.d(TAG, "getFemaleTransactions: Called with userId=$userId, offset=$offset, limit=$limit")
+    fun getFemaleTransactions(userId: Int, offset: Int, limit: Int, type: String? = null) {
+        Log.d(TAG, "getFemaleTransactions: Called with userId=$userId, offset=$offset, limit=$limit, type=$type")
         Log.d(TAG, "getFemaleTransactions: API endpoint = female_transaction")
-        
+
         viewModelScope.launch {
             try {
                 Log.d(TAG, "getFemaleTransactions: Calling repository...")
@@ -37,6 +37,7 @@ class FemaleTransactionsViewModel @Inject constructor(
                     userId,
                     offset,
                     limit,
+                    type,
                     object : NetworkCallback<FemaleTransactionsResponse> {
                         override fun onResponse(
                             call: Call<FemaleTransactionsResponse>,

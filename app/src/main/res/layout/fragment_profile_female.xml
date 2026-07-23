@@ -567,6 +567,69 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
+                <!-- Gift Earning (female only) — opens FemaleTransactions in gift-filter mode -->
+                <LinearLayout
+                    android:id="@+id/cl_gift_earning"
+                    android:layout_width="match_parent"
+                    android:layout_height="72dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp">
+
+                    <FrameLayout
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_profile_icon_amber">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_gift_box"
+                            app:tint="#F59E0B" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="@string/gift_earning"
+                            android:textColor="@color/black_light"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:fontFamily="@font/poppins_regular"
+                            android:text="@string/gift_earning_subtitle"
+                            android:textColor="@color/grey_medium"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="#C5CAD5" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="74dp"
+                    android:background="#F0F0F0" />
+
                 <!-- Become Star Creator (female only) -->
                 <LinearLayout
                     android:id="@+id/cl_star_creator_apply"
@@ -625,6 +688,7 @@
                 </LinearLayout>
 
                 <View
+                    android:id="@+id/divider_star_creator"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginStart="74dp"
@@ -688,11 +752,14 @@
                         app:tint="#C5CAD5" />
                 </LinearLayout>
 
+                <!-- Paired with cl_my_friends, which is always gone; keep this divider
+                     gone too so it doesn't orphan-stack against the one above. -->
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginStart="74dp"
-                    android:background="#F0F0F0" />
+                    android:background="#F0F0F0"
+                    android:visibility="gone" />
 
                 <!-- Terms & Condition -->
                 <LinearLayout

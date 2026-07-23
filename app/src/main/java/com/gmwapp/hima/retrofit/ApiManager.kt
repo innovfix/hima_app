@@ -383,15 +383,15 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getFemaleTransactions(
-        userId: Int, offset: Int, limit: Int, callback: NetworkCallback<FemaleTransactionsResponse>
+        userId: Int, offset: Int, limit: Int, type: String?, callback: NetworkCallback<FemaleTransactionsResponse>
     ) {
-        android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: Called with userId=$userId, offset=$offset, limit=$limit")
+        android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: Called with userId=$userId, offset=$offset, limit=$limit, type=$type")
         android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: API endpoint = female_transaction")
-        
+
         if (Helper.checkNetworkConnection()) {
             android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: Network connection available")
             try {
-                val apiCall: Call<FemaleTransactionsResponse> = getApiInterface().getFemaleTransactions(userId, offset, limit)
+                val apiCall: Call<FemaleTransactionsResponse> = getApiInterface().getFemaleTransactions(userId, offset, limit, type)
                 android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: API call created, enqueueing...")
                 android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: Request URL = ${apiCall.request().url}")
                 apiCall.enqueue(callback)
@@ -2590,6 +2590,10 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("offset") offset: Int,
         @Field("limit") limit: Int,
+        // Optional filter. Retrofit omits a null @Field, so the existing Earnings
+        // call (type = null) is byte-for-byte unchanged; "gift" is sent only for
+        // the Gift Earning screen.
+        @Field("type") type: String?,
     ): Call<FemaleTransactionsResponse>
 
     @FormUrlEncoded
