@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.telecom.DisconnectCause
 import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
@@ -18,6 +19,10 @@ import com.gmwapp.hima.R
 object HimaTelecomManager {
     private const val INCOMING_CALL_LOG_TAG = "HimaIncomingCall"
     const val PHONE_ACCOUNT_ID = "hima_voip_self_managed"
+    private const val INCOMING_REGISTRATION_CLAIM_TTL_MS = 60_000L
+
+    private val incomingRegistrationGate =
+        IncomingCallRegistrationGate(INCOMING_REGISTRATION_CLAIM_TTL_MS)
 
     @Volatile
     private var loggedPhoneAccountRegistered = false
@@ -61,6 +66,7 @@ object HimaTelecomManager {
             Log.d(INCOMING_CALL_LOG_TAG, "tryAddIncomingCall: skip SDK<26 (O)")
             return false
         }
+        val registrationKey = incomingRegistrationKey(extras)
         return try {
             val appContext = context.applicationContext
             registerPhoneAccountIfNeeded(appContext)
@@ -73,6 +79,15 @@ object HimaTelecomManager {
                 ComponentName(appContext, HimaConnectionService::class.java),
                 PHONE_ACCOUNT_ID
             )
+            if (registrationKey != null &&
+                !incomingRegistrationGate.tryClaim(registrationKey, SystemClock.elapsedRealtime())
+            ) {
+                Log.d(
+                    INCOMING_CALL_LOG_TAG,
+                    "tryAddIncomingCall: same-call registration already dispatched; skip duplicate"
+                )
+                return true
+            }
             // I039 — previously we bailed if TelephonyManager reported a cellular call in
             // progress. That was the wrong instinct: the whole reason to use self-managed
             // Telecom is so the system can coordinate a second incoming call (hold/switch/
@@ -84,12 +99,29 @@ object HimaTelecomManager {
             Log.d(INCOMING_CALL_LOG_TAG, "tryAddIncomingCall: addNewIncomingCall invoked ok")
             true
         } catch (e: SecurityException) {
+            registrationKey?.let(incomingRegistrationGate::release)
             Log.e(INCOMING_CALL_LOG_TAG, "tryAddIncomingCall: addNewIncomingCall SecurityException ${e.message}", e)
             false
         } catch (e: Exception) {
+            registrationKey?.let(incomingRegistrationGate::release)
             Log.e(INCOMING_CALL_LOG_TAG, "tryAddIncomingCall: exception ${e.message}", e)
             false
         }
+    }
+
+    private fun incomingRegistrationKey(extras: Bundle): String? {
+        val callId = extras.getInt(HimaConnection.EXTRA_CALL_ID, 0)
+        if (callId > 0) return "call:$callId"
+
+        val senderId = extras.getInt(HimaConnection.EXTRA_SENDER_ID, -1)
+        if (senderId <= 0) return null
+
+        // Older/fallback payloads can omit CALL_ID. Sender + type is stable
+        // across FCM and OneSignal even when one provider has only the
+        // default-channel sentinel. The bounded ring window prevents this
+        // compatibility key from suppressing a later independent call.
+        val callType = extras.getString(HimaConnection.EXTRA_CALL_TYPE).orEmpty()
+        return "sender:$senderId:type:$callType"
     }
 
     /**

@@ -559,6 +559,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             Log.d(INCOMING_CALL_LOG_TAG, "female branch: after notifyIncomingCallWithCallStyle")
                         } else {
                             Log.d(INCOMING_CALL_LOG_TAG, "female branch: skipping heads-up — foreground + unlocked (B030)")
+                            // RING_BACKSTOP_2026_07_23 — B030 intentionally skips
+                            // the foreground notification, but the same omission
+                            // also skipped FcmCallService.onTaskRemoved. Keep the
+                            // service in notification-free backstop mode so a
+                            // Recents swipe still reports rejected and releases
+                            // the server-side ringing/busy row.
+                            FcmCallService.startBackstopOnly(
+                                this,
+                                com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
+                                    isMale = false,
+                                    callType = callType,
+                                    senderId = senderId,
+                                    callId = callId.toIntOrNull() ?: 0,
+                                    channelName = channelName,
+                                    callerName = receiverName,
+                                    callerImage = receiverImg
+                                )
+                            )
                         }
 
                         Log.d("callType", "$callType")
@@ -757,6 +775,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             Log.d(INCOMING_CALL_LOG_TAG, "male branch: after notifyIncomingCallWithCallStyle")
                         } else {
                             Log.d(INCOMING_CALL_LOG_TAG, "male branch: skipping heads-up — foreground + unlocked (B030)")
+                            // Same notification-free swipe backstop as the female
+                            // receiver path above.
+                            FcmCallService.startBackstopOnly(
+                                this,
+                                com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
+                                    isMale = true,
+                                    callType = callType,
+                                    senderId = senderId,
+                                    callId = callId.toIntOrNull() ?: 0,
+                                    channelName = channelName,
+                                    callerName = receiverName,
+                                    callerImage = receiverImg
+                                )
+                            )
                         }
 
                         Log.d("MaleCallAccept_CallType", "$callType")

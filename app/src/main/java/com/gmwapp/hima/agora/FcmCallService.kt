@@ -39,7 +39,9 @@ class FcmCallService : Service() {
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = Runnable {
         Log.d(TAG, "self-timeout reached; stopping")
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (startedForeground) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        }
         stopSelf()
     }
 
@@ -48,12 +50,15 @@ class FcmCallService : Service() {
     // knows which call to reject. Only set while a ring is up; cleared implicitly
     // by the service stopping.
     private var lastPayload: CallNotifications.IncomingPayload? = null
+    private var startedForeground = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             Log.d(TAG, "stop action received")
             timeoutHandler.removeCallbacks(timeoutRunnable)
-            stopForeground(STOP_FOREGROUND_REMOVE)
+            if (startedForeground) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            }
             stopSelf()
             return START_NOT_STICKY
         }
@@ -70,19 +75,36 @@ class FcmCallService : Service() {
 
         lastPayload = payload
 
+        // RING_BACKSTOP_2026_07_23 — when the app is already foreground and
+        // unlocked, the accept Activity is the visible ring UI. Starting an FGS
+        // there would add a duplicate system CallStyle banner (B030), so keep a
+        // plain, bounded Service only to receive onTaskRemoved if the user swipes
+        // Hima away. If a later full start promotes this same instance, the
+        // normal foreground path below still runs.
+        val backstopOnly = intent?.getBooleanExtra(EXTRA_BACKSTOP_ONLY, false) == true
+        if (backstopOnly && !startedForeground) {
+            timeoutHandler.removeCallbacks(timeoutRunnable)
+            timeoutHandler.postDelayed(timeoutRunnable, SELF_TIMEOUT_MS)
+            Log.d(TAG, "backstop-only started callId=${payload.callId} isMale=${payload.isMale}")
+            return START_NOT_STICKY
+        }
+
         val notification = try {
             CallNotifications.buildIncomingCallNotification(this, payload)
         } catch (e: Exception) {
-            Log.e(TAG, "buildIncomingCallNotification threw; falling back to stopSelf", e)
+            Log.e(TAG, "buildIncomingCallNotification threw; using display fallback", e)
+            postDisplayFallback(payload)
             stopSelf()
             return START_NOT_STICKY
         }
 
         try {
             startForeground(CallNotifications.INCOMING_CALL_NOTIFICATION_ID, notification)
+            startedForeground = true
             Log.d(TAG, "startForeground done callId=${payload.callId} isMale=${payload.isMale}")
         } catch (e: Exception) {
-            Log.e(TAG, "startForeground threw", e)
+            Log.e(TAG, "startForeground threw; using display fallback", e)
+            postDisplayFallback(payload)
             stopSelf()
             return START_NOT_STICKY
         }
@@ -155,7 +177,9 @@ class FcmCallService : Service() {
             Log.w(TAG, "onTaskRemoved reject failed (best-effort): ${t.message}")
         }
         timeoutHandler.removeCallbacks(timeoutRunnable)
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (startedForeground) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        }
         stopSelf()
         super.onTaskRemoved(rootIntent)
     }
@@ -166,6 +190,29 @@ class FcmCallService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /**
+     * A startForegroundService dispatch returns before this service builds and
+     * posts its notification. If that asynchronous step fails after OneSignal
+     * has suppressed its default card, post the established tagged CallStyle
+     * fallback so the receiver is not left with an invisible ring. Ownership is
+     * deliberately bypassed here because this is the owning FCM/OneSignal
+     * service recovering from its own failed foreground promotion.
+     */
+    private fun postDisplayFallback(payload: CallNotifications.IncomingPayload) {
+        runCatching {
+            val posted = CallNotifications.showIncoming(
+                this,
+                payload,
+                bypassFcmOwnership = true
+            )
+            if (!posted) {
+                Log.w(TAG, "display fallback did not post")
+            }
+        }.onFailure {
+            Log.e(TAG, "display fallback threw", it)
+        }
+    }
 
     companion object {
         private const val TAG = "FcmCallService"
@@ -181,19 +228,53 @@ class FcmCallService : Service() {
         private const val EXTRA_CHANNEL_NAME = "CHANNEL_NAME"
         private const val EXTRA_CALLER_NAME = "Caller_NAME"
         private const val EXTRA_CALLER_IMAGE = "Caller_Image"
+        private const val EXTRA_BACKSTOP_ONLY = "backstop_only"
 
-        fun start(context: Context, payload: CallNotifications.IncomingPayload) {
-            val intent = Intent(context, FcmCallService::class.java).apply {
-                putExtra(EXTRA_IS_MALE, payload.isMale)
-                putExtra(EXTRA_CALL_TYPE, payload.callType)
-                putExtra(EXTRA_SENDER_ID, payload.senderId)
-                putExtra(EXTRA_CALL_ID, payload.callId)
-                putExtra(EXTRA_CHANNEL_NAME, payload.channelName)
-                putExtra(EXTRA_CALLER_NAME, payload.callerName)
-                putExtra(EXTRA_CALLER_IMAGE, payload.callerImage)
-            }
-            runCatching { ContextCompat.startForegroundService(context, intent) }
-                .onFailure { Log.e(TAG, "startForegroundService threw", it) }
+        private fun serviceIntent(
+            context: Context,
+            payload: CallNotifications.IncomingPayload,
+            backstopOnly: Boolean
+        ) = Intent(context, FcmCallService::class.java).apply {
+            putExtra(EXTRA_IS_MALE, payload.isMale)
+            putExtra(EXTRA_CALL_TYPE, payload.callType)
+            putExtra(EXTRA_SENDER_ID, payload.senderId)
+            putExtra(EXTRA_CALL_ID, payload.callId)
+            putExtra(EXTRA_CHANNEL_NAME, payload.channelName)
+            putExtra(EXTRA_CALLER_NAME, payload.callerName)
+            putExtra(EXTRA_CALLER_IMAGE, payload.callerImage)
+            putExtra(EXTRA_BACKSTOP_ONLY, backstopOnly)
+        }
+
+        /**
+         * Starts the background/locked incoming-call FGS. Returns whether Android
+         * accepted the service dispatch so fallback providers can retain their
+         * own notification if dispatch is rejected synchronously.
+         */
+        fun start(context: Context, payload: CallNotifications.IncomingPayload): Boolean {
+            val intent = serviceIntent(context, payload, backstopOnly = false)
+            return runCatching {
+                ContextCompat.startForegroundService(context, intent)
+                true
+            }.onFailure { Log.e(TAG, "startForegroundService threw", it) }
+                .getOrDefault(false)
+        }
+
+        /**
+         * Foreground+unlocked swipe-away watcher. It deliberately does not call
+         * startForeground, so it cannot recreate the duplicate CallStyle popup
+         * that B030 removed. The caller must only use this while the app is
+         * visibly foreground, where a normal started service is permitted.
+         */
+        fun startBackstopOnly(
+            context: Context,
+            payload: CallNotifications.IncomingPayload
+        ): Boolean {
+            val intent = serviceIntent(context, payload, backstopOnly = true)
+            return runCatching {
+                context.startService(intent)
+                true
+            }.onFailure { Log.e(TAG, "startService(backstop-only) threw", it) }
+                .getOrDefault(false)
         }
 
         fun stop(context: Context) {

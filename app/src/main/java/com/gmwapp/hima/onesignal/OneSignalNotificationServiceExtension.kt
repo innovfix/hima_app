@@ -2,7 +2,12 @@ package com.gmwapp.hima.onesignal
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.Bundle
 import android.util.Log
+import com.gmwapp.hima.agora.FcmCallService
+import com.gmwapp.hima.agora.telecom.HimaConnection
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.ActiveChatTracker
 import com.gmwapp.hima.utils.ChatNotificationStore
@@ -285,31 +290,67 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         // FemaleCallAcceptActivity before FCM's data message (the only other path
         // that sets this state) arrives; without the state set, the screen's
         // stale-launch guard finishes it and the locked device shows only the
-        // unlock screen. Skip when FCM already owns this call (it set the state
-        // itself and showIncoming will dedup-skip below). Does NOT claim FCM
-        // ownership — see setIncomingCallStateForFallback.
+        // unlock screen. When FCM already owns this call it has set the state,
+        // Telecom and watcher itself, so the duplicate OneSignal path returns
+        // below. This fallback does NOT claim FCM ownership — see
+        // setIncomingCallStateForFallback.
         if (app?.isCallOwnedByFcm(senderId) != true) {
             app?.setIncomingCallStateForFallback(senderId, callType ?: "audio", channelName, callId)
             app?.setIncomingCallerInfo(callerName, callerImage)
+        } else {
+            // Preserve the existing cross-provider ownership rule: FCM already
+            // started Telecom, the watcher and the ring UI for this sender.
+            // Suppress only the duplicate OneSignal card; do not register a
+            // second self-managed call or restart the service.
+            event.preventDefault()
+            Log.d(TAG, "OneSignal call push suppressed — FCM already owns senderId=$senderId")
+            return true
         }
 
-        // Defer preventDefault until our custom CallStyle has actually posted.
-        // Otherwise a throw inside showIncoming would leave the user with NO
-        // notification at all.
-        val ok = runCatching {
-            com.gmwapp.hima.utils.CallNotifications.showIncoming(
-                context,
-                com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
-                    isMale = isMale,
-                    callType = callType,
-                    senderId = senderId,
-                    callId = callId,
-                    channelName = channelName,
-                    callerName = callerName,
-                    callerImage = callerImage
-                )
+        val payload = com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
+            isMale = isMale,
+            callType = callType,
+            senderId = senderId,
+            callId = callId,
+            channelName = channelName,
+            callerName = callerName,
+            callerImage = callerImage
+        )
+
+        // RING_BACKSTOP_2026_07_23 — OneSignal is a real incoming-call delivery
+        // fallback, so it must establish the same bounded FcmCallService watcher
+        // as the primary FCM path. Register the self-managed Telecom call first:
+        // on Android 14+ that is the platform precondition for a phoneCall FGS.
+        val telecomExtras = Bundle().apply {
+            putString(HimaConnection.EXTRA_CALL_TYPE, callType)
+            putInt(HimaConnection.EXTRA_SENDER_ID, senderId)
+            putString(HimaConnection.EXTRA_CHANNEL_NAME, channelName)
+            putInt(HimaConnection.EXTRA_CALL_ID, callId)
+            putString(HimaConnection.EXTRA_CALLER_NAME, callerName)
+            putString(HimaConnection.EXTRA_CALLER_IMAGE, callerImage)
+            putString(HimaConnection.EXTRA_RECEIVER_GENDER, if (isMale) "male" else "female")
+        }
+        val telecomOk = HimaTelecomManager.tryAddIncomingCall(context, telecomExtras)
+        val watcherStarted =
+            (Build.VERSION.SDK_INT < 34 || telecomOk) && FcmCallService.start(context, payload)
+
+        if (watcherStarted) {
+            // FcmCallService owns the custom CallStyle notification and the
+            // swipe-away reject backstop. Suppress OneSignal's default card.
+            event.preventDefault()
+            Log.d(
+                TAG,
+                "OneSignal call push -> FcmCallService started senderId=$senderId callType=$callType telecomOk=$telecomOk"
             )
-            true
+            return true
+        }
+
+        // If Android rejects the service dispatch, preserve the established
+        // display-only fallback. Defer preventDefault until this custom
+        // notification path has completed, so the user is never left with no
+        // visible ring because of a synchronous failure.
+        val ok = runCatching {
+            com.gmwapp.hima.utils.CallNotifications.showIncoming(context, payload)
         }.getOrElse {
             Log.e(TAG, "showIncoming threw senderId=$senderId: ${it.message}", it)
             false

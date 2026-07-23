@@ -341,7 +341,11 @@ object CallNotifications {
         }.onFailure { Log.w(TAG, "repostIncomingForBackground failed: ${it.message}") }
     }
 
-    fun showIncoming(context: Context, payload: IncomingPayload) {
+    fun showIncoming(
+        context: Context,
+        payload: IncomingPayload,
+        bypassFcmOwnership: Boolean = false
+    ): Boolean {
         // Guard against stale / duplicate / delayed incoming-call pushes. If this
         // call_id was already ended (creator answered, declined, or the call was torn
         // down) within the last 60s, do NOT post the ongoing CallStyle banner.
@@ -350,22 +354,24 @@ object CallNotifications {
         // (FCM, OneSignal foreground, OneSignal NSE) is covered.
         if (BaseApplication.getInstance()?.wasCallRecentlyEnded(payload.callId) == true) {
             Log.d(TAG, "showIncoming: SKIP — callId=${payload.callId} was recently ended (stale/duplicate push)")
-            return
+            return false
         }
         // Busy-rejected calls are remembered for 2h (not 60s) so a stale/duplicate push
         // can't resurface the screen after a long current call ends.
         if (BaseApplication.getInstance()?.wasCallBusyRejected(payload.callId) == true) {
             Log.d(TAG, "showIncoming: SKIP — callId=${payload.callId} was busy-rejected (stale push after long call)")
-            return
+            return false
         }
         // De-duplicate across providers. showIncoming is the OneSignal-only path; FCM (the
         // primary path) rings + shows its own foreground banner and claims ownership via
         // setIncomingCall -> markCallOwnedByFcm. If FCM already owns this caller's call, skip
         // the OneSignal banner so the user sees ONE banner, not two. OneSignal still acts as
         // a delivery fallback: if FCM never arrived, nothing claimed ownership and this posts.
-        if (BaseApplication.getInstance()?.isCallOwnedByFcm(payload.senderId) == true) {
+        if (!bypassFcmOwnership &&
+            BaseApplication.getInstance()?.isCallOwnedByFcm(payload.senderId) == true
+        ) {
             Log.d(TAG, "showIncoming: SKIP — FCM already owns senderId=${payload.senderId} (defer, avoid duplicate banner)")
-            return
+            return false
         }
         ensureCallsChannel(context)
         val chImp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -518,11 +524,13 @@ object CallNotifications {
 
                     override fun onLoadCleared(placeholder: Drawable?) {}
                 })
+            return true
         } catch (e: SecurityException) {
             Log.e(TAG, "showIncoming: SecurityException ${e.message}", e)
         } catch (e: Exception) {
             Log.e(TAG, "showIncoming: Exception ${e.message}", e)
         }
+        return false
     }
 
     /**

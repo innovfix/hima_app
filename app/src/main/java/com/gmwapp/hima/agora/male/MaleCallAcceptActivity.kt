@@ -448,6 +448,15 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                         endedByUserId = maleUserId,
                         durationSeconds = 0,
                     )
+                    // Match the female receiver path: retain the terminal reject
+                    // across an app kill or short network loss. Unique WorkManager
+                    // work collapses duplicate enqueue attempts for this call.
+                    com.gmwapp.hima.workers.CallStatusWorker.enqueueReject(
+                        applicationContext,
+                        maleUserId,
+                        receiverId,
+                        call_Id
+                    )
                 }
 
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
@@ -831,4 +840,3 @@ class MaleCallAcceptActivity : AppCompatActivity() {
     }
 
 }
-
