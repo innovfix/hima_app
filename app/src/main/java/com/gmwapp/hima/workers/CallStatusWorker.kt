@@ -140,13 +140,54 @@ class CallStatusWorker(
          */
         @JvmStatic
         fun enqueueReject(context: Context, selfUserId: Int, peerUserId: Int, callId: Int) {
+            enqueueTerminal(
+                context = context,
+                selfUserId = selfUserId,
+                peerUserId = peerUserId,
+                callId = callId,
+                endReason = "rejected",
+                endedBy = "receiver"
+            )
+        }
+
+        /**
+         * Durable close for a new incoming row that this device auto-rejected
+         * because it was already handling another call/ring. The backend terminal
+         * compare-and-set makes a late retry harmless if that row connected or was
+         * closed by another actor first.
+         */
+        @JvmStatic
+        fun enqueueNotAnsweredByReceiver(
+            context: Context,
+            selfUserId: Int,
+            peerUserId: Int,
+            callId: Int
+        ) {
+            enqueueTerminal(
+                context = context,
+                selfUserId = selfUserId,
+                peerUserId = peerUserId,
+                callId = callId,
+                endReason = "not_answered",
+                endedBy = "receiver"
+            )
+        }
+
+        private fun enqueueTerminal(
+            context: Context,
+            selfUserId: Int,
+            peerUserId: Int,
+            callId: Int,
+            endReason: String,
+            endedBy: String
+        ) {
             if (selfUserId <= 0 || callId <= 0) {
-                Log.w(TAG, "enqueueReject skipped (self=$selfUserId call=$callId)")
+                Log.w(TAG, "enqueueTerminal skipped (self=$selfUserId call=$callId reason=$endReason)")
                 return
             }
             val authToken = BaseApplication.getInstance()?.getPrefs()?.getAuthenticationToken().orEmpty()
             if (authToken.isBlank()) {
-                Log.w(TAG, "enqueueReject skipped — no auth token (call=$callId)")
+                Log.w(TAG, "enqueueTerminal skipped — no auth token (call=$callId reason=$endReason)")
                 return
             }
 
@@ -154,8 +195,8 @@ class CallStatusWorker(
                 .putInt(KEY_USER_ID, selfUserId)
                 .putInt(KEY_RECEIVED_USER_ID, peerUserId)
                 .putInt(KEY_CALL_ID, callId)
-                .putString(KEY_END_REASON, "rejected")
-                .putString(KEY_ENDED_BY, "receiver")
+                .putString(KEY_END_REASON, endReason)
+                .putString(KEY_ENDED_BY, endedBy)
                 .putInt(KEY_ENDED_BY_USER_ID, selfUserId)
                 .putInt(KEY_DURATION_SECONDS, 0)
                 .putString(KEY_AUTH_TOKEN, authToken)
@@ -172,11 +213,11 @@ class CallStatusWorker(
                 .build()
 
             WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
-                "call_status_reject_$callId",
+                "call_status_${endReason}_$callId",
                 ExistingWorkPolicy.KEEP,
                 request
             )
-            Log.d(TAG, "Enqueued durable reject call_status for call=$callId")
+            Log.d(TAG, "Enqueued durable $endReason call_status for call=$callId")
         }
     }
 }

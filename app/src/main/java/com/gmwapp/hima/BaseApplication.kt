@@ -2592,6 +2592,7 @@ class BaseApplication : Application(), Configuration.Provider {
      */
     fun isInRealCall(): Boolean = isCallActive
 
+    @Synchronized
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {
         // C-10 fix: a fresh incoming ring supersedes any prior "accepted" marker —
         // the accept/decline race guard below only applies to the latest ring.
@@ -2641,6 +2642,7 @@ class BaseApplication : Application(), Configuration.Provider {
      * the tag=callId banner (that banner is the FSI source the caller just
      * posted). Idempotent with the later real [setIncomingCall] from FCM.
      */
+    @Synchronized
     fun setIncomingCallStateForFallback(senderId: Int, callType: String, channelName: String, callId: Int) {
         clearAcceptedRing()
         this.senderId = senderId
@@ -2678,17 +2680,20 @@ class BaseApplication : Application(), Configuration.Provider {
     @Volatile private var acceptedRingSenderId: Int = -1
     @Volatile private var acceptedRingAtMs: Long = 0L
 
+    @Synchronized
     fun markRingAccepted(senderId: Int) {
         this.acceptedRingSenderId = senderId
         this.acceptedRingAtMs = System.currentTimeMillis()
     }
 
+    @Synchronized
     fun clearAcceptedRing() {
         this.acceptedRingSenderId = -1
         this.acceptedRingAtMs = 0L
     }
 
     /** True if this caller's ring was accepted recently — so a stale callDeclined must be ignored. */
+    @Synchronized
     fun wasRingAcceptedFor(senderId: Int): Boolean {
         if (acceptedRingSenderId == -1 || senderId != acceptedRingSenderId) return false
         // Backstop expiry in case a reset was somehow missed (process death etc.).
@@ -2784,7 +2789,71 @@ class BaseApplication : Application(), Configuration.Provider {
             haystack.contains("incoming call")
     }
 
+    @Synchronized
     fun clearIncomingCall() {
+        clearIncomingCallState(stopRingService = true)
+    }
+
+    /**
+     * Atomically claims an unaccepted pending ring for task-removal teardown.
+     *
+     * The service payload can be older than the process-wide pending identity if
+     * another ring won a lifecycle race. Requiring both sender and call id avoids
+     * clearing that newer ring. Checking the accepted marker under the same monitor
+     * prevents an accepted call from being converted into a force-close rejection.
+     *
+     * The service is already inside onTaskRemoved, so this clears state without
+     * dispatching a redundant ACTION_STOP back into the same service instance.
+     */
+    @Synchronized
+    fun claimUnacceptedIncomingCallForTaskRemoval(senderId: Int, callId: Int): Boolean {
+        val canClaim = com.gmwapp.hima.agora.IncomingCallTeardownPolicy.canClaim(
+            incomingCallPending = incomingCall,
+            currentSenderId = this.senderId,
+            currentCallId = callIdForSplashActivity,
+            expectedSenderId = senderId,
+            expectedCallId = callId,
+            acceptedForExpectedSender = wasRingAcceptedFor(senderId)
+        )
+        if (!canClaim) return false
+
+        clearIncomingCallState(stopRingService = false)
+        return true
+    }
+
+    /**
+     * Releases a stale accept Activity reference only when its Intent belongs to
+     * the exact ring being torn down. Some OEM task-removal paths do not promptly
+     * deliver Activity.onDestroy, leaving currentActivity pointed at the old accept
+     * screen; the next incoming FCM then mistakes that stale object for a live call
+     * and replies userBusy. A newer/different activity is never touched.
+     */
+    @Synchronized
+    fun finishAcceptActivityIfMatches(senderId: Int, callId: Int): Boolean {
+        val activity = currentActivity ?: return false
+        if (activity.javaClass.simpleName !in setOf(
+                "FemaleCallAcceptActivity",
+                "MaleCallAcceptActivity"
+            )
+        ) return false
+
+        val matches = com.gmwapp.hima.agora.IncomingCallTeardownPolicy.identityMatches(
+            currentSenderId = activity.intent?.getIntExtra("SENDER_ID", -1),
+            currentCallId = activity.intent?.getIntExtra("CALL_ID", 0),
+            expectedSenderId = senderId,
+            expectedCallId = callId
+        )
+        if (!matches) return false
+
+        if (currentActivity === activity) {
+            currentActivity = null
+        }
+        runCatching { activity.finish() }
+            .onFailure { Log.w("HimaIncomingCall", "finish stale accept Activity failed: ${it.message}") }
+        return true
+    }
+
+    private fun clearIncomingCallState(stopRingService: Boolean) {
         // GHOST_CALL_FIX_2026_06_22 — record this call_id as positively-ended so the
         // heads-up "Answer" action can refuse to ghost-join it (see
         // [wasCallRecentlyEnded]). Done here because every teardown path (full-screen
@@ -2804,7 +2873,9 @@ class BaseApplication : Application(), Configuration.Provider {
         // left it on screen. Since every teardown path funnels through here, stopping
         // the service here clears the lingering banner everywhere at once. stop() is an
         // exception-guarded, idempotent no-op when the service isn't running.
-        runCatching { com.gmwapp.hima.agora.FcmCallService.stop(this) }
+        if (stopRingService) {
+            runCatching { com.gmwapp.hima.agora.FcmCallService.stop(this) }
+        }
     }
 
     /** call_ids positively ended this session, id -> endedAtMs. See [wasCallRecentlyEnded]. */

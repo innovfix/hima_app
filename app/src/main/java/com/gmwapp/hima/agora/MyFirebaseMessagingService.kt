@@ -442,6 +442,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                             val receiverId = senderId
                             sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
+                            stampConcurrentBusyReject(userData?.id, receiverId, callIdInt)
 
                             // B204 + TC_014 — whenever we auto-reject an incoming call
                             // because the recipient is busy, leave a local "Missed call
@@ -670,6 +671,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                             val receiverId = senderId
                             sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
+                            stampConcurrentBusyReject(userData?.id, receiverId, callIdInt)
 
                             // B204 + TC_014 (symmetric, male side) — leave a "Missed call
                             // from X" notification on ANY busy auto-reject, including an
@@ -1656,6 +1658,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
      */
     private fun stampConcurrentBusyReject(receiverId: Int?, callerId: Int?, callId: Int) {
         if (receiverId == null || receiverId <= 0 || callerId == null || callerId <= 0 || callId <= 0) return
+        // Durable companion to the inline call below. The latest production
+        // reproduction delivered userBusy but left the new row open when the
+        // fire-and-forget status post was lost. Unique WorkManager delivery closes
+        // that gap; the backend terminal compare-and-set makes late delivery safe.
+        runCatching {
+            com.gmwapp.hima.workers.CallStatusWorker.enqueueNotAnsweredByReceiver(
+                applicationContext,
+                receiverId,
+                callerId,
+                callId
+            )
+        }.onFailure {
+            Log.w("CallStatus", "Concurrent-busy durable enqueue failed callId=$callId: ${it.message}")
+        }
         runCatching {
             // lateinit callStatusRepository is Hilt-injected in Application.onCreate,
             // so it's ready by the time any FCM arrives; guard anyway so a cold-start

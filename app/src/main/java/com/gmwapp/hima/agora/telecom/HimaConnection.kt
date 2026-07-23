@@ -31,6 +31,15 @@ class HimaConnection(
     private val isIncoming: Boolean = true
 ) : Connection() {
 
+    internal fun matchesIncomingCall(senderId: Int, callId: Int): Boolean =
+        isIncoming &&
+            com.gmwapp.hima.agora.IncomingCallTeardownPolicy.identityMatches(
+                currentSenderId = extras.getInt(EXTRA_SENDER_ID, -1),
+                currentCallId = extras.getInt(EXTRA_CALL_ID, 0),
+                expectedSenderId = senderId,
+                expectedCallId = callId
+            )
+
     init {
         // v1106 (2026-05-29) — wrap each Connection API call individually
         // in try-catch. Some OEM Android implementations (observed in

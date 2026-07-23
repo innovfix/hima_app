@@ -164,13 +164,30 @@ class FcmCallService : Service() {
                 // Answer action in CallActionReceiver) is taken, keyed on this
                 // caller, so it is the correct — and un-polluted — "was accepted"
                 // signal.
-                val accepted = app.wasRingAcceptedFor(p.senderId)
-                if (accepted) {
-                    Log.d(TAG, "onTaskRemoved: ring accepted/active callId=${p.callId} — NOT rejecting")
+                val claimed = app.claimUnacceptedIncomingCallForTaskRemoval(
+                    senderId = p.senderId,
+                    callId = p.callId
+                )
+                if (!claimed) {
+                    Log.d(
+                        TAG,
+                        "onTaskRemoved: accepted, newer, or already-cleared ring callId=${p.callId} — NOT rejecting"
+                    )
                 } else {
+                    // Do not leave a stale Activity object as BaseApplication.currentActivity.
+                    // Realme/OPPO task removal can omit/delay onDestroy; the next FCM would
+                    // otherwise see FemaleCallAcceptActivity and immediately reply userBusy.
+                    app.stopRingtone()
+                    app.cancelAllIncomingCallNotifications()
+                    app.finishAcceptActivityIfMatches(p.senderId, p.callId)
                     val selfId = app.getPrefs()?.getUserData()?.id
                     Log.d(TAG, "onTaskRemoved: force-close during ring callId=${p.callId} — rejecting")
                     app.rejectCallOnAppClose(selfId, p.senderId, p.callId, p.callType, p.channelName)
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endIncomingCallIfMatches(
+                        senderId = p.senderId,
+                        callId = p.callId,
+                        reason = android.telecom.DisconnectCause.REJECTED
+                    )
                 }
             }
         } catch (t: Throwable) {

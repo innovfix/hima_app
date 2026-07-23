@@ -197,6 +197,45 @@ object HimaTelecomManager {
         }
     }
 
+    /**
+     * Ends only the still-ringing Telecom connection for the exact abandoned
+     * incoming call. A stale service callback must never destroy a newer outgoing,
+     * incoming, or already-accepted connection.
+     */
+    fun endIncomingCallIfMatches(
+        senderId: Int,
+        callId: Int,
+        reason: Int = DisconnectCause.REJECTED
+    ): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val conn = HimaConnectionService.activeConnection ?: return false
+        if (!conn.matchesIncomingCall(senderId, callId)) {
+            Log.d(
+                INCOMING_CALL_LOG_TAG,
+                "endIncomingCallIfMatches: active connection belongs to another call; skip"
+            )
+            return false
+        }
+        return try {
+            conn.setDisconnected(DisconnectCause(reason))
+            conn.destroy()
+            if (HimaConnectionService.activeConnection === conn) {
+                HimaConnectionService.activeConnection = null
+            }
+            Log.d(
+                INCOMING_CALL_LOG_TAG,
+                "endIncomingCallIfMatches: destroyed matching incoming connection reason=$reason"
+            )
+            true
+        } catch (e: Exception) {
+            Log.e(INCOMING_CALL_LOG_TAG, "endIncomingCallIfMatches: ${e.message}", e)
+            if (HimaConnectionService.activeConnection === conn) {
+                HimaConnectionService.activeConnection = null
+            }
+            false
+        }
+    }
+
     fun markActive() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         try {
