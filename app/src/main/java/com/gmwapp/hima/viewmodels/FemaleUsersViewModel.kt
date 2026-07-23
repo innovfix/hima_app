@@ -218,25 +218,10 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
         }
     }
 
-   fun callFemaleUser(
-       userId: Int,
-       callUserId: Int,
-       callType: String,
-       call_switch: Int,
-       rootCallId: Int? = null,
-       switchRequestId: String? = null,
-       channelName: String? = null
-   ) {
+   fun callFemaleUser(userId: Int, callUserId: Int,
+                      callType: String,call_switch:Int) {
         viewModelScope.launch {
-            femaleUsersRepositories.callFemaleUser(
-                userId,
-                callUserId,
-                callType,
-                call_switch,
-                rootCallId,
-                switchRequestId,
-                channelName,
-                object:NetworkCallback<CallFemaleUserResponse> {
+            femaleUsersRepositories.callFemaleUser(userId,callUserId,callType,call_switch, object:NetworkCallback<CallFemaleUserResponse> {
                 override fun onResponse(
                     call: Call<CallFemaleUserResponse>,
                     response: Response<CallFemaleUserResponse>
@@ -258,25 +243,10 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
         }
     }
 
-    fun callMaleUser(
-        userId: Int,
-        callUserId: Int,
-        callType: String,
-        call_switch: Int,
-        rootCallId: Int? = null,
-        switchRequestId: String? = null,
-        channelName: String? = null
-    ) {
+    fun callMaleUser(userId: Int, callUserId: Int,
+                     callType: String, call_switch: Int) {
         viewModelScope.launch {
-            femaleUsersRepositories.callMaleUser(
-                userId,
-                callUserId,
-                callType,
-                call_switch,
-                rootCallId,
-                switchRequestId,
-                channelName,
-                object:NetworkCallback<CallMaleUserResponse> {
+            femaleUsersRepositories.callMaleUser(userId, callUserId, callType, call_switch, object:NetworkCallback<CallMaleUserResponse> {
                 override fun onResponse(
                     call: Call<CallMaleUserResponse>,
                     response: Response<CallMaleUserResponse>
@@ -297,3 +267,4 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
     }
 
 }
+

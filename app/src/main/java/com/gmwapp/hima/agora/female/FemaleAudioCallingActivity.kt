@@ -45,7 +45,6 @@ import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.FcmUtils
-import com.gmwapp.hima.agora.SwitchRequestIdentity
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
@@ -255,7 +254,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     var isClicked : Boolean = false
 
     var switchCallID =0
-    private val switchRequestIdentity = SwitchRequestIdentity()
     // Mirrors the MaleAudioCallingActivity fix: video switch needs a fresh
     // call_id from getCallIdforCallSwitch(); if the user confirms before it
     // arrives (or a transient failure), park the switch and proceed when it
@@ -784,7 +782,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // the caller with "accepted" until they join (no-op for the caller side).
         startAcceptResend()
         call_Id = intent.getIntExtra("CALL_ID", 0)
-        switchRequestIdentity.captureRootCallId(call_Id)
         // Bug #1 fix (2026-05-25): persist peer id so MyFirebaseMessagingService
         // can match incoming switchToVideo/switchToAudio FCMs. See twin fix in
         // MaleAudioCallingActivity for the full root-cause comment.
@@ -2525,7 +2522,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 if (switchType=="VideoAccepted" && receiverId==this.receiverId){
 
                     isSwitchRequestPending=false
-                    switchRequestIdentity.complete("video")
                     val remainingTime = binding.tvRemainingTime?.text.toString() // Get the current countdown time
                     // B-v1110 #1 (sibling) — guard "Connecting…" parse; empty list skips the size==3 block.
                     val timeParts = remainingTime.split(":").mapNotNull { it.trim().toIntOrNull() }
@@ -2557,7 +2553,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 if (switchType == "AudioAccepted" && receiverId == this.receiverId) {
 
                     isSwitchRequestPending=false
-                    switchRequestIdentity.complete("audio")
                     Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                     stopCountdown()
                     FcmUtils.clearCallSwitch()
@@ -2567,7 +2562,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 if (switchType == "SwitchDeclined" && receiverId == this.receiverId) {
 
                     isSwitchRequestPending=false
-                    switchRequestIdentity.complete()
                     FcmUtils.clearCallSwitch()
                     Toast.makeText(this, "Request is rejected", Toast.LENGTH_SHORT).show()
                 }
@@ -2580,19 +2574,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     fun getCallIdforCallSwitch(callType: String){
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val switchContract = switchRequestIdentity.begin(callType)
 
         var userId = userData?.id
         receiverId?.let { it1 ->
             userId?.let {
                 femaleUsersViewModel.callFemaleUser(
-                    it1,
-                    it,
-                    callType,
-                    1,
-                    rootCallId = switchContract?.rootCallId,
-                    switchRequestId = switchContract?.requestId,
-                    channelName = channelName
+                    it1, it,callType,1
                 )
             }
             // Register once — getCallIdforCallSwitch can be called again on retry.

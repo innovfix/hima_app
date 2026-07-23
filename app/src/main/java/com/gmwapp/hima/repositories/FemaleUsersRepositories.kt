@@ -69,20 +69,10 @@ class FemaleUsersRepositories @Inject constructor(private val apiManager: ApiMan
         callUserId: Int,
         callType: String,
         call_switch: Int,
-        rootCallId: Int?,
-        switchRequestId: String?,
-        channelName: String?,
         callback: NetworkCallback<CallFemaleUserResponse>
     ) {
         apiManager.callFemaleUser(
-            userId,
-            callUserId,
-            callType,
-            call_switch,
-            rootCallId,
-            switchRequestId,
-            channelName,
-            callback
+            userId, callUserId, callType,call_switch, callback
         )
     }
 
@@ -91,20 +81,10 @@ class FemaleUsersRepositories @Inject constructor(private val apiManager: ApiMan
         callUserId: Int,
         callType: String,
         call_switch: Int,
-        rootCallId: Int?,
-        switchRequestId: String?,
-        channelName: String?,
         callback: NetworkCallback<CallMaleUserResponse>
     ) {
         apiManager.callMaleUser(
-            userId,
-            callUserId,
-            callType,
-            call_switch,
-            rootCallId,
-            switchRequestId,
-            channelName,
-            callback
+            userId, callUserId, callType, call_switch, callback
         )
     }
 

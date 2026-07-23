@@ -61,7 +61,6 @@ import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.EarningsHonourActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
-import com.gmwapp.hima.agora.SwitchRequestIdentity
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.constants.DConstants
@@ -374,7 +373,6 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
     var switchCallID =0
-    private val switchRequestIdentity = SwitchRequestIdentity()
     // B069 storm fix: register these once per activity so duplicate observers
     // don't stack on shared LiveData and multiply the clear↔observe churn.
     private var notificationSentObserverRegistered = false
@@ -814,7 +812,6 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // the caller with "accepted" until they join (no-op for the caller side).
         startAcceptResend()
         call_Id = intent.getIntExtra("CALL_ID", 0)
-        switchRequestIdentity.captureRootCallId(call_Id)
 
         Log.d("VideoCallingLog", "Channel: $channelName, Receiver: $receiverId, callId : $call_Id")
         Log.d("AgoraTiming", "FemaleVideo onCreate at ${System.currentTimeMillis()}")
@@ -3455,7 +3452,6 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 if (switchType=="VideoAccepted" && receiverId==this.receiverId){
 
                     isSwitchRequestPending=false
-                    switchRequestIdentity.complete("video")
 
                     val remainingTime = binding.tvRemainingTime?.text.toString() // Get the current countdown time
                     // B-v1110 #1 (sibling) — guard "Connecting…" parse; empty list skips the size==3 block.
@@ -3487,7 +3483,6 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                 if (switchType == "AudioAccepted" && receiverId == this.receiverId) {
                     isSwitchRequestPending=false
-                    switchRequestIdentity.complete("audio")
 
                   //  Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                     stopCountdown()
@@ -3498,7 +3493,6 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 if (switchType == "SwitchDeclined" && receiverId == this.receiverId) {
 
                     isSwitchRequestPending=false
-                    switchRequestIdentity.complete()
                     FcmUtils.clearCallSwitch()
                     Toast.makeText(this, "Request is rejected", Toast.LENGTH_SHORT).show()
                 }
@@ -3511,19 +3505,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     fun getCallIdforCallSwitch(callType: String){
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val switchContract = switchRequestIdentity.begin(callType)
 
         var userId = userData?.id
         receiverId?.let { it1 ->
             userId?.let {
                 femaleUsersViewModel.callFemaleUser(
-                    it1,
-                    it,
-                    callType,
-                    1,
-                    rootCallId = switchContract?.rootCallId,
-                    switchRequestId = switchContract?.requestId,
-                    channelName = channelName
+                    it1, it,callType,1
                 )
             }
             callIdObserver()
