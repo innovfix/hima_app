@@ -161,6 +161,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private var isMuted = false
     private var isSpeakerOn = true
 
+    // B_009 follow-up — speaker toggle responsiveness. AudioManager's
+    // clearCommunicationDevice()/setCommunicationDevice() are synchronous binder
+    // calls into AudioService that can block the caller for hundreds of ms
+    // (seconds on some OEM builds). Running them on the main thread stalled the
+    // frame, so the optimistic speaker-icon flip could not be painted until they
+    // returned — that is what made the speaker button feel laggy next to mute,
+    // which only calls the (fast) muteLocalAudioStream. Single thread so rapid
+    // toggles still apply in order.
+    private val audioRouteExecutor: java.util.concurrent.ExecutorService =
+        java.util.concurrent.Executors.newSingleThreadExecutor()
+
     private var audioFocusHelper: CallAudioFocusHelper? = null
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
@@ -1552,6 +1563,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        audioRouteExecutor.shutdown() // B_009 follow-up: stop the audio-route worker
         callModerationCaptureManager?.dispose()
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable) // B18: stop auto-hide timer
         stopHeartbeat()
@@ -3013,53 +3025,62 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         agoraEngine?.setEnableSpeakerphone(isSpeakerOn)
 
-        // 2) Force the explicit communication device. Each force*() reports whether
-        //    the OS actually applied the route; we must not leave the icon claiming
-        //    a route the system refused (forceSpeaker fails on wired headset +
-        //    Android <12).
-        val applied = when (route) {
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE ->
-                audioRouter?.forceEarpiece() ?: false
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER ->
-                audioRouter?.forceSpeaker() ?: false
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH ->
-                audioRouter?.forceBluetooth() ?: false
-        }
-
-        // 3) Reconcile the optimistic flip with what the OS actually did. Only roll
-        //    back on rejection — the happy path needs no work, the icon is already right.
-        if (!applied) {
-            val actualRoute = audioRouter?.currentRoute() ?: route
-            if (route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER) {
-                Toast.makeText(
-                    this,
-                    "Unplug headphones to use the speaker.",
-                    Toast.LENGTH_LONG
-                ).show()
-            } else if (route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE &&
-                actualRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
-            ) {
-                // User tapped speaker-off but the OS kept routing to speaker.
-                Toast.makeText(
-                    this,
-                    "Couldn't switch off the speaker. Please try again.",
-                    Toast.LENGTH_SHORT
-                ).show()
+        // 2) Force the explicit communication device — OFF the main thread.
+        //    clearCommunicationDevice()/setCommunicationDevice() are synchronous
+        //    binder calls into AudioService and can block for hundreds of ms
+        //    (seconds on some OEM builds). Running them inline held the main thread
+        //    so the optimistic icon flip above could not be painted until they
+        //    returned — that was the "speaker feels laggy" complaint. Each force*()
+        //    reports whether the OS actually applied the route; we must not leave the
+        //    icon claiming a route the system refused (forceSpeaker fails on wired
+        //    headset + Android <12).
+        audioRouteExecutor.execute {
+            val applied = when (route) {
+                com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE ->
+                    audioRouter?.forceEarpiece() ?: false
+                com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER ->
+                    audioRouter?.forceSpeaker() ?: false
+                com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH ->
+                    audioRouter?.forceBluetooth() ?: false
             }
-            isSpeakerOn = actualRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
-            currentAudioRoute = actualRoute
-            binding.btnSpeaker.setImageResource(iconForRoute(actualRoute))
-        }
+            val actualRoute = if (applied) route else (audioRouter?.currentRoute() ?: route)
 
-        Log.d(
-            "CallAudioRoute",
-            "Activity.applyAudioRoute requested=$route applied=$applied effective=$currentAudioRoute " +
-                "isSpeakerOn=$isSpeakerOn btConnected=${audioRouter?.isBluetoothConnected()}"
-        )
-        // Agora's worker thread may write isSpeakerphoneOn after we return.
-        // Verify once after the worker has flushed and re-apply if it raced.
-        // Verify the EFFECTIVE route, not the requested one — after a rollback they differ.
-        audioRouter?.verifyAndReapply(currentAudioRoute)
+            runOnUiThread {
+                // 3) Reconcile the optimistic flip with what the OS actually did. Only roll
+                //    back on rejection — the happy path needs no work, the icon is already right.
+                if (!applied) {
+                    if (route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER) {
+                        Toast.makeText(
+                            this,
+                            "Unplug headphones to use the speaker.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else if (route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE &&
+                        actualRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+                    ) {
+                        // User tapped speaker-off but the OS kept routing to speaker.
+                        Toast.makeText(
+                            this,
+                            "Couldn't switch off the speaker. Please try again.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    isSpeakerOn = actualRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+                    currentAudioRoute = actualRoute
+                    binding.btnSpeaker.setImageResource(iconForRoute(actualRoute))
+                }
+
+                Log.d(
+                    "CallAudioRoute",
+                    "Activity.applyAudioRoute requested=$route applied=$applied effective=$currentAudioRoute " +
+                        "isSpeakerOn=$isSpeakerOn btConnected=${audioRouter?.isBluetoothConnected()}"
+                )
+                // Agora's worker thread may write isSpeakerphoneOn after we return.
+                // Verify once after the worker has flushed and re-apply if it raced.
+                // Verify the EFFECTIVE route, not the requested one — after a rollback they differ.
+                audioRouter?.verifyAndReapply(currentAudioRoute)
+            }
+        }
     }
 
     private fun iconForRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute): Int = when (route) {
