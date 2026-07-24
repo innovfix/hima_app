@@ -336,8 +336,11 @@ object CallNotifications {
         if (BaseApplication.getInstance()?.wasCallBusyRejected(payload.callId) == true) return
         val notif = runCatching { buildIncomingCallNotification(context, payload) }.getOrNull() ?: return
         runCatching {
+            // B_007 SINGLE_SLOT — post to the tag-less (null, id=1) slot that
+            // FcmCallService.startForeground and showIncoming also use, so FCM, OneSignal
+            // and this Home-button path all update ONE banner instead of stacking three.
             NotificationManagerCompat.from(context)
-                .notify(incomingCallTag(payload.senderId), INCOMING_CALL_NOTIFICATION_ID, notif)
+                .notify(INCOMING_CALL_NOTIFICATION_ID, notif)
         }.onFailure { Log.w(TAG, "repostIncomingForBackground failed: ${it.message}") }
     }
 
@@ -477,22 +480,24 @@ object CallNotifications {
                 .build()
         }
 
-        // DUP_RING_STACK_2026_07_21 — tag by CALLER, not callId, so repeat rings from
-        // the same caller overwrite one banner instead of stacking (see [incomingCallTag]).
-        val notifTag = incomingCallTag(senderId)
+        // B_007 SINGLE_SLOT — post to the tag-less (null, id=1) slot shared with
+        // FcmCallService.startForeground and repostIncomingForBackground, so a second
+        // arrival (FCM after OneSignal, or vice versa) UPDATES this banner instead of
+        // creating a second one. `senderKey` is kept ONLY as a staleness key for the
+        // async avatar refresh below — it is no longer used as a tray tag.
+        val senderKey = incomingCallTag(senderId)
         try {
             Log.d(
                 TAG,
-                "showIncoming: posting notify tag=$notifTag id=$INCOMING_CALL_NOTIFICATION_ID channel=$CALLS_NOTIFICATION_CHANNEL_ID"
+                "showIncoming: posting notify id=$INCOMING_CALL_NOTIFICATION_ID (single-slot) channel=$CALLS_NOTIFICATION_CHANNEL_ID"
             )
             NotificationManagerCompat.from(context).notify(
-                notifTag,
                 INCOMING_CALL_NOTIFICATION_ID,
                 buildNotification(caller)
             )
             Log.d(
                 TAG,
-                "showIncoming: CallStyle notification posted (isMale=$isMale, tag=$notifTag, id=$INCOMING_CALL_NOTIFICATION_ID)"
+                "showIncoming: CallStyle notification posted (isMale=$isMale, id=$INCOMING_CALL_NOTIFICATION_ID, single-slot)"
             )
 
             // Async avatar refresh — re-notify with bitmap once Glide resolves.
@@ -502,11 +507,12 @@ object CallNotifications {
                 .apply(RequestOptions.circleCropTransform())
                 .into(object : CustomTarget<Bitmap>() {
                     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        // DUP_RING_STACK_2026_07_21 — notifTag is now the per-caller tray
-                        // tag, so compare against the notif tag, not the per-call identity.
-                        val currentTag = BaseApplication.getInstance()?.getLastIncomingCallNotifTag()
-                        if (currentTag != notifTag) {
-                            Log.d(TAG, "avatar refresh skipped: call $notifTag no longer pending (current=$currentTag)")
+                        // Staleness guard: only refresh the avatar if THIS caller is still
+                        // the pending ring (a newer call may have replaced the single-slot
+                        // banner). senderKey is the identity, not a tray tag.
+                        val currentKey = BaseApplication.getInstance()?.getLastIncomingCallNotifTag()
+                        if (currentKey != senderKey) {
+                            Log.d(TAG, "avatar refresh skipped: caller $senderKey no longer pending (current=$currentKey)")
                             return
                         }
                         val personWithIcon = Person.Builder()
@@ -514,8 +520,8 @@ object CallNotifications {
                             .setImportant(true)
                             .setIcon(IconCompat.createWithBitmap(resource))
                             .build()
+                        // B_007 SINGLE_SLOT — refresh the same tag-less (null, id=1) banner.
                         NotificationManagerCompat.from(context.applicationContext).notify(
-                            notifTag,
                             INCOMING_CALL_NOTIFICATION_ID,
                             buildNotification(personWithIcon)
                         )
