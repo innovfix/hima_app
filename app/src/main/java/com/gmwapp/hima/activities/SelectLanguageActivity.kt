@@ -234,6 +234,8 @@ class SelectLanguageActivity : BaseActivity() {
                 showAppToast("Please select a language", Toast.LENGTH_SHORT)
                 return@setOnSingleClickListener
             }
+            // Marketing funnel — Language Selected (carries the language param).
+            com.gmwapp.hima.utils.HimaAnalytics.logLanguageSelected(this, selectedLanguage.orEmpty())
             setContinueLoading(true)
             val gender = intent.getStringExtra(DConstants.GENDER).orEmpty()
             val savedReferCode = DPreferences(this).getReferralCode()

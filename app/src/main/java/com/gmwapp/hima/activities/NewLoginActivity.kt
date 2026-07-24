@@ -392,6 +392,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         super.onCreate(savedInstanceState)
         binding = ActivityNewLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Marketing funnel — Phone Number Screen (the login screen is the phone entry).
+        com.gmwapp.hima.utils.HimaAnalytics.logPhoneNumberScreen(this)
         // Light login background: match system bars to the page and use dark icons.
         window.statusBarColor = getColor(R.color.grey_extra_light)
         window.navigationBarColor = getColor(R.color.white)
@@ -624,6 +626,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     binding.btnSendOtp.isEnabled = false
                     val r = Random(System.currentTimeMillis())
                     otp = r.nextInt(100000, 999999)
+                    // Marketing funnel — OTP Send.
+                    com.gmwapp.hima.utils.HimaAnalytics.logOtpSend(this, mobile)
                     sendOTP(mobile, countryCode)
                 }
             }
@@ -851,7 +855,12 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
             
             if (it.success) {
+                // Marketing funnel — OTP Verified (unique). Fires on the first
+                // successful OTP verification for both new and returning users.
+                com.gmwapp.hima.utils.HimaAnalytics.logOtpVerified(this, it.data?.id)
                 if (it.registered) {
+                    // Marketing funnel — App Login (an already-registered user logs in again).
+                    com.gmwapp.hima.utils.HimaAnalytics.logAppLogin(this, it.data?.id)
                     it.data?.let { it1 ->
                         BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
                         BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)

@@ -163,6 +163,11 @@ class FemaleAboutActivity : BaseActivity() {
                 return@setOnSingleClickListener
             }
 
+            // Marketing funnel — Details Entered (creator age / bio / interests).
+            com.gmwapp.hima.utils.HimaAnalytics.logDetailsEntered(
+                this,
+                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+            )
             setContinueLoading(true)
             val intent = Intent(this, SelectLanguageActivity::class.java)
             intent.putExtra(DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID,0))

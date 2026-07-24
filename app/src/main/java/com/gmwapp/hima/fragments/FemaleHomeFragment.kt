@@ -1070,6 +1070,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 return@setOnCheckedChangeListener
             }
             val proceed = {
+                // Marketing — Button Enabled (creator turns audio availability ON).
+                if (isChecked) com.gmwapp.hima.utils.HimaAnalytics.logButtonEnabled(requireContext(), user.id, "audio")
                 pendingAudioStatus = if (isChecked) 1 else 0
                 if (isChecked) promptPostNotificationsIfNeededForCalls()
                 if (isChecked) disableDndIfActiveForAvailability()
@@ -1113,6 +1115,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 return@setOnCheckedChangeListener
             }
             val proceed = {
+                // Marketing — Button Enabled (creator turns video availability ON).
+                if (isChecked) com.gmwapp.hima.utils.HimaAnalytics.logButtonEnabled(requireContext(), user.id, "video")
                 pendingVideoStatus = if (isChecked) 1 else 0
                 if (isChecked) promptPostNotificationsIfNeededForCalls()
                 if (isChecked) disableDndIfActiveForAvailability()

@@ -396,4 +396,227 @@ object HimaAnalytics {
             Log.w(TAG, "logUnlockAchievement failed: ${t.message}")
         }
     }
+
+    // =================================================================
+    // Marketing Event Tracking spec (2026-07) — funnel, calls, retention
+    // Every event below fires to Firebase + Meta + Adjust + MMP (GAID
+    // attached) + backend via emit(). "Mirror to Google AND Meta" honoured.
+    // =================================================================
+
+    private const val PREFS_FUNNEL = "hima_funnel_prefs"     // unique-once guards
+    private const val PREFS_REPEAT = "hima_repeat_purchase_prefs"
+    private const val KEY_REPEAT_FIRST_AT = "repeat_first_purchase_at_ms"
+    private val REPEAT_WINDOWS = intArrayOf(1, 2, 3, 7, 14, 30)
+    private val IST: java.util.TimeZone = java.util.TimeZone.getTimeZone("Asia/Kolkata")
+
+    /**
+     * Generic fan-out for a marketing event. Fires the SAME event, with the same
+     * params, to Firebase, Meta, Adjust (skips cleanly until a token is set), the
+     * MMP (GAID attached automatically) and the backend admin viewer. Fail-open
+     * per platform so analytics can never break the flow that triggered it.
+     */
+    fun emit(
+        ctx: Context,
+        event: String,
+        params: Map<String, Any> = emptyMap(),
+        revenueInr: Double? = null,
+        userId: Int? = null
+    ) {
+        try {
+            // Firebase
+            runCatching {
+                val fb = Bundle().apply {
+                    params.forEach { (k, v) ->
+                        when (v) {
+                            is Int -> putLong(k, v.toLong())
+                            is Long -> putLong(k, v)
+                            is Double -> putDouble(k, v)
+                            is Float -> putDouble(k, v.toDouble())
+                            is Boolean -> putBoolean(k, v)
+                            else -> putString(k, v.toString())
+                        }
+                    }
+                    if (revenueInr != null && revenueInr > 0.0) {
+                        putDouble(FirebaseAnalytics.Param.VALUE, revenueInr)
+                        putString(FirebaseAnalytics.Param.CURRENCY, "INR")
+                    }
+                }
+                BaseApplication.firebaseAnalytics.logEvent(event, fb)
+            }.onFailure { Log.w(TAG, "$event firebase failed: ${it.message}") }
+
+            // Meta / Facebook
+            runCatching {
+                val meta = Bundle().apply {
+                    params.forEach { (k, v) -> putString(k, v.toString()) }
+                    if (revenueInr != null && revenueInr > 0.0) {
+                        putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                    }
+                }
+                if (revenueInr != null && revenueInr > 0.0) {
+                    AppEventsLogger.newLogger(ctx).logEvent(event, revenueInr, meta)
+                } else {
+                    AppEventsLogger.newLogger(ctx).logEvent(event, meta)
+                }
+            }.onFailure { Log.w(TAG, "$event meta failed: ${it.message}") }
+
+            // Adjust (no-op until marketing supplies the event token)
+            runCatching {
+                AdjustTracker.trackEvent(event, revenueInr = revenueInr, params = params)
+            }.onFailure { Log.w(TAG, "$event adjust failed: ${it.message}") }
+
+            // MMP (GAID attached inside MmpClient)
+            runCatching {
+                MmpClient.trackEvent(
+                    eventName = event,
+                    revenue = revenueInr?.takeIf { it > 0.0 },
+                    params = params.takeIf { it.isNotEmpty() },
+                    customerUserId = userId?.toString()
+                )
+            }.onFailure { Log.w(TAG, "$event mmp failed: ${it.message}") }
+
+            // Backend admin viewer
+            runCatching {
+                AppEventLogger.logEvent(
+                    context = ctx,
+                    eventName = event,
+                    platform = "firebase",
+                    userId = userId,
+                    params = params.takeIf { it.isNotEmpty() },
+                    value = revenueInr?.takeIf { it > 0.0 }
+                )
+            }.onFailure { Log.w(TAG, "$event backend failed: ${it.message}") }
+
+            Log.d(TAG, "emit '$event' params=$params revenue=$revenueInr user=$userId")
+        } catch (t: Throwable) {
+            Log.w(TAG, "emit '$event' failed: ${t.message}")
+        }
+    }
+
+    /** Returns true the FIRST time for (key); commits the guard synchronously. */
+    private fun firstTimeOnly(ctx: Context, key: String): Boolean {
+        return try {
+            val prefs = ctx.getSharedPreferences(PREFS_FUNNEL, Context.MODE_PRIVATE)
+            if (prefs.getBoolean(key, false)) {
+                false
+            } else {
+                prefs.edit().putBoolean(key, true).commit()
+                true
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "firstTimeOnly($key) failed: ${t.message}")
+            true
+        }
+    }
+
+    // ---- Registration funnel (both user & creator) ------------------
+    fun logPhoneNumberScreen(ctx: Context) = emit(ctx, "phone_number_screen")
+    fun logOtpSend(ctx: Context, mobile: String) =
+        emit(ctx, "otp_send", mapOf("mobile" to mobile))
+
+    /**
+     * UNIQUE — fires once per install on the first successful OTP verification.
+     * (Server-side dedup gives the true per-user uniqueness per the spec.)
+     */
+    fun logOtpVerified(ctx: Context, userId: Int?) {
+        if (!firstTimeOnly(ctx, "otp_verified")) return
+        emit(ctx, "otp_verified", userIdMap(userId), userId = userId)
+    }
+
+    /** "male_user_selected" or "female_selected" per the spec's split events. */
+    fun logGenderSelected(ctx: Context, gender: String) {
+        val g = gender.trim().lowercase()
+        val event = if (g == "female") "female_selected" else "male_user_selected"
+        emit(ctx, event, mapOf("gender" to gender))
+    }
+
+    fun logLanguageSelected(ctx: Context, language: String) =
+        emit(ctx, "language_selected", mapOf("language" to language))
+
+    fun logAppLogin(ctx: Context, userId: Int?) =
+        emit(ctx, "app_login", userIdMap(userId), userId = userId)
+
+    /** Creator entered Age / Bio / Interests. */
+    fun logDetailsEntered(ctx: Context, userId: Int?) =
+        emit(ctx, "details_entered", userIdMap(userId), userId = userId)
+
+    /** Creator flips her availability (call button) ON. */
+    fun logButtonEnabled(ctx: Context, userId: Int?, type: String = "availability") =
+        emit(ctx, "button_enabled", userIdMap(userId) + mapOf("type" to type), userId = userId)
+
+    // ---- Calls / engagement -----------------------------------------
+    fun logRandomCall(ctx: Context, isVideo: Boolean, userId: Int? = null) =
+        emit(ctx, if (isVideo) "random_video_call" else "random_audio_call", userIdMap(userId), userId = userId)
+
+    fun logDirectCall(ctx: Context, isVideo: Boolean, creatorId: Int? = null, userId: Int? = null) {
+        val params = HashMap<String, Any>()
+        userId?.let { params["user_id"] = it }
+        params["call_type"] = if (isVideo) "video" else "audio"
+        creatorId?.let { params["creator_id"] = it }
+        emit(ctx, "direct_call", params, userId = userId)
+    }
+
+    // ---- Retention / LTV --------------------------------------------
+    /** UNIQUE — user opens the app on or after Day 7 post-registration. */
+    fun logDay7Active(ctx: Context, userId: Int?, registeredAtMs: Long) {
+        if (registeredAtMs <= 0L) return
+        val days = daysBetweenIst(registeredAtMs, System.currentTimeMillis())
+        if (days < 7) return
+        if (!firstTimeOnly(ctx, "day_7_active")) return
+        emit(ctx, "day_7_active", userIdMap(userId) + mapOf("days_since_registration" to days), userId = userId)
+    }
+
+    /** UNIQUE — the creator's first successful withdrawal. */
+    fun logFirstWithdraw(ctx: Context, userId: Int?, amount: Double) {
+        if (!firstTimeOnly(ctx, "first_withdraw")) return
+        emit(ctx, "first_withdraw", userIdMap(userId) + mapOf("amount" to amount), revenueInr = amount, userId = userId)
+    }
+
+    /**
+     * Call AFTER every successful purchase. Anchors the user's first-purchase day
+     * (IST) on the first call, then fires repeat_purchase_day_N once when a later
+     * purchase lands on Day 1/2/3/7/14/30 post first-purchase.
+     */
+    fun logRepeatPurchase(ctx: Context, purchaseValue: Double, userId: Int? = null, currency: String = "INR") {
+        try {
+            val prefs = ctx.getSharedPreferences(PREFS_REPEAT, Context.MODE_PRIVATE)
+            val firstAt = prefs.getLong(KEY_REPEAT_FIRST_AT, 0L)
+            if (firstAt <= 0L) {
+                // This is the first purchase — anchor the window (IST day start) and stop.
+                prefs.edit().putLong(KEY_REPEAT_FIRST_AT, istDayStartMs(System.currentTimeMillis())).apply()
+                return
+            }
+            val dayIndex = daysBetweenIst(firstAt, System.currentTimeMillis())
+            if (dayIndex !in REPEAT_WINDOWS.toList()) return
+            val key = "repeat_day_${dayIndex}_fired"
+            if (prefs.getBoolean(key, false)) return   // one event per window
+            prefs.edit().putBoolean(key, true).apply()
+            emit(
+                ctx, "repeat_purchase_day_$dayIndex",
+                userIdMap(userId) + mapOf("day" to dayIndex, "currency" to currency),
+                revenueInr = purchaseValue, userId = userId
+            )
+        } catch (t: Throwable) {
+            Log.w(TAG, "logRepeatPurchase failed: ${t.message}")
+        }
+    }
+
+    // ---- helpers ----------------------------------------------------
+    private fun userIdMap(userId: Int?): Map<String, Any> =
+        if (userId != null) mapOf("user_id" to userId) else emptyMap()
+
+    private fun istDayStartMs(ms: Long): Long {
+        val cal = java.util.Calendar.getInstance(IST)
+        cal.timeInMillis = ms
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    private fun daysBetweenIst(fromMs: Long, toMs: Long): Int {
+        val a = istDayStartMs(fromMs)
+        val b = istDayStartMs(toMs)
+        return ((b - a) / TimeUnit.DAYS.toMillis(1)).toInt()
+    }
 }

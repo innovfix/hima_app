@@ -74,6 +74,8 @@ class WithdrawActivity : BaseActivity() {
     var bankDetails: Boolean = false
     var upiid: Boolean = false
     var minWithdrawAmount :Int?= null
+    // Captured at submit so the withdrawal success observers can report the amount.
+    private var lastWithdrawAmount: Double = 0.0
     private val accountViewModel: AccountViewModel by viewModels()
 
     var isPanVerifiend = false
@@ -374,6 +376,7 @@ class WithdrawActivity : BaseActivity() {
                 showAppToast("Enter a valid amount", Toast.LENGTH_SHORT)
                 return@setOnClickListener
             }
+            lastWithdrawAmount = amount.toDouble()
             val paymentMethod = payment_method.orEmpty().trim()
 
             Log.d("paymentMethod","$paymentMethod")
@@ -404,6 +407,11 @@ class WithdrawActivity : BaseActivity() {
 
                 Log.d("paymentMethod","$it")
 
+                // Marketing — First Withdraw (unique, creator).
+                com.gmwapp.hima.utils.HimaAnalytics.logFirstWithdraw(
+                    this, BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id, lastWithdrawAmount
+                )
+
                 showAppToast(it.message, Toast.LENGTH_SHORT)
                 val intent = Intent(this, PaymentInitiatedActivity::class.java)
                 startActivity(intent)
@@ -423,6 +431,10 @@ class WithdrawActivity : BaseActivity() {
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 userData?.let { u -> profileViewModel.getUsers(u.id) }
                 if (it.success == true) {
+                    // Marketing — First Withdraw (unique, creator).
+                    com.gmwapp.hima.utils.HimaAnalytics.logFirstWithdraw(
+                        this, userData?.id, lastWithdrawAmount
+                    )
                     showAppToast(it.message, Toast.LENGTH_SHORT)
                     finish()
                 } else {

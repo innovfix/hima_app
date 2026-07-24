@@ -63,6 +63,28 @@ object AdjustTracker {
         "subscribe"                    to "4hn62l", // Subscribe
         "d1mp"                         to "nr9xw7", // D1MP
         "daily_active_user"            to "mxh5o0", // Daily_Active_Users
+
+        // 2026-07 Marketing spec — funnel / calls / retention.
+        "phone_number_screen"          to "4y2oo3", // Phone_Number_Screen
+        "otp_send"                     to "8gv0ju", // Otp_Send
+        "otp_verified"                 to "p4fyor", // Otp_Verified
+        "male_user_selected"           to "x5yoch", // Male_User_Selected
+        "female_selected"              to "es64i1", // Female_Selected
+        "language_selected"            to "tkm31e", // Language_Selected
+        "app_login"                    to "rm90qp", // App_Login
+        "details_entered"              to "kehj5p", // Details_Entered
+        "random_video_call"            to "g18ppn", // Random_Video_Call
+        "random_audio_call"            to "xksloz", // Random_Audio_Call
+        "direct_call"                  to "n30nkl", // Direct_Call
+        "repeat_purchase_day_1"        to "6nqhb6", // Repeat_Purchase_Day_1
+        "repeat_purchase_day_2"        to "rty9xl", // Repeat_Purchase_Day_2
+        "repeat_purchase_day_3"        to "l9en5n", // Repeat_Purchase_Day_3
+        "repeat_purchase_day_7"        to "3xuco1", // Repeat_Purchase_Day_7
+        "repeat_purchase_day_14"       to "ac4nj5", // Repeat_Purchase_Day_14
+        "repeat_purchase_day_30"       to "5auybu", // Repeat_Purchase_Day_30
+        "day_7_active"                 to "hizaty", // Day_7_Active
+        "first_withdraw"               to "dbhns9", // First_Withdraw
+        "button_enabled"               to "sf3tar", // Button_Enabled
     )
 
     /** Must be called once in Application.onCreate(). Safe to call again (no-op). */

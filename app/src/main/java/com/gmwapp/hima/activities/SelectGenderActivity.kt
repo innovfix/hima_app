@@ -91,6 +91,8 @@ class SelectGenderActivity : BaseActivity() {
         
         binding.btnContinue.setOnSingleClickListener {
             setContinueLoading(true)
+            // Marketing funnel — Male User Selected / Female Selected.
+            com.gmwapp.hima.utils.HimaAnalytics.logGenderSelected(this, selectedGender)
             var intent:Intent? = null
             if (selectedGender == DConstants.MALE) {
                 intent = Intent(this, SelectLanguageActivity::class.java)

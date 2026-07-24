@@ -317,6 +317,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 Toast.makeText(context, "Already in a call", Toast.LENGTH_SHORT).show()
                 return@setOnSingleClickListener
             }
+            // Marketing — Random audio call.
+            context?.let { com.gmwapp.hima.utils.HimaAnalytics.logRandomCall(it, isVideo = false) }
             val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "audio")
             intent.putExtra("RANDOM_FILTER", filterType)
@@ -329,6 +331,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 Toast.makeText(context, "Already in a call", Toast.LENGTH_SHORT).show()
                 return@setOnSingleClickListener
             }
+            // Marketing — Random video call.
+            context?.let { com.gmwapp.hima.utils.HimaAnalytics.logRandomCall(it, isVideo = true) }
             val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "video")
             intent.putExtra("RANDOM_FILTER", filterType)
@@ -1055,6 +1059,21 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
             // Reload with new filter
             loadFemaleUsers(userId)
+        }
+    }
+
+    /**
+     * Reset the top tab to "All" (the creators list). Called when the user taps the
+     * bottom-nav Home button while already on the Home screen but on another top tab
+     * (Chats / New / Star / an interest) — tapping Home should always land back on All.
+     * If already on All, just refresh so a re-tap still reloads.
+     */
+    fun showAllTab() {
+        if (!isAdded) return
+        if (filterType == "all") {
+            refresh()
+        } else {
+            applyFilter("all")
         }
     }
 

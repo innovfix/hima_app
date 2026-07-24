@@ -987,9 +987,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         supportFragmentManager.executePendingTransactions()
         if (isAlreadyShowingTab(item.itemId)) {
-            // User re-tapped the tab they're already on — refresh its data.
+            // User re-tapped the tab they're already on.
             val current = supportFragmentManager.findFragmentById(R.id.flFragment)
-            (current as? Refreshable)?.refresh()
+            if (item.itemId == R.id.home && current is HomeFragment) {
+                // Re-tapping Home always returns to the All tab, even if they'd switched
+                // to Chats / New / Star / an interest (showAllTab refreshes if already on All).
+                current.showAllTab()
+            } else {
+                // Otherwise just refresh the current tab's data.
+                (current as? Refreshable)?.refresh()
+            }
             return true
         }
 
@@ -2266,6 +2273,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
         )
 
+        // Marketing — Repeat Purchase Day N. Anchors the user's first purchase (IST)
+        // on the first call, then fires repeat_purchase_day_{1,2,3,7,14,30} once when a
+        // later purchase lands in that window.
+        com.gmwapp.hima.utils.HimaAnalytics.logRepeatPurchase(this, coinAmount, userId)
+
         // Check rating prompt after successful purchase
         userId?.let {
             ratingPromptHelper.forceCheckRatingPrompt(this, it)
@@ -2416,6 +2428,19 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 userId = userId,
                 params = AppEventLogger.bundleToMap(bundle)
             )
+
+            // Marketing — Day 7 Active user (unique). Fires once when the user opens
+            // the app on or after Day 7 post-registration. created_at is server (IST)
+            // wall-clock "yyyy-MM-dd HH:mm:ss".
+            val createdAt = prefs?.getUserData()?.created_at
+            val regMs = try {
+                if (!createdAt.isNullOrBlank()) {
+                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).apply {
+                        timeZone = java.util.TimeZone.getTimeZone("Asia/Kolkata")
+                    }.parse(createdAt)?.time ?: 0L
+                } else 0L
+            } catch (e: Exception) { 0L }
+            com.gmwapp.hima.utils.HimaAnalytics.logDay7Active(this, userId, regMs)
 
             if (prefs?.getUserData()?.gender == "male") {
                 MmpClient.trackEvent(

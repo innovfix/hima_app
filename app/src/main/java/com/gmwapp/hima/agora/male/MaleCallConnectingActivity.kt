@@ -257,6 +257,16 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         fromChat = intent.getBooleanExtra("FROM_CHAT", false)
         chatPeerUserId = intent.getIntExtra("CHAT_PEER_USER_ID", -1)
 
+        // Marketing — Direct call. This screen is the single convergence for every
+        // direct (chosen-creator) call across the app (Home, Recent, Favourite,
+        // Chat, Profile, notifications); random calls bypass it, so it fires here once.
+        com.gmwapp.hima.utils.HimaAnalytics.logDirectCall(
+            this,
+            isVideo = callType == DConstants.VIDEO,
+            creatorId = receiverId.takeIf { it > 0 },
+            userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+        )
+
         Log.d("MaleCallConnecting", "fromChat=$fromChat, chatPeerUserId=$chatPeerUserId, receiverId=$receiverId")
 
         // Pre-flight DND gate. If the user has DND on, show the blocking
