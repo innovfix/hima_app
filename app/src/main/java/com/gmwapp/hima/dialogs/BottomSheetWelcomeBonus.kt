@@ -272,6 +272,21 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
                 behavior.skipCollapsed = true
                 behavior.state = BottomSheetBehavior.STATE_EXPANDED
             }
+            // The sheet draws to the screen bottom (behind the nav bar), so the last row
+            // ("View more plans") was clipped by the ~48dp navigation bar. Pad the content
+            // bottom by the actual navigation-bar inset so it always clears the nav bar
+            // (0 on gesture nav → no wasted gap).
+            _binding?.let { b ->
+                val navInset = androidx.core.view.ViewCompat.getRootWindowInsets(b.root)
+                    ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
+                val basePx = (20 * resources.displayMetrics.density).toInt()
+                b.llWelcomeContent.setPadding(
+                    b.llWelcomeContent.paddingLeft,
+                    b.llWelcomeContent.paddingTop,
+                    b.llWelcomeContent.paddingRight,
+                    basePx + navInset
+                )
+            }
         }
         return dialog
     }
