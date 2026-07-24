@@ -2586,6 +2586,25 @@ class BaseApplication : Application(), Configuration.Provider {
     // AtomicInteger is read by FCM on a background thread.
     private val activeCallActivityCount = AtomicInteger(0)
 
+    // DUAL_RING_CLAIM_2026_07_24 — an incoming call is delivered over BOTH FCM and
+    // OneSignal. When foreground+unlocked, each provider launches the accept screen
+    // itself (backstop-only doesn't ring), so both fire startActivity(*CallAccept)
+    // ~10ms apart for the same call_id. SINGLE_TOP collapses them to one activity, but
+    // the redundant launch flashes the ring for a split second. This atomic claim lets
+    // the FIRST provider to reach the launch win; the loser skips its redundant launch.
+    private val ringSurfaceClaimCallId = AtomicInteger(0)
+
+    /**
+     * True only for the FIRST caller to claim the accept-screen launch for [callId];
+     * any later caller for the SAME id gets false and must skip its launch. A different
+     * (newer) call id always wins. callId<=0 can't be deduped, so it always wins — never
+     * suppress a ring we can't key. Atomic, so the FCM/OneSignal thread race is safe.
+     */
+    fun claimRingSurface(callId: Int): Boolean {
+        if (callId <= 0) return true
+        return ringSurfaceClaimCallId.getAndSet(callId) != callId
+    }
+
     fun markCallActive() { isCallActive = true }
     fun markCallEnded() { isCallActive = false }
     fun isInActiveCall(): Boolean =

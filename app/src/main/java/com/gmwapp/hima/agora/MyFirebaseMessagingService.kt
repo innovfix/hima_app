@@ -588,12 +588,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         // the activity is launchMode=singleTop so this is idempotent
                         // with FSI's own auto-launch. Fixes B020.
                         if (foregroundFemale || lockedFemale) {
-                            Log.d(
-                                "FCMService",
-                                "Launching FemaleCallAcceptActivity (fg=$foregroundFemale locked=$lockedFemale)"
-                            )
-                            try { startActivity(intent) } catch (e: Exception) {
-                                Log.e("FCMService", "startActivity FemaleAccept threw: ${e.message}")
+                            // DUAL_RING_CLAIM_2026_07_24 — in foreground+unlocked, OneSignal
+                            // also launches this accept screen; the first to claim wins so
+                            // the ring can't flash twice. Locked always launches (FSI backup;
+                            // OneSignal uses the full service there, not this launch).
+                            val okToLaunch = lockedFemale ||
+                                BaseApplication.getInstance()?.claimRingSurface(callId.toIntOrNull() ?: 0) != false
+                            if (okToLaunch) {
+                                Log.d(
+                                    "FCMService",
+                                    "Launching FemaleCallAcceptActivity (fg=$foregroundFemale locked=$lockedFemale)"
+                                )
+                                try { startActivity(intent) } catch (e: Exception) {
+                                    Log.e("FCMService", "startActivity FemaleAccept threw: ${e.message}")
+                                }
+                            } else {
+                                Log.d("FCMService", "FemaleAccept launch skipped — ring already claimed (dual-provider dedup)")
                             }
                         }
 
@@ -801,12 +811,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         // activity is launchMode=singleTop so this is idempotent
                         // with FSI's own auto-launch. Fixes B020.
                         if (foregroundMale || lockedMale) {
-                            Log.d(
-                                "FCMService_Male",
-                                "Launching MaleCallAcceptActivity (fg=$foregroundMale locked=$lockedMale)"
-                            )
-                            try { startActivity(intent) } catch (e: Exception) {
-                                Log.e("FCMService_Male", "startActivity MaleAccept threw: ${e.message}")
+                            // DUAL_RING_CLAIM_2026_07_24 — twin of the female branch: first
+                            // provider (FCM/OneSignal) to claim the accept-screen launch wins
+                            // so the ring can't flash twice in foreground+unlocked. Locked
+                            // always launches (FSI backup).
+                            val okToLaunch = lockedMale ||
+                                BaseApplication.getInstance()?.claimRingSurface(callId.toIntOrNull() ?: 0) != false
+                            if (okToLaunch) {
+                                Log.d(
+                                    "FCMService_Male",
+                                    "Launching MaleCallAcceptActivity (fg=$foregroundMale locked=$lockedMale)"
+                                )
+                                try { startActivity(intent) } catch (e: Exception) {
+                                    Log.e("FCMService_Male", "startActivity MaleAccept threw: ${e.message}")
+                                }
+                            } else {
+                                Log.d("FCMService_Male", "MaleAccept launch skipped — ring already claimed (dual-provider dedup)")
                             }
                         }
 

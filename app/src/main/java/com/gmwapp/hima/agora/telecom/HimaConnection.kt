@@ -139,6 +139,26 @@ class HimaConnection(
         val callerName = extras.getString(EXTRA_CALLER_NAME)
         val callerImage = extras.getString(EXTRA_CALLER_IMAGE)
 
+        // GHOST_RING_2026_07_24 — the FCM and OneSignal push handlers both drop an
+        // incoming ring whose call_id was already rejected/ended/busy-rejected, but the
+        // Telecom framework can call THIS onShowIncomingCallUi again for a still-registered
+        // self-managed connection (e.g. after the ring was dismissed while the caller was
+        // still ringing) — re-launching the accept screen with no such guard. That is the
+        // "she swipes the ring and sees it again" ghost. Mirror the handler guards here and
+        // tear the connection down instead of resurrecting a dead ring.
+        val app = com.gmwapp.hima.BaseApplication.getInstance()
+        if (callId > 0 && app != null &&
+            (app.wasForceRejectedCallId(callId) || app.wasCallRecentlyEnded(callId) ||
+                app.wasCallBusyRejected(callId))
+        ) {
+            Log.d(TAG, "onShowIncomingCallUi SKIP — call_id=$callId already rejected/ended (ghost re-ring)")
+            runCatching {
+                setDisconnected(android.telecom.DisconnectCause(android.telecom.DisconnectCause.REJECTED))
+                destroy()
+            }
+            return
+        }
+
         val targetClass = if (gender == "male") {
             com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
         } else {

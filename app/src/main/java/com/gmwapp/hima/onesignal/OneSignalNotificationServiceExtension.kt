@@ -391,10 +391,19 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             // backstopOnly returns early WITHOUT posting a notification or calling
             // startForeground, so nothing would ring unless we launch the accept screen
             // ourselves — exactly what MyFirebaseMessagingService does at :590.
-            val lightweightOk = FcmCallService.startBackstopOnly(context, payload) &&
-                launchAcceptActivity(context, payload)
+            // DUAL_RING_CLAIM_2026_07_24 — FCM delivers this same call and, in
+            // foreground+unlocked, also launches the accept screen. Claim the launch:
+            // if FCM already won, start only the swipe-reject backstop and SKIP our
+            // redundant startActivity so the ring can't flash twice. If we win (FCM
+            // dropped/slower), we launch it. Either way preventDefault below hides
+            // OneSignal's own card.
+            val backstopOk = FcmCallService.startBackstopOnly(context, payload)
+            val claimed = com.gmwapp.hima.BaseApplication.getInstance()
+                ?.claimRingSurface(payload.callId) ?: true
+            val lightweightOk = backstopOk &&
+                (if (claimed) launchAcceptActivity(context, payload) else true)
             if (lightweightOk) {
-                Log.d(TAG, "OneSignal call push -> backstop-only + accept screen (fg, unlocked) senderId=$senderId")
+                Log.d(TAG, "OneSignal call push -> backstop-only + accept screen (fg, unlocked, claimed=$claimed) senderId=$senderId")
                 true
             } else {
                 // Safety net: never leave the user with no visible ring. If either half of
