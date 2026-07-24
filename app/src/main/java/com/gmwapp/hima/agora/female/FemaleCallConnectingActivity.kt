@@ -105,7 +105,17 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         timeoutHandler.post(timeoutRunnable) // Start tracking
     }
 
+    // CALLER_ABANDON_CANCEL_2026_07_24 (female twin of MaleCallConnectingActivity) —
+    // latched by cancelTimeoutTracking(), which EVERY legitimate terminal path already
+    // funnels through (accept / reject / busy / cancelled / peer-ended / timeout / manual
+    // back-press). onDestroy reads it to tell "this call reached a real outcome" apart
+    // from "the caller swiped the Connecting screen away". Critically, the ACCEPTED path
+    // also finish()es this activity on its way to FemaleAudio/VideoCallingActivity —
+    // without this latch an onDestroy cancel would tear down a LIVE call.
+    private var terminalHandled = false
+
     fun cancelTimeoutTracking() {
+        terminalHandled = true
         timeoutHandler.removeCallbacks(timeoutRunnable) // Stop tracking if call is accepted
         stopAlivePolling() // every terminal path (accept/reject/cancel) cancels the timeout
     }
@@ -305,6 +315,13 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 Log.d("FemaleCallConnectingActivity", "onBackPressed called via Dispatcher")
+
+                // CALLER_ABANDON_CANCEL_2026_07_24 — this manual cancel posts callDeclined +
+                // not_answered itself below, so mark the call terminal (via
+                // cancelTimeoutTracking's terminalHandled latch) BEFORE it runs. Without
+                // this, onDestroy's abandon-cancel would fire the SAME decline + status a
+                // second time. Also stops the ring poll + timeout for the finishing activity.
+                cancelTimeoutTracking()
 
                 // Tear down the self-managed Telecom outgoing connection placed in
                 // registerOutgoingWithTelecom(). Without this, a user-cancel (back-press)
@@ -945,6 +962,15 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // CALLER_ABANDON_CANCEL_2026_07_24 — read the latch BEFORE cancelTimeoutTracking()
+        // below sets it. A female caller who swipes the Connecting screen away never reaches
+        // any terminal path, so nothing told the callee to stop ringing: the outgoing call
+        // stayed live, he rang on, and re-opening the app resumed the same ring. Previously
+        // this only "appeared" to clear because the screen's destruction stopped
+        // sendRingHeartbeat and the backend flipped the ring dead ~15-18s later — an
+        // incidental timeout, not a cancel. Twin of MaleCallConnectingActivity.onDestroy.
+        val abandonedWhileConnecting = !terminalHandled &&
+            !designOnly && userId != null && receiverId != -1 && callType != null && callId > 0
         // B156a — clear the synchronous busy flag set at the click handler.
         // If onDestroy fires because we successfully transitioned to the
         // FemaleAudio/VideoCallingActivity, that activity already has
@@ -956,5 +982,73 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         isRunning = false
         cancelTimeoutTracking()
         handler.removeCallbacksAndMessages(null)
+
+        if (abandonedWhileConnecting) {
+            val ch = channelName.ifEmpty { "channel_$callId" }
+            Log.d(
+                "CallStatus",
+                "FemaleConnecting.onDestroy abandoned while connecting → cancelling callId=$callId ch=$ch"
+            )
+            // Same outcome as the manual Cancel (back-press) path, so the callee's ring is
+            // torn down at once instead of waiting out the ~15-18s heartbeat fallback.
+            // NOTE: deliberately NOT using callStatusViewModel / fcmNotificationViewModel —
+            // both dispatch on viewModelScope, already cancelled by the time onDestroy runs,
+            // so the requests would be silently dropped. The BaseApplication repositories are
+            // application-scoped Retrofit enqueue()s, so they outlive this activity (same
+            // reason BaseApplication.rejectCallOnAppClose posts through them).
+            com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                android.telecom.DisconnectCause.LOCAL
+            )
+            val app = BaseApplication.getInstance()
+            if (app != null && ch.isNotEmpty()) {
+                runCatching {
+                    app.fcmNotificationRepository.sendFcmNotification(
+                        userId!!, receiverId, callType!!, ch, "callDeclined",
+                        object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.FcmNotificationResponse> {
+                            override fun onResponse(
+                                call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.FcmNotificationResponse>,
+                                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.FcmNotificationResponse>
+                            ) { Log.d("CallStatus", "FemaleConnecting.abandon callDeclined sent callId=$callId") }
+                            override fun onFailure(
+                                call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.FcmNotificationResponse>,
+                                t: Throwable
+                            ) { Log.w("CallStatus", "FemaleConnecting.abandon callDeclined failed: ${t.message}") }
+                            override fun onNoNetwork() {
+                                Log.w("CallStatus", "FemaleConnecting.abandon callDeclined — no network")
+                            }
+                        }
+                    )
+                }
+            }
+            if (app != null) {
+                runCatching {
+                    app.callStatusRepository.callStatus(
+                        com.gmwapp.hima.retrofit.responses.CallStatusRequest(
+                            userId = userId!!,
+                            receivedUserId = receiverId,
+                            callId = callId,
+                            endReason = CallEndReason.NOT_ANSWERED,
+                            endedBy = CallEndedBy.CALLER,
+                            endedByUserId = userId,
+                            durationSeconds = 0,
+                        ),
+                        object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.CallStatusResponse> {
+                            override fun onResponse(
+                                call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.CallStatusResponse>,
+                                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.CallStatusResponse>
+                            ) { Log.d("CallStatus", "FemaleConnecting.abandon status posted callId=$callId body=${response.body()}") }
+                            override fun onFailure(
+                                call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.CallStatusResponse>,
+                                t: Throwable
+                            ) { Log.w("CallStatus", "FemaleConnecting.abandon status failed: ${t.message}") }
+                            override fun onNoNetwork() {
+                                Log.w("CallStatus", "FemaleConnecting.abandon status — no network")
+                            }
+                        }
+                    )
+                }
+            }
+            FcmUtils.clearCallStatus()
+        }
     }
 }

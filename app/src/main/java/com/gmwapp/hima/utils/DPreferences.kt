@@ -297,7 +297,15 @@ class DPreferences(context: Context) {
             val now = System.currentTimeMillis()
             val kept = parseForceRejected(now).toMutableMap()
             kept[callId] = now
-            mPrefsWrite.putString(FORCE_REJECTED_CALLS, encodeForceRejected(kept)).apply()
+            // GHOST_RING_2026_07_24 — MUST be commit(), not apply(). This marker is
+            // written from the force-close/swipe teardown (FcmCallService.onTaskRemoved /
+            // *CallAcceptActivity.onDestroy), and swiping the app from recents KILLS the
+            // process moments later. apply()'s async disk flush loses the race with that
+            // kill, so on the cold restart wasForceRejectedCallId() reads stale prefs,
+            // the recovery poll / late FCM slips past the guard, and the already-rejected
+            // ring resurrects for ~2s (the ghost re-ring). commit() blocks until the write
+            // hits disk, so the marker survives the kill. Rare path, so the sync cost is fine.
+            mPrefsWrite.putString(FORCE_REJECTED_CALLS, encodeForceRejected(kept)).commit()
         } catch (e: Exception) {
             e.message?.let { Log.e("DPreferences", it) }
         }
