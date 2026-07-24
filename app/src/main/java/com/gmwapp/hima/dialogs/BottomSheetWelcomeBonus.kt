@@ -20,6 +20,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.databinding.BottomSheetWelcomeBonusBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
@@ -258,6 +259,20 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
     override fun getTheme(): Int = R.style.BottomSheetDialogTheme
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        return BottomSheetDialog(requireContext(), theme)
+        val dialog = BottomSheetDialog(requireContext(), theme)
+        // Always open fully expanded so short screens / large font scale still show the
+        // whole sheet, including "View more plans" at the bottom. The NestedScrollView in
+        // the layout lets the content scroll when it's taller than the available height,
+        // so nothing is ever clipped and unreachable (the device-inconsistency bug).
+        dialog.setOnShowListener { d ->
+            val sheet = (d as BottomSheetDialog)
+                .findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            sheet?.let {
+                val behavior = BottomSheetBehavior.from(it)
+                behavior.skipCollapsed = true
+                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        }
+        return dialog
     }
 }
