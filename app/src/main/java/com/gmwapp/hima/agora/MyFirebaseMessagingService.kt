@@ -592,7 +592,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             // also launches this accept screen; the first to claim wins so
                             // the ring can't flash twice. Locked always launches (FSI backup;
                             // OneSignal uses the full service there, not this launch).
-                            val okToLaunch = lockedFemale ||
+                            //
+                            // CHANNEL_RELAY_CLAIM_BYPASS_2026_07_24 — a channel-relay upgrade
+                            // MUST re-launch even after the surface is claimed. When OneSignal
+                            // wins the initial ring it opens this screen with the non-joinable
+                            // `default_channel` placeholder; the FCM relay carrying the REAL
+                            // channel arrives later and its re-launch is the ONLY thing that
+                            // fires onNewIntent to adopt the real channel. If the claim
+                            // suppresses it, channelName stays `default_channel` and EVERY
+                            // accept fails with "Couldn't connect this call" (verified on-device
+                            // 2026-07-24). singleTop → onNewIntent (no re-ring), so bypassing
+                            // the claim here can't reintroduce the double-ring flash.
+                            val okToLaunch = lockedFemale || isChannelRelayUpgrade ||
                                 BaseApplication.getInstance()?.claimRingSurface(callId.toIntOrNull() ?: 0) != false
                             if (okToLaunch) {
                                 Log.d(
@@ -815,7 +826,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             // provider (FCM/OneSignal) to claim the accept-screen launch wins
                             // so the ring can't flash twice in foreground+unlocked. Locked
                             // always launches (FSI backup).
-                            val okToLaunch = lockedMale ||
+                            //
+                            // CHANNEL_RELAY_CLAIM_BYPASS_2026_07_24 — twin of the female fix:
+                            // a channel-relay upgrade must re-launch even after the claim, or
+                            // the accept screen keeps `default_channel` and every accept fails.
+                            // See the female branch for the full rationale.
+                            val okToLaunch = lockedMale || isChannelRelayUpgrade ||
                                 BaseApplication.getInstance()?.claimRingSurface(callId.toIntOrNull() ?: 0) != false
                             if (okToLaunch) {
                                 Log.d(
