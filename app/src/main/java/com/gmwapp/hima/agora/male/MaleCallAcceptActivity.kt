@@ -96,6 +96,11 @@ class MaleCallAcceptActivity : AppCompatActivity() {
             if (peerEndedHandled || terminalStarted || isFinishing || isDestroyed) return
             // No usable call id → checkConnectingDead can't query; bail without rescheduling.
             if (call_Id <= 0) return
+            // RING_PEER_GONE_2026_07_24 — receiver ring heartbeat (twin of female side):
+            // if this phone is OEM-killed on a ring swipe, the beats stop and the server
+            // frees the CALLER in ~15s instead of the 45s fallback. Server ignores it
+            // unless ring_peer_gone_reap is enabled.
+            com.gmwapp.hima.utils.CallAliveChecker.sendRingHeartbeat(call_Id)
             com.gmwapp.hima.utils.CallAliveChecker.checkConnectingDead(call_Id) {
                 if (!peerEndedHandled && !terminalStarted && !isFinishing && !isDestroyed) {
                     Log.d("CreatorCallDiag", "MAccept.alivePoll -> backend says call ended, dismissing ring banner callId=$call_Id")
