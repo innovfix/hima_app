@@ -605,18 +605,25 @@ class RecentCallsAdapter(
         // Chat Now -> open chat directly (no friend gating, mirrors prior favourite behavior)
         b.cardChatNow.setOnSingleClickListener { openChatActivity(call) }
 
+        // B_005 — grey the callback buttons when EITHER party blocked the other (any
+        // direction). blocked==2 is the legacy creator-blocked-me case; either_blocked
+        // adds the male-blocked-creator case (the screenshot: male blocks the creator,
+        // which sets either_blocked but NOT blocked==2, so the favourite card stayed lit).
+        // Mirrors the Recent path. The profile-view gate below stays on blocked==2 only,
+        // so blocking someone doesn't hide their card.
+        val callBlocked = call.blocked == 2 || call.either_blocked
         val blocked = call.blocked == 2
         // B_003 — Favourite is male-only (4-tab nav), so the peer is always a female
         // creator; read female_dnd. On DND, treat the callback buttons as unavailable.
         val peerDnd = call.female_dnd
         configureFavouriteButton(
-            online = call.audio_status == 1 && !blocked && !peerDnd, blocked = blocked, dnd = peerDnd, forAudio = true,
+            online = call.audio_status == 1 && !callBlocked && !peerDnd, blocked = callBlocked, dnd = peerDnd, forAudio = true,
             circle = b.flAudio, icon = b.ivAudio, rateRow = b.llAudioRate, statusLabel = b.tvAudioStatus,
             onlineCircleBg = R.drawable.circle_bg_pink_light, onlineIconTint = R.color.colorAccent,
             root = b.root, call = call
         )
         configureFavouriteButton(
-            online = call.video_status == 1 && !blocked && !peerDnd, blocked = blocked, dnd = peerDnd, forAudio = false,
+            online = call.video_status == 1 && !callBlocked && !peerDnd, blocked = callBlocked, dnd = peerDnd, forAudio = false,
             circle = b.flVideo, icon = b.ivVideo, rateRow = b.llVideoRate, statusLabel = b.tvVideoStatus,
             onlineCircleBg = R.drawable.circle_bg_purple_light, onlineIconTint = R.color.purple,
             root = b.root, call = call
