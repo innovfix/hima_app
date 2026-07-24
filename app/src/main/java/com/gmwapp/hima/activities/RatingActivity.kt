@@ -415,6 +415,15 @@ class RatingActivity : BaseActivity() {
         binding.llFavouriteUser.visibility = View.GONE
         binding.llActionChips.visibility = View.VISIBLE
         binding.chipFavourite.visibility = if (isMale) View.VISIBLE else View.GONE
+        // When the favourite chip is hidden (female viewer), the friend chip is the
+        // only one in the row — drop its 6dp start gap (only meant to separate it
+        // from favourite) so it spans full width and lines up with the Submit button.
+        if (!isMale) {
+            (binding.chipFriend.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let {
+                it.marginStart = 0
+                binding.chipFriend.layoutParams = it
+            }
+        }
 
         val userid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
         val callUserId = intent.getIntExtra(DConstants.RECEIVER_ID, 0)

@@ -404,7 +404,13 @@ class EditProfileActivity : BaseActivity() {
 
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val interests = userData?.interests?.split(",")
+        // Parse EXACTLY like the initial load above (strip brackets, trim, drop
+        // blanks). Plain split(",") turned an empty interests value into [""] —
+        // size 1 vs the loaded list's size 0 — so the screen thought interests had
+        // changed and enabled Update the moment it opened. Hit males hardest since
+        // they have no interests at all (their picker is hidden).
+        val interests = userData?.interests?.removeSurrounding("[", "]")?.split(",")
+            ?.map { it.trim() }?.filter { it.isNotEmpty() }
         val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
         val index = layoutManager.findFirstCompletelyVisibleItemPosition()
         

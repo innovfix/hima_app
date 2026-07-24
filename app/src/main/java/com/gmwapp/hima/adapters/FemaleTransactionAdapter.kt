@@ -136,7 +136,12 @@ class FemaleTransactionAdapter(
                 holder.binding.tvCoins.text = "$rupeeSymbol$formattedCoins"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = transaction.title ?: "Gift Received"
-                holder.binding.tvTransactionDate.text = transaction.date
+                // Show date + time, same style as call rows. Gift rows have no
+                // started_time, so derive the time from the full datetime; the helper
+                // falls back to date-only if datetime is missing/unparseable.
+                holder.binding.tvTransactionDate.maxLines = 1
+                holder.binding.tvTransactionDate.text =
+                    DateTimeUtils.buildTxnSubtitle(transaction.date, transaction.datetime, null)
                 // Set icon and background color - same as male transactions (using gift icon)
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_gift_sent)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFF3E0"))
