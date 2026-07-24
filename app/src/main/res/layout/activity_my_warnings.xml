@@ -14,14 +14,15 @@
         android:layout_height="wrap_content"
         android:background="@color/white"
         android:elevation="2dp"
-        android:fitsSystemWindows="true"
         android:orientation="vertical">
 
-        <!-- Inner row carries the real header padding. fitsSystemWindows on the
-             OUTER header overwrites its own padding with the status-bar insets
-             (start/end/bottom become 0), which is what pulled the back button
-             flush to the left edge (B_048) and killed the bottom spacing (B_049).
-             The inner container is untouched by that, so its padding survives. -->
+        <!-- B_048/B_049 history: fitsSystemWindows="true" here was WRONG. It applies
+             ALL system-bar insets as padding, so besides the wanted status-bar TOP
+             inset it also added the navigation-bar BOTTOM inset (135px / 48dp on a
+             gesture-nav device) as bottom padding — a device-dependent white gap
+             below the header before the card. The status-bar top inset is now
+             applied programmatically (top only) in MyWarningsActivity.onCreate;
+             the inner row below still carries the real content padding. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

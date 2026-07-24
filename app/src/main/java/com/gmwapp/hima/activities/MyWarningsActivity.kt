@@ -20,6 +20,8 @@ import com.gmwapp.hima.databinding.BottomSheetWarningHistoryBinding
 import com.gmwapp.hima.retrofit.responses.MyWarningItem
 import com.gmwapp.hima.viewmodels.MyWarningsViewModel
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -36,6 +38,19 @@ class MyWarningsActivity : AppCompatActivity() {
         setContentView(binding.root)
         // Light header → DARK status-bar icons.
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+
+        // B_whitespace: apply ONLY the status-bar TOP inset to the header. The old
+        // android:fitsSystemWindows="true" applied EVERY system-bar inset, so it also
+        // padded the header bottom by the navigation-bar inset (135px/48dp on gesture
+        // nav) — a device-dependent white gap under the header. Mirrors the
+        // top-only pattern used in FavouriteFragment.setupStatusBarInsets.
+        val headerBaseTop = binding.headerLayout.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.headerLayout) { v, insets ->
+            val statusTop = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            v.setPadding(v.paddingLeft, headerBaseTop + statusTop, v.paddingRight, v.paddingBottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.headerLayout)
 
         binding.cvBack.setOnClickListener {
             val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
