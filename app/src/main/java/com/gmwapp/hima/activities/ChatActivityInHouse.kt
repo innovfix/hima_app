@@ -88,6 +88,7 @@ import org.json.JSONObject
 import kotlin.math.abs
 import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.activities.WalletActivity
+import com.gmwapp.hima.utils.CallButtonStyler
 import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
 import com.gmwapp.hima.utils.ChatHistoryMemoryCache
@@ -5136,13 +5137,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                             mainHandler.post {
                                 if (!isUiSafe()) return@post
                                 callButtonsContainer.visibility = View.VISIBLE
-                                // Initialize buttons as disabled (gray) first
-                                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.light_grey))
-                                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.light_grey))
-                                ivAudioCall.setColorFilter(ContextCompat.getColor(this@ChatActivityInHouse, R.color.grey_medium))
-                                ivVideoCall.setColorFilter(ContextCompat.getColor(this@ChatActivityInHouse, R.color.grey_medium))
-                                cvAudioCall.isEnabled = false
-                                cvVideoCall.isEnabled = false
+                                // Initialize buttons as disabled (home offline look) first
+                                styleChatCallButton(cvAudioCall, ivAudioCall, tvAudioRateTop, enabled = false, forAudio = true)
+                                styleChatCallButton(cvVideoCall, ivVideoCall, tvVideoRateTop, enabled = false, forAudio = false)
                                 // Update buttons based on API response (is_blocked, audio_status, video_status)
                                 updateCallButtonsState()
                             }
@@ -5179,16 +5176,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             Log.d("CallButtons", "Peer unavailable (is_blocked=$isCallBlocked call_blocked=$peerCallBlocked dnd=$peerDnd) - disabling both audio and video buttons")
             mainHandler.post {
                 if (!isUiSafe()) return@post
-                // DISABLED - Gray for both buttons
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_grey_bg))
-                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
-                cvAudioCall.isEnabled = false
-                tvAudioRateTop?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
-                
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_grey_bg))
-                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
-                cvVideoCall.isEnabled = false
-                tvVideoRateTop?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
+                // DISABLED - home offline look for both buttons
+                styleChatCallButton(cvAudioCall, ivAudioCall, tvAudioRateTop, enabled = false, forAudio = true)
+                styleChatCallButton(cvVideoCall, ivVideoCall, tvVideoRateTop, enabled = false, forAudio = false)
             }
             return
         }
@@ -5210,39 +5200,41 @@ class ChatActivityInHouse : AppCompatActivity() {
         mainHandler.post {
             if (!isUiSafe()) return@post
             // Audio button state - enabled only if audio is enabled (status = 1)
-            if (isAudioEnabled) {
-                // ENABLED - Purple
-                Log.d("CallButtons", "Setting audio button to ENABLED (purple)")
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_audio_bg))
-                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.colorAccent))
-                cvAudioCall.isEnabled = true
-                tvAudioRateTop?.setTextColor(ContextCompat.getColor(this, R.color.colorAccent))
-            } else {
-                // DISABLED - Gray
-                Log.d("CallButtons", "Setting audio button to DISABLED (gray) - AudioEnabled: $isAudioEnabled")
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_grey_bg))
-                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
-                cvAudioCall.isEnabled = false
-                tvAudioRateTop?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
-            }
-            
-            // Video button state - enabled only if video is enabled (status = 1)
-            if (isVideoEnabled) {
-                // ENABLED - Green
-                Log.d("CallButtons", "Setting video button to ENABLED (green)")
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_video_bg))
-                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.purple))
-                cvVideoCall.isEnabled = true
-                tvVideoRateTop?.setTextColor(ContextCompat.getColor(this, R.color.purple))
-            } else {
-                // DISABLED - Gray
-                Log.d("CallButtons", "Setting video button to DISABLED (gray) - VideoEnabled: $isVideoEnabled")
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_grey_bg))
-                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
-                cvVideoCall.isEnabled = false
-                tvVideoRateTop?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
-            }
+            // Home look: white circle + pink icon when enabled, grey + dim when not.
+            styleChatCallButton(cvAudioCall, ivAudioCall, tvAudioRateTop, enabled = isAudioEnabled, forAudio = true)
+            // Home look: white circle + purple icon when enabled, grey + dim when not.
+            styleChatCallButton(cvVideoCall, ivVideoCall, tvVideoRateTop, enabled = isVideoEnabled, forAudio = false)
         }
+    }
+
+    /**
+     * Home call-button look for the chat header: white circle, coloured icon
+     * (pink phone / purple video) when enabled, grey icon + 0.5 alpha when not.
+     * Chat keeps the rate text visible in both states (greyed when disabled),
+     * so there's no "Offline" swap here.
+     */
+    private fun styleChatCallButton(
+        card: com.google.android.material.card.MaterialCardView,
+        icon: ImageView,
+        rate: TextView?,
+        enabled: Boolean,
+        forAudio: Boolean
+    ) {
+        card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.white))
+        card.alpha = if (enabled) 1f else 0.5f
+        card.isEnabled = enabled
+        icon.setImageResource(if (forAudio) R.drawable.ic_phone else R.drawable.ic_videocam)
+        icon.setColorFilter(
+            when {
+                !enabled -> CallButtonStyler.DISABLED_COLOR
+                forAudio -> CallButtonStyler.AUDIO_COLOR
+                else -> CallButtonStyler.VIDEO_COLOR
+            }
+        )
+        rate?.setTextColor(
+            if (enabled) ContextCompat.getColor(this, R.color.black_light)
+            else CallButtonStyler.DISABLED_COLOR
+        )
     }
 
     private fun setupCallButtonListeners() {

@@ -139,11 +139,12 @@
                         android:layout_height="40dp"
                         android:clickable="true"
                         android:focusable="true"
-                        app:cardBackgroundColor="@color/chat_call_grey_bg"
+                        app:cardBackgroundColor="@color/white"
                         app:cardCornerRadius="20dp"
                         app:cardElevation="0dp"
                         app:rippleColor="@color/colorAccent"
-                        app:strokeWidth="0dp">
+                        app:strokeColor="#EFEFF3"
+                        app:strokeWidth="1dp">
 
                         <ImageView
                             android:id="@+id/iv_audio_call"
@@ -153,7 +154,7 @@
                             android:padding="11dp"
                             android:scaleType="centerInside"
                             android:src="@drawable/ic_phone"
-                            app:tint="@color/grey_medium" />
+                            app:tint="#E91E63" />
                     </com.google.android.material.card.MaterialCardView>
 
                     <LinearLayout
@@ -198,11 +199,12 @@
                         android:layout_height="40dp"
                         android:clickable="true"
                         android:focusable="true"
-                        app:cardBackgroundColor="@color/chat_call_grey_bg"
+                        app:cardBackgroundColor="@color/white"
                         app:cardCornerRadius="20dp"
                         app:cardElevation="0dp"
                         app:rippleColor="@color/purple"
-                        app:strokeWidth="0dp">
+                        app:strokeColor="#EFEFF3"
+                        app:strokeWidth="1dp">
 
                         <ImageView
                             android:id="@+id/iv_video_call"
@@ -211,8 +213,8 @@
                             android:contentDescription="@string/chat_video_call_desc"
                             android:padding="10dp"
                             android:scaleType="centerInside"
-                            android:src="@drawable/ic_video_modern"
-                            app:tint="@color/grey_medium" />
+                            android:src="@drawable/ic_videocam"
+                            app:tint="#9C27B0" />
                     </com.google.android.material.card.MaterialCardView>
 
                     <LinearLayout

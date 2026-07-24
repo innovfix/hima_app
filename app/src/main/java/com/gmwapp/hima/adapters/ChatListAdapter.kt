@@ -24,6 +24,7 @@ import com.gmwapp.hima.models.ChatConversation
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceResponse
+import com.gmwapp.hima.utils.CallButtonStyler
 import com.gmwapp.hima.utils.NotifyOnlinePrefsHelper
 import com.gmwapp.hima.utils.PinnedChatsPrefsHelper
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -371,29 +372,25 @@ class ChatListAdapter(
             binding.btnAudioCall.visibility = View.VISIBLE
             binding.btnVideoCall.visibility = View.VISIBLE
 
-            // Circular call buttons (item_chat_conversation.xml): tinted circle +
-            // colored icon when available, grey circle + "Offline" label when not.
-            val accentColor = activity.getColor(R.color.colorAccent)
-            val purpleColor = activity.getColor(R.color.purple)
-            val greyIconColor = activity.getColor(R.color.grey_medium)
+            // Circular call buttons (item_chat_conversation.xml): home look —
+            // white circle + coloured icon when available, grey icon + 0.5 alpha
+            // + "Offline" label when not.
+            val greyIconColor = CallButtonStyler.DISABLED_COLOR
             val rateTextColor = activity.getColor(R.color.black_light)
 
             // Audio = call (both genders can call a male/female peer when online).
-            binding.btnAudioCall.setBackgroundResource(
-                if (showAudio) R.drawable.circle_bg_pink_light else R.drawable.circle_bg_grey
-            )
+            binding.btnAudioCall.setBackgroundResource(R.drawable.bg_call_circle_white)
+            binding.btnAudioCall.alpha = if (showAudio) 1f else 0.5f
             binding.ivAudioIcon.setImageResource(R.drawable.ic_phone)
-            binding.ivAudioIcon.setColorFilter(if (showAudio) accentColor else greyIconColor)
+            binding.ivAudioIcon.setColorFilter(if (showAudio) CallButtonStyler.AUDIO_COLOR else greyIconColor)
             binding.btnAudioCall.isEnabled = showAudio
             binding.btnAudioCall.isClickable = showAudio
 
-            // Video = call. Tinted purple circle + camera icon when the peer is
-            // available for video, grey circle + "Offline" otherwise.
-            binding.btnVideoCall.setBackgroundResource(
-                if (showVideo) R.drawable.circle_bg_purple_light else R.drawable.circle_bg_grey
-            )
-            binding.ivVideoIcon.setImageResource(R.drawable.ic_video_modern)
-            binding.ivVideoIcon.setColorFilter(if (showVideo) purpleColor else greyIconColor)
+            // Video = call. White circle + purple camera icon when available.
+            binding.btnVideoCall.setBackgroundResource(R.drawable.bg_call_circle_white)
+            binding.btnVideoCall.alpha = if (showVideo) 1f else 0.5f
+            binding.ivVideoIcon.setImageResource(R.drawable.ic_videocam)
+            binding.ivVideoIcon.setColorFilter(if (showVideo) CallButtonStyler.VIDEO_COLOR else greyIconColor)
             binding.btnVideoCall.isEnabled = showVideo
             binding.btnVideoCall.isClickable = showVideo
 

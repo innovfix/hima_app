@@ -188,7 +188,7 @@
                         android:id="@+id/btn_audio_call"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:background="@drawable/circle_bg_grey"
+                        android:background="@drawable/bg_call_circle_white"
                         android:clickable="true"
                         android:focusable="true">
 
@@ -199,7 +199,7 @@
                             android:layout_gravity="center"
                             android:contentDescription="@null"
                             android:src="@drawable/ic_phone"
-                            app:tint="@color/grey_medium" />
+                            app:tint="#E91E63" />
                     </FrameLayout>
 
                     <LinearLayout
@@ -246,7 +246,7 @@
                         android:id="@+id/btn_video_call"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:background="@drawable/circle_bg_grey"
+                        android:background="@drawable/bg_call_circle_white"
                         android:clickable="true"
                         android:focusable="true">
 
@@ -256,8 +256,8 @@
                             android:layout_height="20dp"
                             android:layout_gravity="center"
                             android:contentDescription="@null"
-                            android:src="@drawable/ic_video_modern"
-                            app:tint="@color/grey_medium" />
+                            android:src="@drawable/ic_videocam"
+                            app:tint="#9C27B0" />
                     </FrameLayout>
 
                     <LinearLayout

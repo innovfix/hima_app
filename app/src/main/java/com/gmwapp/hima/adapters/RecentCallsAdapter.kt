@@ -26,6 +26,7 @@ import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.retrofit.responses.TransactionsResponseData
+import com.gmwapp.hima.utils.CallButtonStyler
 import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import kotlinx.coroutines.withContext
@@ -88,12 +89,10 @@ class RecentCallsAdapter(
         holder.binding.ivVideo.visibility = View.GONE
         holder.binding.tvAmount.visibility = View.GONE
 
-        // Reset button colors
-        holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-        holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-        
-        holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
-        holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+        // Reset to the home look: white circle (the branches below set icon colour,
+        // rate/Offline label and alpha per availability).
+        holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.white))
+        holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.white))
 
         holder.binding.ivAudio.isEnabled = false
         holder.binding.ivVideo.isEnabled = false
@@ -114,37 +113,31 @@ class RecentCallsAdapter(
             // Male: calls cost Hima coins, so the label coin is the H coin.
             holder.binding.ivAudioCoin.setImageResource(R.drawable.coin_d)
 
-            if (call.audio_status == 0) {
-                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
-                holder.binding.ivAudio.isEnabled = false
-                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
-                holder.binding.ivAudioCircle.setOnSingleClickListener {
-                    CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = true)
-                }
-            }else{
-                holder.binding.ivAudioCircle.setOnSingleClickListener{
-                    onAudioListener.onItemSelected(call)
-                }
-                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-                holder.binding.ivAudio.isEnabled = true
-                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+            // Home call-button look: white circle + coloured icon + rate / Offline.
+            val audioAvailable = call.audio_status != 0
+            holder.binding.ivAudioCircle.alpha = if (audioAvailable) 1f else 0.5f
+            holder.binding.ivAudio.isEnabled = audioAvailable
+            CallButtonStyler.style(
+                holder.binding.ivAudio, holder.binding.ivAudioCoin, holder.binding.tvAudioStatus,
+                available = audioAvailable, forAudio = true,
+                rateText = "${CallButtonStyler.DEFAULT_AUDIO_RATE}/min"
+            )
+            holder.binding.ivAudioCircle.setOnSingleClickListener {
+                if (audioAvailable) onAudioListener.onItemSelected(call)
+                else CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = true)
             }
-            if (call.video_status == 0) {
-                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
-                holder.binding.ivVideo.isEnabled = false
-                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
-                holder.binding.ivVideoCircle.setOnSingleClickListener {
-                    CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = false)
-                }
-            }else{
-                holder.binding.ivVideoCircle.setOnSingleClickListener{ onVideoListener.onItemSelected(call) }
-                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
-                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-                holder.binding.ivVideo.isEnabled = true
-                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+
+            val videoAvailable = call.video_status != 0
+            holder.binding.ivVideoCircle.alpha = if (videoAvailable) 1f else 0.5f
+            holder.binding.ivVideo.isEnabled = videoAvailable
+            CallButtonStyler.style(
+                holder.binding.ivVideo, holder.binding.ivVideoCoin, holder.binding.tvVideoStatus,
+                available = videoAvailable, forAudio = false,
+                rateText = "${CallButtonStyler.DEFAULT_VIDEO_RATE}/min"
+            )
+            holder.binding.ivVideoCircle.setOnSingleClickListener {
+                if (videoAvailable) onVideoListener.onItemSelected(call)
+                else CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = false)
             }
             // Chat button always enabled
             holder.binding.ivChatCircle.setOnSingleClickListener {
@@ -188,32 +181,28 @@ class RecentCallsAdapter(
             // Treat male peers as always available (mirrors B080 in
             // FriendsTabFragment + the chat-screen fix). The backend still
             // rejects upstream if the male is deleted, blocked, or busy.
-            if (call.call_blocked == true) {
-                // FEMALE_3_REJECT_BLOCK — she auto-blocked this male (3 rejects/5min);
-                // grey the callback button for the 60-min cooldown.
-                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
-                holder.binding.ivAudio.isEnabled = false
-                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
-                holder.binding.ivAudioCircle.setOnSingleClickListener {
-                    CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = true)
-                }
-            } else {
-                holder.binding.ivAudioCircle.setOnSingleClickListener {
-                    onAudioListener.onItemSelected(call)
-                }
-                // Unfilled look: light-pink circle with a pink phone icon.
-                holder.binding.ivAudioCircle.setCardBackgroundColor(android.graphics.Color.parseColor("#FCE3EE"))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.colorAccent))
-                holder.binding.ivAudio.isEnabled = true
-                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+            // Home call-button look for the audio callback (white circle + pink icon
+            // + rate / Offline). call_blocked = FEMALE_3_REJECT_BLOCK cooldown.
+            val audioAvailable = call.call_blocked != true
+            holder.binding.ivAudioCircle.alpha = if (audioAvailable) 1f else 0.5f
+            holder.binding.ivAudio.isEnabled = audioAvailable
+            CallButtonStyler.style(
+                holder.binding.ivAudio, holder.binding.ivAudioCoin, holder.binding.tvAudioStatus,
+                available = audioAvailable, forAudio = true,
+                rateText = "${CallButtonStyler.DEFAULT_AUDIO_RATE}/min"
+            )
+            holder.binding.ivAudioCircle.setOnSingleClickListener {
+                if (audioAvailable) onAudioListener.onItemSelected(call)
+                else CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = true)
             }
 
             // Video button repurposed as a CHAT button on female/creator cards.
-            // Tapping opens the in-house chat page with this user (no video call).
+            // Not a call button, so it keeps the chat icon — only the circle is made
+            // white to match the audio button's home look.
             holder.binding.ivVideoCircle.visibility = View.VISIBLE
+            holder.binding.ivVideoCircle.alpha = 1f
             holder.binding.ivVideo.setImageResource(R.drawable.ic_chat_bubble)
-            holder.binding.ivVideoCircle.setCardBackgroundColor(android.graphics.Color.parseColor("#FCE3EE"))
+            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.white))
             holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.colorAccent))
             holder.binding.ivVideo.isEnabled = true
             holder.binding.tvVideoStatus.text = "Chat"
@@ -326,32 +315,47 @@ class RecentCallsAdapter(
         // CALLS only, so the female-side chat button (the repurposed video circle) is
         // left untouched — only the male path greys the video (a real video call).
         // Inert until calls_list returns male_dnd/female_dnd (both default false).
+        val white = ContextCompat.getColor(activity, R.color.white)
         val peerDnd = if (userData?.gender == DConstants.MALE) call.female_dnd else call.male_dnd
         if (call.blocked==2 || call.either_blocked){
-            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
-            holder.binding.ivVideo.isEnabled = false
-            holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
-
-            holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            // Audio → offline home look (white circle, grey icon, "Offline").
+            holder.binding.ivAudioCircle.setCardBackgroundColor(white)
+            holder.binding.ivAudioCircle.alpha = 0.5f
             holder.binding.ivAudio.isEnabled = false
-            holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
-
+            CallButtonStyler.style(
+                holder.binding.ivAudio, holder.binding.ivAudioCoin, holder.binding.tvAudioStatus,
+                available = false, forAudio = true, rateText = ""
+            )
             holder.binding.ivAudioCircle.setOnSingleClickListener {
                 CallUnavailableFeedback.showBlocked(activity, holder.binding.root)
             }
 
+            holder.binding.ivVideoCircle.setCardBackgroundColor(white)
+            holder.binding.ivVideoCircle.alpha = 0.5f
+            holder.binding.ivVideo.isEnabled = false
+            if (userData?.gender == DConstants.MALE) {
+                // Real video call → offline home look.
+                CallButtonStyler.style(
+                    holder.binding.ivVideo, holder.binding.ivVideoCoin, holder.binding.tvVideoStatus,
+                    available = false, forAudio = false, rateText = ""
+                )
+            } else {
+                // Female chat button — keep the chat icon, just mute it.
+                holder.binding.ivVideo.setColorFilter(CallButtonStyler.DISABLED_COLOR)
+            }
             holder.binding.ivVideoCircle.setOnSingleClickListener {
                 CallUnavailableFeedback.showBlocked(activity, holder.binding.root)
             }
 
         } else if (peerDnd) {
-            // Grey the audio call button on both sides.
-            holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            // Audio call → offline home look on both sides.
+            holder.binding.ivAudioCircle.setCardBackgroundColor(white)
+            holder.binding.ivAudioCircle.alpha = 0.5f
             holder.binding.ivAudio.isEnabled = false
-            holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+            CallButtonStyler.style(
+                holder.binding.ivAudio, holder.binding.ivAudioCoin, holder.binding.tvAudioStatus,
+                available = false, forAudio = true, rateText = ""
+            )
             holder.binding.ivAudioCircle.setOnSingleClickListener {
                 CallUnavailableFeedback.showDnd(activity, holder.binding.root)
             }
@@ -359,20 +363,22 @@ class RecentCallsAdapter(
             // Female viewer: the video circle is the Chat button (calls-only DND
             // doesn't block chat), so leave it enabled.
             if (userData?.gender == DConstants.MALE) {
-                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivVideoCircle.setCardBackgroundColor(white)
+                holder.binding.ivVideoCircle.alpha = 0.5f
                 holder.binding.ivVideo.isEnabled = false
-                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+                CallButtonStyler.style(
+                    holder.binding.ivVideo, holder.binding.ivVideoCoin, holder.binding.tvVideoStatus,
+                    available = false, forAudio = false, rateText = ""
+                )
                 holder.binding.ivVideoCircle.setOnSingleClickListener {
                     CallUnavailableFeedback.showDnd(activity, holder.binding.root)
                 }
             }
         }
         
-        // "Audio" / "Video" coin labels under each call button. Text is static
-        // (set in XML); here we only keep each label row + the divider in sync
-        // with its button's visibility (so a hidden video button hides its
-        // label row and the divider too).
+        // Rate / "Offline" labels under each call button (text set per-state above);
+        // here we only keep each label row + the divider in sync with its button's
+        // visibility (so a hidden video button hides its label row and the divider too).
         holder.binding.llAudioLabel.visibility = holder.binding.ivAudioCircle.visibility
         holder.binding.llVideoLabel.visibility = holder.binding.ivVideoCircle.visibility
         holder.binding.vBtnDivider.visibility =
@@ -624,13 +630,11 @@ class RecentCallsAdapter(
         configureFavouriteButton(
             online = call.audio_status == 1 && !callBlocked && !peerDnd, blocked = callBlocked, dnd = peerDnd, forAudio = true,
             circle = b.flAudio, icon = b.ivAudio, rateRow = b.llAudioRate, statusLabel = b.tvAudioStatus,
-            onlineCircleBg = R.drawable.circle_bg_pink_light, onlineIconTint = R.color.colorAccent,
             root = b.root, call = call
         )
         configureFavouriteButton(
             online = call.video_status == 1 && !callBlocked && !peerDnd, blocked = callBlocked, dnd = peerDnd, forAudio = false,
             circle = b.flVideo, icon = b.ivVideo, rateRow = b.llVideoRate, statusLabel = b.tvVideoStatus,
-            onlineCircleBg = R.drawable.circle_bg_purple_light, onlineIconTint = R.color.purple,
             root = b.root, call = call
         )
 
@@ -657,19 +661,23 @@ class RecentCallsAdapter(
     private fun configureFavouriteButton(
         online: Boolean, blocked: Boolean, dnd: Boolean = false, forAudio: Boolean,
         circle: View, icon: android.widget.ImageView, rateRow: View, statusLabel: View,
-        onlineCircleBg: Int, onlineIconTint: Int, root: View, call: CallsListResponseData
+        root: View, call: CallsListResponseData
     ) {
+        // Home look: white circle always; icon coloured when available, grey + 0.5
+        // alpha when not. rateRow (coin + "n/min") online, "Offline" label otherwise.
+        circle.setBackgroundResource(R.drawable.bg_call_circle_white)
+        icon.setImageResource(if (forAudio) R.drawable.ic_phone else R.drawable.ic_videocam)
         if (online) {
-            circle.setBackgroundResource(onlineCircleBg)
-            icon.setColorFilter(ContextCompat.getColor(activity, onlineIconTint))
+            circle.alpha = 1f
+            icon.setColorFilter(if (forAudio) CallButtonStyler.AUDIO_COLOR else CallButtonStyler.VIDEO_COLOR)
             rateRow.visibility = View.VISIBLE
             statusLabel.visibility = View.GONE
             circle.setOnSingleClickListener {
                 if (forAudio) onAudioListener.onItemSelected(call) else onVideoListener.onItemSelected(call)
             }
         } else {
-            circle.setBackgroundResource(R.drawable.circle_bg_grey)
-            icon.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            circle.alpha = 0.5f
+            icon.setColorFilter(CallButtonStyler.DISABLED_COLOR)
             rateRow.visibility = View.GONE
             statusLabel.visibility = View.VISIBLE
             circle.setOnSingleClickListener {
