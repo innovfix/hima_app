@@ -291,9 +291,16 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         // (un-answerable — channel/token already gone). Refuse any call_id we
         // positively know was ended or busy-rejected.
         val app = com.gmwapp.hima.BaseApplication.getInstance()
+        // GHOST_RING_2026_07_24 — wasForceRejectedCallId was MISSING here (the FCM path has
+        // it). When the user SWIPES a ring it's recorded as force-rejected, not
+        // recently-ended/busy — so a delayed OneSignal redelivery (seen 26s late in prod)
+        // slipped past this guard and re-launched the accept screen + ringtone for ~1s (the
+        // "she gets the ring again for a sec after it disconnects" ghost). Add the check so
+        // the dead call is dropped BEFORE launchAcceptActivity ever runs.
         if (callId > 0 && (app?.wasCallRecentlyEnded(callId) == true ||
-                app?.wasCallBusyRejected(callId) == true)) {
-            Log.d(TAG, "Dropping OneSignal incoming push — call_id=$callId already ended/busy-rejected (ghost re-ring)")
+                app?.wasCallBusyRejected(callId) == true ||
+                app?.wasForceRejectedCallId(callId) == true)) {
+            Log.d(TAG, "Dropping OneSignal incoming push — call_id=$callId already ended/busy/force-rejected (ghost re-ring)")
             event.preventDefault()
             return true
         }
