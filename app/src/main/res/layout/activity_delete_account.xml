@@ -522,12 +522,12 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Delete Button: custom bg so disabled state shows white pill + border (Material tint hides white on white) -->
+        <!-- Delete Button: canonical Hima primary CTA (bg_btn_primary — 52dp/r14/gradient, shared grey disabled) -->
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_delete_account"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@drawable/delete_account_button_background"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_btn_primary"
             android:enabled="false"
             android:fontFamily="@font/poppins_semibold"
             android:text="@string/delete_account"

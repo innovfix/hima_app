@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Canonical Hima primary CTA: 14dp corner, brand gradient, shared grey disabled state.
+     Geometry pairs with height 52dp + 16sp poppins_semibold + white text.
+     Used by: Delete Account, Edit-Profile Update, Chat Unblock (friend-lock primary). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape android:shape="rectangle">
+            <solid android:color="#D1D5DB" />
+            <corners android:radius="14dp" />
+        </shape>
+    </item>
+    <item>
+        <ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#40FFFFFF">
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient
+                        android:angle="0"
+                        android:startColor="#EC4899"
+                        android:endColor="#D946EF"
+                        android:type="linear" />
+                    <corners android:radius="14dp" />
+                </shape>
+            </item>
+        </ripple>
+    </item>
+</selector>
