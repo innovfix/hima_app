@@ -193,6 +193,16 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
     private fun currentChild(): Fragment? =
         childFragmentManager.findFragmentByTag("f" + binding.vpFriendsHub.currentItem)
 
+    /**
+     * Reload the Friends tab (position 0) so a just-accepted request appears at the top
+     * immediately — called by the Requests tab child on accept. Position 0 is always the
+     * Friends (TYPE_CHAT_FRIENDS) tab in this hub.
+     */
+    fun refreshFriendsTab() {
+        if (!isAdded) return
+        (childFragmentManager.findFragmentByTag("f0") as? FriendsTabFragment)?.reloadTabFromParent()
+    }
+
     /** Bottom-nav re-tap: refresh counts and forward to the visible tab if it supports it. */
     override fun refresh() {
         if (_binding == null) return

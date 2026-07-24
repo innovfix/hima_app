@@ -445,6 +445,11 @@ class FriendsTabFragment : Fragment() {
                     // same delay as loadData so it reads post-commit (server drops the
                     // friend_tabs_counts cache on the mutation, so this returns the fresh count).
                     (activity as? com.gmwapp.hima.activities.MainActivity)?.refreshChatUnreadBadge()
+                    // Also reload the sibling Friends tab NOW so the just-accepted friend floats
+                    // to the top immediately, instead of the list staying frozen on its
+                    // previously-loaded state until the 30s poll (the reported bug).
+                    (parentFragment as? FriendsHubFragment)?.refreshFriendsTab()
+                    (parentFragment as? CreatorChatFragment)?.refreshFriendsTab()
                 }, 500)
             }
         })
@@ -1237,6 +1242,20 @@ class FriendsTabFragment : Fragment() {
     /**
      * Refresh tab counts in parent activity (works for both FriendsListActivity and ChatListActivity)
      */
+    /**
+     * Public reload used by the parent hub after an OUT-OF-TAB mutation: accepting a
+     * friend request on the Requests tab must float the new friend to the TOP of the
+     * sibling Friends tab immediately. Previously the Friends tab stayed frozen on its
+     * previously-loaded list (its own onResume didn't re-fire on the ViewPager swap and
+     * the 30s poll hadn't run), so the just-accepted friend didn't appear. Guarded so it
+     * no-ops when this child's view isn't ready (offscreen/destroyed — recreation then
+     * loads it fresh anyway).
+     */
+    fun reloadTabFromParent() {
+        if (!isAdded || view == null) return
+        if (isChatListTab()) loadChatConversations() else loadData()
+    }
+
     private fun refreshParentTabCounts() {
         // Inside MainActivity the parent is FriendsHubFragment (male Friends tab) or
         // CreatorChatFragment (female Chat tab). Refresh whichever hosts us so the
