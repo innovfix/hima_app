@@ -174,10 +174,22 @@ class FemaleTransactionAdapter(
         }
     }
 
+    // Matches a real duration token like "7 sec", "2 min", "1 hr" (any of the plural /
+    // long forms). Used to reject non-duration description text from the duration slot.
+    private val durationRegex =
+        Regex("\\d+\\s*(sec|min|hr|hour|second|minute)s?", RegexOption.IGNORE_CASE)
+
     private fun buildCallSubtitle(transaction: FemaleTransactionsResponseData): CharSequence {
         val durationPart = transaction.description?.let { desc ->
-            if (desc.contains("·")) desc.substringAfter("·").trim().takeIf { it.isNotEmpty() }
-            else desc.trim().takeIf { it.isNotEmpty() }
+            // The duration, when present, lives after the "·" ("Jul 24 · 7 sec"); some rows
+            // carry just the duration with no separator. Take that candidate…
+            val candidate = if (desc.contains("·")) desc.substringAfter("·").trim() else desc.trim()
+            // …but only use it if it actually READS like a duration. Short (<10s) calls whose
+            // backend description carries NO duration segment (just the date, e.g. "Jul 24")
+            // were rendering that date in the duration slot — the reported bug. Requiring a
+            // sec/min/hr token drops any non-duration text (the date) safely; the subtitle
+            // then shows just "<date>, <start-time>".
+            candidate.takeIf { it.isNotEmpty() && durationRegex.containsMatchIn(it) }
         }
         return DateTimeUtils.buildTxnSubtitle(
             transaction.date,
