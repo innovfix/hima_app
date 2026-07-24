@@ -17,6 +17,7 @@ import com.gmwapp.hima.databinding.FragmentFriendsHubBinding
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse
+import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import retrofit2.Response
@@ -40,6 +41,23 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
     private val binding get() = _binding!!
 
     private var receivedCount = 0
+
+    // B_010 parity — "Friends (N)" counts CONVERSATIONS with unread (same as the female
+    // CreatorChatFragment), NOT the total friend count, so the label means the same thing
+    // on both the male hub and the female Chat screen.
+    private var friendsUnread = 0
+
+    private fun labelWithCount(resId: Int, count: Int): String {
+        val base = getString(resId)
+        return if (count > 0) "$base ($count)" else base
+    }
+
+    /** Set the "Friends" tab title from the latest unread-conversation count. */
+    private fun applyFriendsTabLabel() {
+        if (_binding == null) return
+        binding.tabsFriendsHub.getTabAt(0)?.text =
+            labelWithCount(R.string.chat_tab_friends, friendsUnread)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -116,6 +134,26 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
     private fun loadCounts() {
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         if (userId == 0) return
+
+        // B_010 parity — the "Friends (N)" tab counts CONVERSATIONS with unread (matching
+        // the female CreatorChatFragment), not the total friend count. Same source
+        // (getMyChatFriends) and same "unreadCount > 0" rule, so the label means the same
+        // thing on both sides. Owns the tab-0 title; friend_tabs_counts owns tabs 1-3.
+        apiManager.getMyChatFriends(userId, null, 100, 0, object : NetworkCallback<MyChatResponse> {
+            override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
+                if (!isAdded || _binding == null) return
+                friendsUnread = if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.data?.chats?.count { it.unreadCount > 0 } ?: 0
+                } else {
+                    0
+                }
+                applyFriendsTabLabel()
+            }
+
+            override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {}
+            override fun onNoNetwork() {}
+        })
+
         apiManager.getFriendTabsCounts(userId, object : NetworkCallback<FriendTabsCountsResponse> {
             override fun onResponse(
                 call: Call<FriendTabsCountsResponse>,
@@ -125,15 +163,10 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
                 val d = response.body()?.data
                 if (response.isSuccessful && response.body()?.success == true && d != null) {
                     receivedCount = d.received_requests_count
-                    // Append " (n)" to each tab when its count > 0; otherwise show the
-                    // plain label (no "(0)"). Mirrors the male FriendsListActivity badges.
-                    fun labelWithCount(resId: Int, count: Int): String {
-                        val base = getString(resId)
-                        return if (count > 0) "$base ($count)" else base
-                    }
                     // Positions match the Suggestion #7 order: Friends, Favourite, Requests, Sent.
-                    binding.tabsFriendsHub.getTabAt(0)?.text =
-                        labelWithCount(R.string.chat_tab_friends, d.friends_count)
+                    // Tab 0 ("Friends") is owned by the getMyChatFriends unread count above;
+                    // re-apply it here so a friend_tabs_counts response can't blank it.
+                    applyFriendsTabLabel()
                     binding.tabsFriendsHub.getTabAt(1)?.text =
                         labelWithCount(R.string.favourite, d.favourites_count)
                     binding.tabsFriendsHub.getTabAt(2)?.text =
