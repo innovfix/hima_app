@@ -1180,7 +1180,12 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         val lastMsgId = item.lastMessage?.id?.toString().orEmpty()
                         val isLastLocallyDeleted = lastMsgId.isNotEmpty() &&
                             com.gmwapp.hima.utils.LocallyDeletedMessagesStore.isLocallyDeleted(activityCtx, userId, item.user.id, lastMsgId)
-                        val hideLastPreview = isCleared || isLastLocallyDeleted
+                        // B_028 follow-up — a single "Delete for me" (not a whole clear-chat)
+                        // must not collapse the row to "No messages yet". Fall back to the
+                        // PREVIOUS still-visible message from the in-memory chat snapshot
+                        // (WhatsApp-style). Null → no snapshot, keep the old blank/self-heal.
+                        val deletedFallback = if (isLastLocallyDeleted && !isCleared)
+                            com.gmwapp.hima.utils.ChatPreviewFallback.previousVisiblePreview(activityCtx, userId, item.user.id) else null
                         // B080 + B097 — resolve once so isOnline can also check
                         // availability. For female viewers, the other party is
                         // male and there are no audio/video toggles to honor —
@@ -1197,8 +1202,18 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             userId = item.user.id.toString(),
                             userName = item.user.name,
                             userImage = item.user.image ?: "",
-                            lastMessage = if (hideLastPreview) "" else item.lastMessage?.message ?: "",
-                            lastMessageType = if (hideLastPreview) "text" else item.lastMessage?.messageType ?: "text",
+                            lastMessage = when {
+                                isCleared -> ""
+                                deletedFallback != null -> deletedFallback.first
+                                isLastLocallyDeleted -> ""
+                                else -> item.lastMessage?.message ?: ""
+                            },
+                            lastMessageType = when {
+                                isCleared -> "text"
+                                deletedFallback != null -> deletedFallback.second
+                                isLastLocallyDeleted -> "text"
+                                else -> item.lastMessage?.messageType ?: "text"
+                            },
                             lastMessageTime = ts,
                             unreadCount = if (isCleared) 0 else effectiveUnread,
                             // B097 — green dot now requires BOTH recent activity

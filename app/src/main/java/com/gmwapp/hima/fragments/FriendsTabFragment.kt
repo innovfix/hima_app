@@ -870,14 +870,28 @@ class FriendsTabFragment : Fragment() {
         val lastMsgId = lastMessage?.id?.toString().orEmpty()
         val isLastLocallyDeleted = ctx != null && myId > 0 && lastMsgId.isNotEmpty() &&
             com.gmwapp.hima.utils.LocallyDeletedMessagesStore.isLocallyDeleted(ctx, myId, u.id, lastMsgId)
-        val hideLastPreview = isCleared || isLastLocallyDeleted
+        // B_028 follow-up — for a single "Delete for me" (NOT a whole clear-chat), don't
+        // collapse the row to "No messages yet". Surface the PREVIOUS still-visible message
+        // from the in-memory chat snapshot (WhatsApp-style). Null → no snapshot, keep blank.
+        val deletedFallback = if (isLastLocallyDeleted && !isCleared && ctx != null)
+            com.gmwapp.hima.utils.ChatPreviewFallback.previousVisiblePreview(ctx, myId, u.id) else null
         return ChatConversation(
             threadId = chatItem.chatId,
             userId = u.id.toString(),
             userName = u.name,
             userImage = u.image ?: "",
-            lastMessage = if (hideLastPreview) "" else lastMessage?.message ?: "",
-            lastMessageType = if (hideLastPreview) "text" else lastMessage?.messageType ?: "text",
+            lastMessage = when {
+                isCleared -> ""
+                deletedFallback != null -> deletedFallback.first
+                isLastLocallyDeleted -> ""
+                else -> lastMessage?.message ?: ""
+            },
+            lastMessageType = when {
+                isCleared -> "text"
+                deletedFallback != null -> deletedFallback.second
+                isLastLocallyDeleted -> "text"
+                else -> lastMessage?.messageType ?: "text"
+            },
             lastMessageTime = lastMessageTime,
             unreadCount = if (isCleared) 0 else chatItem.unreadCount,
             // B097 — green dot now requires recent activity AND at least one
