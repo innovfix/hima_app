@@ -4531,6 +4531,20 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun showOptionsMenu() {
+        // The overflow menu is a focusable popup (PopupMenu / focusable PopupWindow).
+        // Opening it while the soft keyboard is up makes the activity window lose input
+        // focus, so the IME hides as a side effect and the composer is left in a
+        // half-focused state — the next tap on the field then shows the keyboard and
+        // immediately drops it again. Bring the IME down deterministically and release
+        // composer focus first, so the menu opens from a clean state and the next field
+        // tap re-summons the keyboard reliably.
+        run {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE)
+                as? android.view.inputmethod.InputMethodManager
+            imm?.hideSoftInputFromWindow(etMessage.windowToken, 0)
+            etMessage.clearFocus()
+        }
+
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val isFemaleUser = userData?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
 
