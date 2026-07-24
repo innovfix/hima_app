@@ -147,6 +147,10 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     private fun startAlivePolling() {
         // Nothing to poll without a call id; the runnable would only no-op + repost.
         if (call_Id <= 0) return
+        // RING_PEER_GONE_2026_07_24 — beat ONCE immediately so the ':recv' key exists within
+        // the first second (else a receiver killed before the first 2.5s tick never registers
+        // and the server can't reap → caller stuck).
+        com.gmwapp.hima.utils.CallAliveChecker.sendRingHeartbeat(call_Id)
         // removeCallbacks before postDelayed makes this idempotent in BOTH
         // directions (safe to call again after a stop), matching the male side.
         aliveHandler.removeCallbacks(alivePollRunnable)

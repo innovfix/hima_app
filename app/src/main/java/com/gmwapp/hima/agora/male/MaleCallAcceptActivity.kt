@@ -113,6 +113,10 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
     private fun startAlivePolling() {
         if (call_Id <= 0) return
+        // RING_PEER_GONE_2026_07_24 — beat ONCE immediately so the ':recv' key exists within
+        // the first second. Without this the first beat is 2.5s out, and a receiver killed
+        // in that window never registers, so the server can't reap → caller stuck.
+        com.gmwapp.hima.utils.CallAliveChecker.sendRingHeartbeat(call_Id)
         // removeCallbacks before postDelayed makes this idempotent in both directions.
         aliveHandler.removeCallbacks(alivePollRunnable)
         aliveHandler.postDelayed(alivePollRunnable, aliveIntervalMs)
