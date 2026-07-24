@@ -20,9 +20,32 @@ object PeerNameUtils {
     // are kept because they are part of the name.
     private val TRAILING_DIGITS = Regex("\\d{6,}$")
 
+    // Incoming-call push titles are "<name> is calling you" / "<name> is video calling
+    // you" (@string/incoming_audio_call_title / incoming_video_call_title). When the
+    // structured name field is missing, that whole title seeds the ring screen's caller
+    // name, so it flashes "Surya is calling you" for a split second before getUserAvatar
+    // replaces it with the real short name. Strip the calling boilerplate too.
+    private val CALL_SUFFIX = Regex("\\s+is\\s+(video\\s+)?calling\\s+you\\b.*$", RegexOption.IGNORE_CASE)
+
     fun sanitizePeerName(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
         return raw.trim()
+            .replace(MESSAGE_SUFFIX, "")
+            .replace(TRAILING_DIGITS, "")
+            .trim()
+    }
+
+    /**
+     * Like [sanitizePeerName] but also strips the incoming-call title suffix
+     * ("… is calling you" / "… is video calling you"). Used for the full-screen ring's
+     * caller name, which can be seeded from the notification title on the OneSignal path.
+     * Returns "" when nothing but boilerplate remains, so the caller can fall back to a
+     * neutral default instead of showing the raw title.
+     */
+    fun sanitizeCallerName(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        return raw.trim()
+            .replace(CALL_SUFFIX, "")
             .replace(MESSAGE_SUFFIX, "")
             .replace(TRAILING_DIGITS, "")
             .trim()

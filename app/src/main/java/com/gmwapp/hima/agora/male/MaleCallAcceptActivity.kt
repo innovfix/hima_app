@@ -221,7 +221,12 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         // TC_HL_05 — fallback caller name so the banner never renders blank
         // during the userAvatarViewModel lag window. avatarObservers() will
         // overwrite this once the backend responds.
-        callerName = intent.getStringExtra("Caller_NAME")?.takeIf { it.isNotBlank() } ?: "Hima Caller"
+        // Sanitize: the OneSignal ring path can seed this from the notification title
+        // ("X is calling you"), which otherwise flashes on the ring for a split second
+        // before getUserAvatar returns the real name. Strip that boilerplate.
+        callerName = com.gmwapp.hima.utils.PeerNameUtils
+            .sanitizeCallerName(intent.getStringExtra("Caller_NAME"))
+            .takeIf { it.isNotBlank() } ?: "Hima Caller"
         callerImage = intent.getStringExtra("Caller_Image").orEmpty()
 
         Log.d("MaleCallAccept_CallerDetails","Image: $callerImage, Name: $callerName")
@@ -537,7 +542,8 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         if (newCallId != 0) call_Id = newCallId
         intent.getStringExtra("CALL_TYPE")?.takeIf { it.isNotBlank() }?.let { callType = it }
         intent.getIntExtra("SENDER_ID", -1).takeIf { it != -1 }?.let { receiverId = it }
-        intent.getStringExtra("Caller_NAME")?.takeIf { it.isNotBlank() }?.let { callerName = it }
+        com.gmwapp.hima.utils.PeerNameUtils.sanitizeCallerName(intent.getStringExtra("Caller_NAME"))
+            .takeIf { it.isNotBlank() }?.let { callerName = it }
         intent.getStringExtra("Caller_Image")?.takeIf { it.isNotBlank() }?.let { callerImage = it }
         Log.d("HimaIncomingCall", "MaleCallAcceptActivity.onNewIntent: channel upgraded → $channelName")
         // Prefetch the Agora token for the real channel now so Accept is instant.

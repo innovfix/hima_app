@@ -265,7 +265,11 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         receiverId = intent.getIntExtra("SENDER_ID", -1)
         channelName = intent.getStringExtra("CHANNEL_NAME")
 
-        callerName = intent.getStringExtra("Caller_NAME").orEmpty()
+        // Sanitize: the OneSignal ring path can seed this from the notification title
+        // ("X is calling you"), which otherwise flashes on the ring for a split second
+        // before the real name loads. Strip that boilerplate.
+        callerName = com.gmwapp.hima.utils.PeerNameUtils
+            .sanitizeCallerName(intent.getStringExtra("Caller_NAME"))
         callerImage = intent.getStringExtra("Caller_Image").orEmpty()
 
         Log.d("callerdeatails","$callerImage")
@@ -589,7 +593,8 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         if (newCallId != 0) call_Id = newCallId
         intent.getStringExtra("CALL_TYPE")?.takeIf { it.isNotBlank() }?.let { callType = it }
         intent.getIntExtra("SENDER_ID", -1).takeIf { it != -1 }?.let { receiverId = it }
-        intent.getStringExtra("Caller_NAME")?.takeIf { it.isNotBlank() }?.let { callerName = it }
+        com.gmwapp.hima.utils.PeerNameUtils.sanitizeCallerName(intent.getStringExtra("Caller_NAME"))
+            .takeIf { it.isNotBlank() }?.let { callerName = it }
         intent.getStringExtra("Caller_Image")?.takeIf { it.isNotBlank() }?.let { callerImage = it }
         Log.d("HimaIncomingCall", "FemaleCallAcceptActivity.onNewIntent: channel upgraded → $channelName")
         // Prefetch the Agora token for the real channel now so Accept is instant.
