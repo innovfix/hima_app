@@ -67,8 +67,8 @@ android {
         //   don't leave the Agora channel live for free talk time.
         minSdk = 24
         targetSdk = 35
-        versionCode = 1117
-        versionName = "1114"
+        versionCode = 1118
+        versionName = "1118"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
