@@ -428,6 +428,17 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                     "Couldn't connect this call. Please ask them to call again.",
                     Toast.LENGTH_LONG
                 ).show()
+                // UNUSABLE_CHANNEL_LOOP_FIX_2026_07_24 — this attempt can't join, but the
+                // caller must still be told or her screen hangs on "Connecting…" forever
+                // and the ring keeps re-appearing (the reported loop). Relay "rejected"
+                // (same signal as the Decline button) so her connecting UI tears down, and
+                // mark this call busy-rejected so a re-delivered push can't re-ring it.
+                if (receiverId > 0) {
+                    runCatching {
+                        sendCallNotification(userId ?: 0, receiverId, callType ?: "audio", channelName ?: "", "rejected")
+                    }
+                    if (call_Id > 0) BaseApplication.getInstance()?.markCallBusyRejected(call_Id)
+                }
                 HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
                 BaseApplication.getInstance()?.stopRingtone()
                 BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()

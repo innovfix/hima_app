@@ -465,6 +465,17 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                     "Couldn't connect this call. Please ask them to call again.",
                     Toast.LENGTH_LONG
                 ).show()
+                // UNUSABLE_CHANNEL_LOOP_FIX_2026_07_24 — this attempt can't join, but the
+                // caller must still be told or his screen hangs on "Connecting…" forever and
+                // the ring keeps re-appearing (the reported loop). Relay "rejected" (same
+                // signal as the Decline button) so his connecting UI tears down, and mark
+                // this call busy-rejected so a re-delivered push can't re-ring it.
+                if (receiverId > 0) {
+                    runCatching {
+                        sendCallNotification(userId ?: 0, receiverId, callType ?: "audio", channelName ?: "", "rejected")
+                    }
+                    if (call_Id > 0) BaseApplication.getInstance()?.markCallBusyRejected(call_Id)
+                }
                 // TC-HMA-002: deliberate exit — stop the poll like every other
                 // teardown path, rather than leaving it to onDestroy.
                 stopAlivePolling()
