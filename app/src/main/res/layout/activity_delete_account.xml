@@ -52,22 +52,31 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Scrollable Content -->
+    <!-- B_035: stack the scroll area and the fixed bottom bar in a vertical container
+         so the scroll view sits ABOVE the bar (no overlap). Previously the scroll view
+         was match_parent and overlapped the bottom bar, so on keyboard-open adjustResize
+         scrolled the focused description field behind the bar / under the keyboard. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/sv_details"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:clipToPadding="false"
         android:fillViewport="true"
-        android:overScrollMode="never"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:overScrollMode="never">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
-            android:paddingBottom="200dp">
+            android:paddingBottom="20dp">
 
             <!-- Warning Card -->
             <com.google.android.material.card.MaterialCardView
@@ -465,11 +474,10 @@
 
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Bottom Section with Help and Delete Button -->
+    <!-- Bottom Section with Help and Delete Button (fixed below the scroll area) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
         android:background="@android:color/white"
         android:elevation="8dp"
         android:orientation="vertical"
@@ -529,6 +537,7 @@
             android:stateListAnimator="@null"
             android:elevation="0dp" />
 
+    </LinearLayout>
     </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
