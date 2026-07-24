@@ -111,6 +111,8 @@ class RecentCallsAdapter(
             holder.binding.ivAudio.visibility = View.VISIBLE
             holder.binding.ivVideo.visibility = View.VISIBLE
             holder.binding.tvAmount.visibility = View.GONE
+            // Male: calls cost Hima coins, so the label coin is the H coin.
+            holder.binding.ivAudioCoin.setImageResource(R.drawable.coin_d)
 
             if (call.audio_status == 0) {
                 holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
@@ -158,6 +160,9 @@ class RecentCallsAdapter(
             holder.binding.ivVideoCircle.visibility = View.VISIBLE
             holder.binding.ivAudio.visibility = View.VISIBLE
             holder.binding.ivVideo.visibility = View.VISIBLE
+            // Female/creator earns in rupees, so the audio-label coin is the ₹ coin
+            // (not the Hima H coin, which is the male paid-currency indicator).
+            holder.binding.ivAudioCoin.setImageResource(R.drawable.ruppee_2)
             // Per-call earnings pill, centred under the call buttons.
             holder.binding.tvAmount.visibility = View.VISIBLE
             // F1: show the duration bonus inline in the same pill, e.g. "₹6 +₹3"
