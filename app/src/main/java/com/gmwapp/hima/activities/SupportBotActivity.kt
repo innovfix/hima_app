@@ -187,12 +187,16 @@ class SupportBotActivity : BaseActivity() {
             adapter.addMessage(AiChatMessage(binding.btnSolved.text.toString(), isUser = true))
             showInput(BotInputMode.NONE)
             scrollToEnd()
+            // Record it so "Try again" after a failure replays THIS feedback,
+            // not a stale chip/text step and not a restart to language select.
+            lastAction = BotAction(feedbackSolved = true)
             viewModel.feedback(sessionId, solved = true)
         }
         binding.btnNotSolved.setOnSingleClickListener {
             adapter.addMessage(AiChatMessage(binding.btnNotSolved.text.toString(), isUser = true))
             showInput(BotInputMode.NONE)
             scrollToEnd()
+            lastAction = BotAction(feedbackSolved = false)
             viewModel.feedback(sessionId, solved = false)
         }
 
@@ -372,7 +376,13 @@ class SupportBotActivity : BaseActivity() {
     }
 
     /** The last thing the user actually did, so "Try again" replays IT. */
-    private data class BotAction(val choiceKey: String? = null, val userMessage: String? = null)
+    private data class BotAction(
+        val choiceKey: String? = null,
+        val userMessage: String? = null,
+        // A Yes / "Still need help" tap. Non-null means the last action was
+        // feedback, so a retry must re-post feedback — not a chip/text step.
+        val feedbackSolved: Boolean? = null,
+    )
     private var lastAction: BotAction? = null
 
     private fun observe() {
@@ -616,9 +626,18 @@ class SupportBotActivity : BaseActivity() {
                 adapter.setChipsEnabled(false)
                 val last = lastAction
                 when {
+                    // No session at all — the bot never came up. Start fresh.
                     sessionId <= 0 -> viewModel.start()
-                    last == null -> viewModel.start()
-                    else -> viewModel.reply(sessionId, last.choiceKey, last.userMessage)
+                    // A feedback tap (Yes / Still need help) failed: replay THAT.
+                    last?.feedbackSolved != null ->
+                        viewModel.feedback(sessionId, solved = last.feedbackSolved)
+                    last != null -> viewModel.reply(sessionId, last.choiceKey, last.userMessage)
+                    // Live session, but we can't identify the last action. Do NOT
+                    // dump the user back to language selection (owner-reported):
+                    // rebuild the session from the server so they land exactly
+                    // where they were. adapter.clear() in renderResumedSession
+                    // prevents a duplicated transcript.
+                    else -> viewModel.session(sessionId)
                 }
                 return
             }
