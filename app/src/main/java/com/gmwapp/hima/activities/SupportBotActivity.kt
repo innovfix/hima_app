@@ -553,6 +553,19 @@ class SupportBotActivity : BaseActivity() {
                 viewModel.start()
                 return@observe
             }
+            // The bot never came up: the very first support_bot_start returned a
+            // non-2xx (route missing on this backend, 5xx at the LB, etc.). There
+            // is no chat to preserve, and a "Try again" loop leaves the user with
+            // NO way to reach support at all (owner-reported on prod). Fail OPEN
+            // to the old ticket form — the same destination as the deliberate
+            // kill switch. This is what makes shipping the bot-enabled app safe
+            // against any backend that isn't fully serving the bot yet; mid-chat
+            // hiccups (reply_failed/network) still keep the retry, so the "don't
+            // yank the chat" rule holds once a session is actually running.
+            if (err == "start_failed") {
+                fallbackToForm()
+                return@observe
+            }
             showRetry()
         }
     }
@@ -711,7 +724,13 @@ class SupportBotActivity : BaseActivity() {
         scrollToEnd()
     }
 
-    /** Only for the deliberate ops kill-switch. */
+    /**
+     * Drop the user onto the old raise-ticket form. Two callers, both cases
+     * where there is NO live bot session to protect: the deliberate ops kill
+     * switch (bot_disabled), and a hard failure of the very first start call
+     * (backend not serving the bot / 5xx) — so the user can always reach
+     * support even when the bot cannot come up.
+     */
     private fun fallbackToForm() {
         startActivity(Intent(this, SubmitTicketActivity::class.java))
         finish()
