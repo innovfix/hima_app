@@ -3575,6 +3575,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         FcmUtils.clearCallSwitch()
         isVideoCallGoing = false
+        // Switching back to audio: the remote-blur overlay is video-only. If it was
+        // showing during the video portion, hide it so it doesn't stay stuck over
+        // the audio screen (same leak as the male side).
+        pendingRemoteBlurHide = false
+        hideRemoteBlurState()
         // B18: back to audio mode — stop the auto-hide timer and restore controls.
         showVideoChromeAndCancelAutoHide()
         // B060 — keep the top-bar label honest after a mid-call switch.
@@ -3965,6 +3970,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun showRemoteBlurState() {
+        // Video-only signal — never render on an audio call, whatever path called
+        // this (defensive, alongside the isVideoCallGoing guards + switch-down hide).
+        if (!isVideoCallGoing) return
         if (isRemoteBlurVisible) return
         isRemoteBlurVisible = true
         binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)

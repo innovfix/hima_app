@@ -3677,6 +3677,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         FcmUtils.clearCallSwitch()
         isVideoCallGoing = false
+        // Switching back to audio: the "Host's video is blurred" overlay is a
+        // video-only signal. If it was showing during the video portion it would
+        // otherwise stay stuck over the audio screen (the show sites are gated by
+        // isVideoCallGoing, but nothing hid it on the way down). Clear it here.
+        pendingRemoteBlurHide = false
+        hideRemoteBlurState()
         // B18: back to audio mode — stop the auto-hide timer and restore controls.
         showVideoChromeAndCancelAutoHide()
         applyGiftCardSizing(compact = false) // back to the larger audio gift cards
@@ -4034,6 +4040,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     private fun showRemoteBlurState() {
+        // "Host's video is blurred" is a video-only signal — never show it on an
+        // audio call, whatever path called this (belt-and-braces alongside the
+        // isVideoCallGoing guards at the call sites and the hide on switch-to-audio).
+        if (!isVideoCallGoing) return
         if (isRemoteBlurVisible) return
         isRemoteBlurVisible = true
         binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
