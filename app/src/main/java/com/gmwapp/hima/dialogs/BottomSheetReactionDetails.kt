@@ -253,7 +253,7 @@ class BottomSheetReactionDetails : BottomSheetDialogFragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
             
-            holder.tvUserName.text = item.userName
+            holder.tvUserName.text = com.gmwapp.hima.utils.DisplayName.clean(item.userName)
             holder.tvEmoji.text = item.emoji
             
             // Fix faded emoji colors - force full color rendering

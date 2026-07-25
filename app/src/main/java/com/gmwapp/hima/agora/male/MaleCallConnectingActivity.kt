@@ -444,7 +444,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     fun initUI(){
         progressBar = findViewById(R.id.progressBar)
         if (receiverName != null) {
-            val displayName = receiverName!!.trimEnd { it.isDigit() }
+            val displayName = com.gmwapp.hima.utils.DisplayName.clean(receiverName)
             binding.tlWaitTitle.setText("Connecting with $displayName")
         }
         startProgressLoop()
@@ -1077,7 +1077,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 cancelTimeoutTracking()
                 
                 // Update UI to show busy message
-                binding.tlWaitTitle.text = "${receiverName?.trimEnd { it.isDigit() }} just got busy!"
+                binding.tlWaitTitle.text = "${com.gmwapp.hima.utils.DisplayName.clean(receiverName)} just got busy!"
                 binding.tvProgressText.text = "Finding another match..."
                 
                 // Clear the status

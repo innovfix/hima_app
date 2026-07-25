@@ -269,8 +269,17 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
                 .findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             sheet?.let {
                 val behavior = BottomSheetBehavior.from(it)
+                // Let the sheet size to its content and open there — do NOT force
+                // STATE_EXPANDED. Forcing expanded made it open at the right height
+                // and then auto-grow to fill the whole screen ("opens good, then
+                // expands and looks big"). wrap_content on the sheet view + fitToContents
+                // keeps it content-sized; the NestedScrollView still scrolls on short
+                // screens, so "View more plans" stays reachable.
+                behavior.isFitToContents = true
                 behavior.skipCollapsed = true
-                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                it.layoutParams = it.layoutParams.apply {
+                    height = ViewGroup.LayoutParams.WRAP_CONTENT
+                }
             }
             // The sheet draws to the screen bottom (behind the nav bar), so the last row
             // ("View more plans") was clipped by the ~48dp navigation bar. Pad the content

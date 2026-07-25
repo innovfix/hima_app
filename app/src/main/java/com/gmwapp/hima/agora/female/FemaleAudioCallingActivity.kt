@@ -3368,7 +3368,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val tvMessage = dialogView.findViewById<TextView>(R.id.tv_dialog_message)
-        tvMessage.text = "$requesterName requested for video session"
+        tvMessage.text = "${com.gmwapp.hima.utils.DisplayName.clean(requesterName)} requested for video session"
 
         val btnNo = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_no)
         val btnYes = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_yes)

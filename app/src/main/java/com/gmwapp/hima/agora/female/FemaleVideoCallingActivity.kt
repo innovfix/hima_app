@@ -3574,7 +3574,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     var responded = false
                     switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to Video Call ?")
-                        .setMessage("$receiverName requested for video call")
+                        .setMessage("${com.gmwapp.hima.utils.DisplayName.clean(receiverName)} requested for video call")
                         .setPositiveButton("Confirm") { _, _ ->
                             val remainingTime = binding.tvRemainingTime?.text.toString()
                             // B-v1110 #1 (sibling) — guard "Connecting…" parse; empty list skips the size==3 block.

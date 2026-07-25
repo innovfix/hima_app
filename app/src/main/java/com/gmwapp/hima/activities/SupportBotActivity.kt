@@ -398,7 +398,7 @@ class SupportBotActivity : BaseActivity() {
                     }
                     // The ops kill-switch is the ONLY route back to the old
                     // form: a deliberate decision, not a failure.
-                    "bot_disabled" -> fallbackToForm()
+                    "bot_disabled" -> fallbackToForm("bot_disabled (server kill-switch; start success=false, code=${r.code}, message=${r.message})")
                     else -> showRetry()
                 }
                 return@observe
@@ -573,7 +573,7 @@ class SupportBotActivity : BaseActivity() {
             // hiccups (reply_failed/network) still keep the retry, so the "don't
             // yank the chat" rule holds once a session is actually running.
             if (err == "start_failed") {
-                fallbackToForm()
+                fallbackToForm("start_failed (support_bot_start returned non-2xx / null body — see the http=… line above under tag SupportBotFlow)")
                 return@observe
             }
             showRetry()
@@ -750,7 +750,14 @@ class SupportBotActivity : BaseActivity() {
      * (backend not serving the bot / 5xx) — so the user can always reach
      * support even when the bot cannot come up.
      */
-    private fun fallbackToForm() {
+    private fun fallbackToForm(reason: String) {
+        // Owner-requested diagnostic: log WHY the AI bot handed off to the old
+        // raise-ticket form. Filter logcat on tag "SupportBotFlow" to see this and
+        // the underlying HTTP status (logged in SupportBotViewModel.start()).
+        android.util.Log.w(
+            "SupportBotFlow",
+            "AI bot → OLD SubmitTicket form. reason=$reason"
+        )
         startActivity(Intent(this, SubmitTicketActivity::class.java))
         finish()
     }

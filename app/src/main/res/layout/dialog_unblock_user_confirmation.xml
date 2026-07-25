@@ -73,6 +73,9 @@
                 <!-- Cancel Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_cancel"
+                    android:minHeight="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
                     style="@style/Widget.Hima.Button.Secondary"
                     android:layout_width="0dp"
                     android:layout_height="56dp"

@@ -19,11 +19,14 @@
     <!-- Foreground content — wrapped in a NestedScrollView so every item (incl.
          "View more plans") is reachable on short screens / large font scale. The
          sheet is forced fully expanded in BottomSheetWelcomeBonus.onCreateDialog. -->
+    <!-- No fillViewport: it stretched the content to fill the whole viewport, which
+         made the forced-expanded sheet take the full screen. Without it the sheet
+         wraps its content (takes only the space it needs); the scroll container still
+         kicks in on short screens / large font when content is taller than the sheet. -->
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:clipToPadding="false"
-        android:fillViewport="true">
+        android:clipToPadding="false">
 
     <LinearLayout
         android:id="@+id/ll_welcome_content"

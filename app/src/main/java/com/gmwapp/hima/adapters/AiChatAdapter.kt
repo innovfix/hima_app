@@ -270,7 +270,7 @@ class AiChatAdapter(
             itemView.alpha = 1f
             itemView.translationY = 0f
 
-            tvName.text = creator.name
+            tvName.text = com.gmwapp.hima.utils.DisplayName.clean(creator.name)
             if (!creator.image.isNullOrEmpty()) {
                 Glide.with(itemView).load(creator.image).into(ivAvatar)
             } else {

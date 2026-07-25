@@ -27,7 +27,7 @@ class MatchedCreatorAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val creator = creators[position]
 
-        holder.tvName.text = creator.name
+        holder.tvName.text = com.gmwapp.hima.utils.DisplayName.clean(creator.name)
         holder.tvLanguage.text = creator.language ?: ""
 
         if (!creator.image.isNullOrEmpty()) {

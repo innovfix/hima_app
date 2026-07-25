@@ -15,11 +15,6 @@ object PeerNameUtils {
     // Everything from " sent you …" onward is boilerplate, not part of the name.
     private val MESSAGE_SUFFIX = Regex("\\s+sent you\\b.*$", RegexOption.IGNORE_CASE)
 
-    // Pre-existing rule (was duplicated as extractNameOnly): drop a trailing run of
-    // 6+ digits some generated usernames carry. Short digit tails (e.g. "hOwri140")
-    // are kept because they are part of the name.
-    private val TRAILING_DIGITS = Regex("\\d{6,}$")
-
     // Incoming-call push titles are "<name> is calling you" / "<name> is video calling
     // you" (@string/incoming_audio_call_title / incoming_video_call_title). When the
     // structured name field is missing, that whole title seeds the ring screen's caller
@@ -29,10 +24,13 @@ object PeerNameUtils {
 
     fun sanitizePeerName(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
-        return raw.trim()
+        // Remove the push-title boilerplate, then hide ALL digits like every other
+        // screen (home-screen behaviour via DisplayName.clean) — short digit tails
+        // such as "hOwri140" are no longer kept.
+        val noBoilerplate = raw.trim()
             .replace(MESSAGE_SUFFIX, "")
-            .replace(TRAILING_DIGITS, "")
             .trim()
+        return DisplayName.clean(noBoilerplate)
     }
 
     /**
@@ -44,10 +42,13 @@ object PeerNameUtils {
      */
     fun sanitizeCallerName(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
-        return raw.trim()
+        val noBoilerplate = raw.trim()
             .replace(CALL_SUFFIX, "")
             .replace(MESSAGE_SUFFIX, "")
-            .replace(TRAILING_DIGITS, "")
             .trim()
+        // "" when nothing but boilerplate remains, so callers can fall back to a
+        // neutral default; otherwise hide all digits like the rest of the app.
+        if (noBoilerplate.isBlank()) return ""
+        return DisplayName.clean(noBoilerplate)
     }
 }

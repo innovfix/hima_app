@@ -1029,7 +1029,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             val tvName = itemView.findViewById<TextView>(R.id.tv_creator_name)
             val tvTime = itemView.findViewById<TextView>(R.id.tv_joined_time)
 
-            tvName.text = name
+            tvName.text = com.gmwapp.hima.utils.DisplayName.clean(name)
             tvTime.text = "${sortedMinutes[index]} min ago"
 
             if (avatar.isNullOrBlank()) {

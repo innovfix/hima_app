@@ -79,7 +79,7 @@ class CreatorNotificationAdapter(
             ivActionBell.scaleX = 1f
             ivActionBell.scaleY = 1f
 
-            tvName.text = row.displayName
+            tvName.text = com.gmwapp.hima.utils.DisplayName.clean(row.displayName)
             Glide.with(activity)
                 .load(row.imageUrl)
                 .apply(RequestOptions.circleCropTransform())

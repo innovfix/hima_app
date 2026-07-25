@@ -40,10 +40,18 @@ class SupportBotViewModel @Inject constructor(
     val errorLiveData = MutableLiveData<String>()
     val loadingLiveData = MutableLiveData<Boolean>()
 
+    private val TAG = "SupportBotFlow"
+
     fun start() {
         loadingLiveData.value = true
         repository.start(object : NetworkCallback<SupportBotStartResponse> {
-            override fun onNoNetwork() = fail("No internet connection")
+            override fun onNoNetwork() {
+                // Not a fallback: the bot screen stays open with a retry. Log so the
+                // "why did it not open the bot" reports can be told apart from a real
+                // fallback to the old form.
+                android.util.Log.w(TAG, "support_bot_start: NO NETWORK — staying on bot with retry")
+                fail("No internet connection")
+            }
 
             override fun onResponse(
                 call: Call<SupportBotStartResponse>,
@@ -56,12 +64,25 @@ class SupportBotViewModel @Inject constructor(
                 } else {
                     // A failure here means the user falls back to the old
                     // raise-ticket form, so it must be loud, not swallowed.
+                    // Log the exact HTTP status + error body so we can see WHY the
+                    // bot couldn't come up (404 route-missing, 5xx at the LB, empty
+                    // body, etc.) — this is the fallback the owner is asking about.
+                    val errBody = try { response.errorBody()?.string() } catch (e: Exception) { null }
+                    android.util.Log.e(
+                        TAG,
+                        "support_bot_start FAILED → will fall back to old ticket form. " +
+                            "http=${response.code()} msg=${response.message()} " +
+                            "bodyNull=${body == null} errorBody=${errBody ?: "<none>"}"
+                    )
                     errorLiveData.value = "start_failed"
                 }
             }
 
-            override fun onFailure(call: Call<SupportBotStartResponse>, t: Throwable) =
+            override fun onFailure(call: Call<SupportBotStartResponse>, t: Throwable) {
+                // Network/transport error — bot stays open with a retry, no fallback.
+                android.util.Log.w(TAG, "support_bot_start: network FAILURE — staying on bot with retry", t)
                 fail(t.message ?: "Network error")
+            }
         })
     }
 

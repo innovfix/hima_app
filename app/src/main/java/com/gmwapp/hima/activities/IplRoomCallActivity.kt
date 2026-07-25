@@ -874,8 +874,9 @@ class IplRoomCallActivity : AppCompatActivity() {
         val color = avatarColors[index % avatarColors.size]
         val avatarDrawable = slot.avatarBg.background.mutate() as GradientDrawable
         avatarDrawable.setColor(Color.parseColor(color))
-        slot.avatarInitials.text = getInitials(member.name)
-        slot.name.text = member.name
+        val cleanMemberName = com.gmwapp.hima.utils.DisplayName.clean(member.name)
+        slot.avatarInitials.text = getInitials(cleanMemberName)
+        slot.name.text = cleanMemberName
         slot.creatorBadge.visibility = if (member.isCreator) View.VISIBLE else View.GONE
         slot.flMuteIndicator.visibility = if (member.isMuted) View.VISIBLE else View.GONE
 

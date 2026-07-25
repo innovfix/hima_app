@@ -170,17 +170,24 @@ class FriendsTabFragment : Fragment() {
             // Refresh chat conversations from API
             Log.d("FriendsTab", "💬 Chat tab resumed - refreshing chat conversations")
             loadChatConversations()
+            // Hub "Friends" tab (TYPE_CHAT_FRIENDS): always open at the TOP when the
+            // tab is (re)entered. Switching away and back used to leave the user
+            // scrolled halfway down; scroll to 0 so it reads from the start. Scoped
+            // to this tab so the main chat list keeps its position as expected.
+            if (tabType == TYPE_CHAT_FRIENDS) binding.rvFriends.scrollToPosition(0)
             // Realtime: subscribe to push-driven list refresh + socket new_message
             // so a new push or live socket event reorders / increments the row
             // without waiting for the 30s poll.
             registerChatListRefreshReceiver()
             startCollectingSocketNewMessage()
         } else {
-            // Friend / Requests / Sent tabs: fetch on appear. Without this they stayed
-            // blank until the 30s auto-refresh or a manual pull-to-refresh (the per-tab
-            // load trigger was lost when setUserVisibleHint was removed). loadData() also
-            // drives updateEmptyState(), so an empty tab shows its placeholder immediately.
+            // Friend / Requests / Sent tabs: refresh on resume, and always show the
+            // list from the TOP when the tab is (re)entered. Returning from another
+            // tab used to leave the user scrolled halfway down; scroll to 0 so it
+            // reads from the start. (No 30s auto-refresh on these tabs — see
+            // startAutoRefresh — so the list is never reordered under the user.)
             loadData()
+            binding.rvFriends.scrollToPosition(0)
         }
 
         // Restart auto-refresh
@@ -1180,7 +1187,12 @@ class FriendsTabFragment : Fragment() {
     }
 
     private fun startAutoRefresh() {
-        // Start periodic refresh
+        // No timed auto-refresh on the Friend / Requests lists (owner request) or on
+        // the hub Friends tab (TYPE_CHAT_FRIENDS) — they refresh on resume only, plus
+        // realtime push/socket for the chat one, so the list isn't reloaded/reordered
+        // under the user every 30s. Other chat lists (main chat, General) keep the
+        // 30s poll as a fallback when realtime misses.
+        if (!isChatListTab() || tabType == TYPE_CHAT_FRIENDS) return
         autoRefreshHandler.postDelayed(autoRefreshRunnable, AUTO_REFRESH_INTERVAL)
         Log.d("FriendsTab", "✅ Started auto-refresh every ${AUTO_REFRESH_INTERVAL / 1000} seconds")
     }

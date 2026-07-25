@@ -422,7 +422,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     fun initUI(){
         progressBar = findViewById(R.id.progressBar)
         if (receiverName != null) {
-            val displayName = receiverName!!.trimEnd { it.isDigit() }
+            val displayName = com.gmwapp.hima.utils.DisplayName.clean(receiverName)
             binding.tlWaitTitle.setText("Connecting with $displayName")
         }
         startProgressLoop()
@@ -897,7 +897,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     Log.d("CallStatus", "FemaleConnecting.peerRejected (observed, no post — peer already posted) self=$userId peer=$receiverId callId=$callId status=$status")
                     Toast.makeText(
                         this@FemaleCallConnectingActivity,
-                        "${receiverName?.trimEnd { it.isDigit() }} is busy",
+                        "${com.gmwapp.hima.utils.DisplayName.clean(receiverName)} is busy",
                         Toast.LENGTH_SHORT
                     ).show()
                     val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)

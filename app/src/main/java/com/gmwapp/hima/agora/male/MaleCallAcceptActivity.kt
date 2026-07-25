@@ -301,7 +301,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
             BaseApplication.getInstance()?.playIncomingCallSound()
         }
 
-        binding.callerName.setText(callerName.trimEnd { it.isDigit() })
+        binding.callerName.setText(com.gmwapp.hima.utils.DisplayName.clean(callerName))
         // TC_HL_05 — guard against empty image URL so Glide doesn't render
         // an empty white circle, which made the avatar banner look missing.
         // Falls back to avatar1 (existing drawable verified in res/drawable/).
@@ -612,7 +612,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 callerName = response.data?.name.toString()
                 Log.d("MaleCallAccept_UserAvatar", "Image URL: $imageUrl")
 
-                binding.callerName.setText(callerName.trimEnd { it.isDigit() })
+                binding.callerName.setText(com.gmwapp.hima.utils.DisplayName.clean(callerName))
                 Glide.with(this)
                     .load(imageUrl)
                     .apply(RequestOptions.circleCropTransform())

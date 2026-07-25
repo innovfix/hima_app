@@ -347,7 +347,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
 
 
-        binding.callerName.setText(callerName.trimEnd { it.isDigit() })
+        binding.callerName.setText(com.gmwapp.hima.utils.DisplayName.clean(callerName))
         Glide.with(this)
             .load(callerImage)
             .apply(RequestOptions.circleCropTransform())
@@ -663,7 +663,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 callerName = response.data?.name.toString()
                 Log.d("UserAvatar", "Image URL: $imageUrl")
 
-                binding.callerName.setText(callerName.trimEnd { it.isDigit() })
+                binding.callerName.setText(com.gmwapp.hima.utils.DisplayName.clean(callerName))
                 // Load the avatar image into an ImageView using Glide or Picasso
                 // Glide.with(this).load(imageUrl).into(binding.ivMaleUser)
                 Glide.with(this)
