@@ -27,7 +27,7 @@
                 android:src="@drawable/baseline_check_24"
                 android:tint="@color/white"
                 android:scaleType="centerInside"
-                android:background="@drawable/circle_bg_accent"
+                android:background="@drawable/circle_bg_primary_gradient"
                 android:layout_gravity="center_horizontal"
                 android:contentDescription="Unblock icon" />
 
@@ -92,7 +92,12 @@
                     android:layout_height="56dp"
                     android:layout_weight="1"
                     android:text="Unblock"
-                    app:backgroundTint="@color/colorAccent" />
+                    android:background="@drawable/bg_btn_primary"
+                    android:stateListAnimator="@null"
+                    android:minHeight="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:backgroundTint="@null" />
 
             </LinearLayout>
 

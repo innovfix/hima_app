@@ -4727,20 +4727,18 @@ class ChatActivityInHouse : AppCompatActivity() {
             .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        val color = android.graphics.Color.parseColor(accentColorHex)
+        // Icon + confirm button use the canonical Hima primary gradient (same as the
+        // "Send friend request" CTA) — set in the layout. Deliberately NOT tinted
+        // here: a solid backgroundTint paints over the gradient and flattens it,
+        // which is why these dialogs used to render a flat pink/red.
         val ivIcon = dialogView.findViewById<ImageView>(R.id.iv_icon)
         ivIcon.setImageResource(iconRes)
-        androidx.core.content.ContextCompat.getDrawable(this, R.drawable.circle_bg_accent)?.mutate()?.let { bg ->
-            bg.setTint(color)
-            ivIcon.background = bg
-        }
 
         dialogView.findViewById<android.widget.TextView>(R.id.tv_title).setText(titleRes)
         dialogView.findViewById<android.widget.TextView>(R.id.tv_message).setText(messageRes)
 
         val btnConfirm = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_confirm)
         btnConfirm.setText(confirmTextRes)
-        btnConfirm.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
         btnConfirm.setOnClickListener {
             dialog.dismiss()
             onConfirm()
@@ -4923,15 +4921,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         val iconImageView = findImageView(dialogView as android.view.ViewGroup)
         
-        // Change icon circle background to dark pink
-        iconImageView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
-            resources.getColor(R.color.pink, theme)
-        )
-        
-        // Change button background to lighter pink
-        btnBlock?.backgroundTintList = android.content.res.ColorStateList.valueOf(
-            resources.getColor(R.color.pink, theme)
-        )
+        // Icon circle + Block button use the canonical Hima primary gradient (same as
+        // the "Send friend request" CTA), applied in the layout. Deliberately NOT
+        // tinted here — a solid backgroundTint paints over the gradient, flattening it.
 
         // Set button listeners
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Circular icon badge in the canonical Hima primary gradient — same stops as
+     bg_btn_primary (the "Send friend request" CTA), so a dialog's icon circle
+     matches its primary button.
+     Used by the block / unblock / clear-chat / delete-chat confirmation dialogs.
+
+     Kept separate from circle_bg_accent (flat colorAccent), which is shared by
+     ~14 other layouts and must not change. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:angle="0"
+        android:startColor="#EC4899"
+        android:endColor="#D946EF"
+        android:type="linear" />
+</shape>
