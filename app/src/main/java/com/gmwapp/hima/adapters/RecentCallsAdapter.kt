@@ -186,10 +186,13 @@ class RecentCallsAdapter(
             val audioAvailable = call.call_blocked != true
             holder.binding.ivAudioCircle.alpha = if (audioAvailable) 1f else 0.5f
             holder.binding.ivAudio.isEnabled = audioAvailable
+            // Female/creator does not PAY a per-minute rate to call back — she earns.
+            // So the audio button is labelled with the call type ("Audio"), not the
+            // male-side "10/min" price (which stays only in the MALE branch above).
             CallButtonStyler.style(
                 holder.binding.ivAudio, holder.binding.ivAudioCoin, holder.binding.tvAudioStatus,
                 available = audioAvailable, forAudio = true,
-                rateText = "${CallButtonStyler.DEFAULT_AUDIO_RATE}/min"
+                rateText = "Audio"
             )
             holder.binding.ivAudioCircle.setOnSingleClickListener {
                 if (audioAvailable) onAudioListener.onItemSelected(call)

@@ -642,8 +642,18 @@ class ChatActivityInHouse : AppCompatActivity() {
         perMinVideoRate = if (videoRate > 0) videoRate else 60
         // Per-minute rates now render inline under the top-bar call buttons;
         // the standalone rate banner is retired.
-        tvAudioRateTop?.text = "${perMinAudioRate}/min"
-        tvVideoRateTop?.text = "${perMinVideoRate}/min"
+        // Female/creator does not PAY a per-minute rate to call — she earns. So the
+        // label shows the call type ("Audio"/"Video"), not the male-side "10/min"
+        // price (mirrors the Recent-calls fix). Male viewers keep the rate they pay.
+        val isFemaleViewer = BaseApplication.getInstance()?.getPrefs()
+            ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+        if (isFemaleViewer) {
+            tvAudioRateTop?.text = "Audio"
+            tvVideoRateTop?.text = "Video"
+        } else {
+            tvAudioRateTop?.text = "${perMinAudioRate}/min"
+            tvVideoRateTop?.text = "${perMinVideoRate}/min"
+        }
         cvRateBanner?.visibility = View.GONE
 
         // Header (name + avatar) populated in [initPeerHeader], called after

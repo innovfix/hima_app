@@ -96,6 +96,15 @@ class AiChatAdapter(
 
     fun getMessages() = messages.toList()
 
+    /** Replace the whole transcript in one shot (support-bot cache restore) so a
+     *  returning screen can paint the chat instantly instead of re-adding row by
+     *  row or waiting on the network. */
+    fun restore(newMessages: List<AiChatMessage>) {
+        messages.clear()
+        messages.addAll(newMessages)
+        notifyDataSetChanged()
+    }
+
     override fun getItemViewType(position: Int): Int {
         val m = messages[position]
         return when {

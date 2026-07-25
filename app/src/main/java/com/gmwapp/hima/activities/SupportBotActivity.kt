@@ -54,6 +54,30 @@ class SupportBotActivity : BaseActivity() {
     private var sessionId: Int = 0
     private var ticketId: Int? = null
 
+    // Support-bot state cache. currentInputMode is tracked so onStop can snapshot the
+    // live input bar for an instant restore on return.
+    private var currentInputMode: String? = null
+
+    // Bridges the app-scoped reply keeper to this screen's UI. Attached in onStart,
+    // detached in onStop, so a reply that lands while we're gone is delivered the
+    // instant a screen re-attaches (and can't leak a destroyed activity).
+    private val replyKeeperListener = object : com.gmwapp.hima.utils.SupportBotReplyKeeper.Listener {
+        override fun onReplyLoading(loading: Boolean) {
+            busy = loading
+            if (loading) { adapter.showTyping(); scrollToEnd() } else adapter.hideTyping()
+        }
+
+        override fun onReplyResult(result: com.gmwapp.hima.retrofit.responses.SupportBotReplyResponse) {
+            handleReplyResult(result)
+        }
+
+        override fun onReplyError() {
+            adapter.hideTyping()
+            busy = false
+            showRetry()
+        }
+    }
+
     /** Matches the server's 5MB ceiling — checked here so we never copy 200MB to be told no. */
     private val MAX_ATTACHMENT_BYTES = 5L * 1024 * 1024
 
@@ -101,7 +125,85 @@ class SupportBotActivity : BaseActivity() {
         // of re-answering four questions. A stale/expired id fails soft: the
         // resume_failed branch clears it and starts fresh.
         val saved = BaseApplication.getInstance()?.getPrefs()?.getString(KEY_ACTIVE_SESSION)?.toIntOrNull() ?: 0
-        if (saved > 0) viewModel.session(saved) else viewModel.start()
+        when {
+            saved <= 0 -> viewModel.start()
+            // A reply is in-flight / just landed for this exact session (user left
+            // mid-reply and came back). Paint the cached chat now; the keeper —
+            // attached in onStart — delivers the answer live. NO reconcile here: a
+            // session() fetch would race/duplicate the keeper's result.
+            com.gmwapp.hima.utils.SupportBotReplyKeeper.isBusyFor(saved) -> {
+                if (com.gmwapp.hima.utils.SupportBotSessionCache.hasFor(saved)) restoreFromCache()
+            }
+            // We already have this session's chat in memory (user backed out and came
+            // straight back). Paint it INSTANTLY and STOP — no network call, no dots,
+            // immediately interactive. There is no pending reply here (that path is the
+            // keeper branch above), so nothing meaningful changed server-side; the cache
+            // is authoritative until the user's next action. On a real process kill the
+            // cache is empty and we fall through to the plain network fetch below.
+            com.gmwapp.hima.utils.SupportBotSessionCache.hasFor(saved) -> {
+                restoreFromCache()
+            }
+            else -> viewModel.session(saved)
+        }
+    }
+
+    /** Instantly repaint the last-seen transcript + input bar from the in-memory
+     *  cache, so a returning user sees the chat with zero network wait. */
+    private fun restoreFromCache() {
+        val c = com.gmwapp.hima.utils.SupportBotSessionCache
+        sessionId = c.sessionId
+        ticketId = c.ticketId
+        attachmentAdded = c.attachmentAdded
+        ratingSent = c.ratingSent
+        adapter.restore(c.messages)
+        adapter.setChipsEnabled(true)
+        if (c.inputMode == BotInputMode.YESNO) {
+            binding.tvFeedbackPrompt.text = c.feedbackPrompt.orEmpty()
+        }
+        showInput(c.inputMode)
+        scrollToEnd()
+    }
+
+    /** Snapshot the live chat so the NEXT return can restore it instantly. Drops
+     *  any transient typing row and refuses to cache a session that has already
+     *  ended (disk id cleared), so a finished chat is never resurrected. */
+    private fun saveToCache() {
+        if (sessionId <= 0) return
+        val activeOnDisk = BaseApplication.getInstance()?.getPrefs()
+            ?.getString(KEY_ACTIVE_SESSION)?.toIntOrNull() ?: 0
+        if (activeOnDisk != sessionId) {
+            com.gmwapp.hima.utils.SupportBotSessionCache.clear()
+            return
+        }
+        val msgs = adapter.getMessages().filterNot { it.isTyping }
+        if (msgs.isEmpty()) return
+        com.gmwapp.hima.utils.SupportBotSessionCache.save(
+            sessionId = sessionId,
+            messages = msgs,
+            inputMode = currentInputMode,
+            ticketId = ticketId,
+            feedbackPrompt = binding.tvFeedbackPrompt.text?.toString(),
+            attachmentAdded = attachmentAdded,
+            ratingSent = ratingSent
+        )
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Attach to the app-scoped reply keeper. If a reply for this session landed
+        // while we were gone, it is delivered right now; if one is still in-flight,
+        // the typing dots come back and its result arrives live when it lands.
+        com.gmwapp.hima.utils.SupportBotReplyKeeper.attach(sessionId, replyKeeperListener)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Detach so a destroyed screen can't leak; the keeper keeps the request
+        // alive and stores the result for the next attach.
+        com.gmwapp.hima.utils.SupportBotReplyKeeper.detach(replyKeeperListener)
+        // Runs when leaving the screen (back → finish, or app backgrounded). Cheap
+        // in-memory snapshot; the next onCreate restores from it.
+        saveToCache()
     }
 
     private fun saveActiveSession() {
@@ -113,6 +215,10 @@ class SupportBotActivity : BaseActivity() {
     /** Called once a session is terminal, so the NEXT open starts fresh. */
     private fun clearActiveSession() {
         BaseApplication.getInstance()?.getPrefs()?.setString(KEY_ACTIVE_SESSION, "")
+        // Drop the in-memory transcript AND any kept reply, so a finished/expired
+        // chat is never restored or its stale reply replayed on the next open.
+        com.gmwapp.hima.utils.SupportBotSessionCache.clear()
+        com.gmwapp.hima.utils.SupportBotReplyKeeper.clear()
     }
 
     /**
@@ -419,40 +525,10 @@ class SupportBotActivity : BaseActivity() {
             showInput(r.input_mode)
         }
 
-        viewModel.replyLiveData.observe(this) { r ->
-            adapter.hideTyping()
-            if (!r.success) {
-                // The previous request is still running server-side. Tell them
-                // to wait rather than offering a retry that will just collide.
-                if (r.code == "in_progress") {
-                    showAppToast(r.message, Toast.LENGTH_SHORT)
-                    return@observe
-                }
-                showRetry(); return@observe
-            }
-
-            ticketId = r.ticket_id
-            botSays(r.ai_message, r.chips)
-
-            if (r.input_mode == BotInputMode.YESNO) {
-                binding.tvFeedbackPrompt.text = r.feedback_prompt.orEmpty()
-            }
-            if (r.escalated_immediately && r.ticket_id != null) {
-                binding.tvViewTicket.text = getString(R.string.support_bot_view_ticket, r.ticket_id)
-                // A ticket now exists — this session is done; start fresh next
-                // time (reopening would hit pending_escalated_ticket anyway).
-                clearActiveSession()
-            }
-            showInput(r.input_mode)
-            if (!r.out_of_hours.isNullOrBlank()) {
-                adapter.addMessage(AiChatMessage(r.out_of_hours, isUser = false))
-            }
-            // The server already sent an __attach chip in r.chips on the
-            // immediate-escalation path, and botSays() rendered it. Adding
-            // another here put TWO identical attach buttons on screen. Only
-            // offer one when the server did NOT send chips of its own.
-            if (r.can_attach && r.chips.isNullOrEmpty()) offerAttachment(r.attach_prompt)
-        }
+        // NOTE: bot replies no longer arrive via replyLiveData — they flow through
+        // the app-scoped SupportBotReplyKeeper (attached in onStart) so a reply
+        // started before the user backed out is still delivered on return. The
+        // keeper's listener calls handleReplyResult() below.
 
         viewModel.feedbackLiveData.observe(this) { r ->
             // The rating re-post's response is an acknowledgement only — the
@@ -687,6 +763,7 @@ class SupportBotActivity : BaseActivity() {
 
     /** Exactly one input is visible; the server decides which. */
     private fun showInput(mode: String?) {
+        currentInputMode = mode
         binding.llTextInput.visibility = if (mode == BotInputMode.TEXT) View.VISIBLE else View.GONE
         binding.llYesno.visibility = if (mode == BotInputMode.YESNO) View.VISIBLE else View.GONE
         // The "View ticket #N" button. Always set its label here so it can never
@@ -713,6 +790,46 @@ class SupportBotActivity : BaseActivity() {
             // last line is always visible; RecyclerView clamps the over-scroll.
             rv.post { rv.scrollBy(0, rv.height) }
         }
+    }
+
+    /**
+     * Apply one bot reply to the UI. Extracted from the old replyLiveData observer
+     * so BOTH a live reply and one delivered late by [SupportBotReplyKeeper] (after
+     * the user backed out and returned) render through the exact same path.
+     */
+    private fun handleReplyResult(r: com.gmwapp.hima.retrofit.responses.SupportBotReplyResponse) {
+        adapter.hideTyping()
+        if (!r.success) {
+            // The previous request is still running server-side. Tell them
+            // to wait rather than offering a retry that will just collide.
+            if (r.code == "in_progress") {
+                showAppToast(r.message, Toast.LENGTH_SHORT)
+                return
+            }
+            showRetry(); return
+        }
+
+        ticketId = r.ticket_id
+        botSays(r.ai_message, r.chips)
+
+        if (r.input_mode == BotInputMode.YESNO) {
+            binding.tvFeedbackPrompt.text = r.feedback_prompt.orEmpty()
+        }
+        if (r.escalated_immediately && r.ticket_id != null) {
+            binding.tvViewTicket.text = getString(R.string.support_bot_view_ticket, r.ticket_id)
+            // A ticket now exists — this session is done; start fresh next
+            // time (reopening would hit pending_escalated_ticket anyway).
+            clearActiveSession()
+        }
+        showInput(r.input_mode)
+        if (!r.out_of_hours.isNullOrBlank()) {
+            adapter.addMessage(AiChatMessage(r.out_of_hours, isUser = false))
+        }
+        // The server already sent an __attach chip in r.chips on the
+        // immediate-escalation path, and botSays() rendered it. Adding
+        // another here put TWO identical attach buttons on screen. Only
+        // offer one when the server did NOT send chips of its own.
+        if (r.can_attach && r.chips.isNullOrEmpty()) offerAttachment(r.attach_prompt)
     }
 
     /**

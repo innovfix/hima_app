@@ -87,26 +87,11 @@ class SupportBotViewModel @Inject constructor(
     }
 
     fun reply(sessionId: Int, choiceKey: String? = null, userMessage: String? = null) {
-        loadingLiveData.value = true
-        repository.reply(sessionId, choiceKey, userMessage, object : NetworkCallback<SupportBotReplyResponse> {
-            override fun onNoNetwork() = fail("No internet connection")
-
-            override fun onResponse(
-                call: Call<SupportBotReplyResponse>,
-                response: Response<SupportBotReplyResponse>
-            ) {
-                loadingLiveData.value = false
-                val body = response.body()
-                if (response.isSuccessful && body != null) {
-                    replyLiveData.value = body
-                } else {
-                    errorLiveData.value = "reply_failed"
-                }
-            }
-
-            override fun onFailure(call: Call<SupportBotReplyResponse>, t: Throwable) =
-                fail(t.message ?: "Network error")
-        })
+        // Routed through the app-scoped keeper so an in-flight reply survives the
+        // user leaving the screen mid-conversation — no orphaned reply, no reload,
+        // no waiting on the server's stale timeout. The keeper drives the typing
+        // dots + result via its listener (SupportBotActivity), not via LiveData.
+        com.gmwapp.hima.utils.SupportBotReplyKeeper.send(repository, sessionId, choiceKey, userMessage)
     }
 
     /**

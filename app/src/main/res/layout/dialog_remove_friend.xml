@@ -86,14 +86,18 @@
                 android:layout_weight="1"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="#E5484D"
+                app:cardBackgroundColor="@android:color/transparent"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
                 app:rippleColor="#33FFFFFF">
 
+                <!-- Same brand gradient as the block/unblock/clear dialog primary
+                     button (bg_btn_primary). The card is transparent and clips this
+                     gradient TextView to its 24dp corners, so no red destructive look. -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="@drawable/bg_btn_primary"
                     android:fontFamily="@font/poppins_semibold"
                     android:gravity="center"
                     android:minHeight="46dp"
