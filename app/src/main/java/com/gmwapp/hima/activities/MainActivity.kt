@@ -242,6 +242,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var chatBadgeSeenLevel: Int = 0
     // Male "Friends" hub (favourite tab) — pending received friend-requests badge.
     private var friendsRequestsUnread: Int = 0
+    // ...plus unread friend-CHAT conversations, so the Friends badge shows unread
+    // messages the way it used to (mirrors the female Chat badge = messages + requests).
+    private var friendsMessagesUnread: Int = 0
     // B_015 — Instagram-style "seen the tab" watermark for the Friends (favourite) badge,
     // mirroring the B_010 Chat-badge treatment. Opening the Friends tab clears the badge even
     // with a pending request; it re-shows only when the count climbs above the level seen at
@@ -1048,12 +1051,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.favourite -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-                // B_015 — opening the Friends tab acknowledges the badge (Instagram-style):
-                // clear it now and keep it clear until a new request pushes the count above
-                // this level.
+                // B_015 — opening the Friends tab acknowledges only the REQUESTS portion
+                // (Instagram-style). Unread MESSAGES are NOT cleared here — they stay on the
+                // badge until actually read (owner), so we re-evaluate instead of blanket-
+                // removing the badge.
                 friendsBadgeSeen = true
                 friendsBadgeSeenLevel = friendsRequestsUnread.coerceAtLeast(0)
-                binding.bottomNavigationView.removeBadge(R.id.favourite)
+                updateFriendsBadge()
                 transaction.replace(R.id.flFragment, FriendsHubFragment()).commit()
                 return true
             }
@@ -1674,6 +1678,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 chatFriendsUnread = (chatFriendsUnread + 1).coerceAtLeast(0)
                 updateChatBadge()
                 loadChatUnreadCountBadge()
+                // Male "Friends" hub surfaces unread messages too — bump + correct the
+                // same way. Both paths no-op for the other gender (updateFriendsBadge
+                // guards on the tab's visibility, loadFriendsRequestCountBadge on gender).
+                friendsMessagesUnread = (friendsMessagesUnread + 1).coerceAtLeast(0)
+                updateFriendsBadge()
+                loadFriendsRequestCountBadge()
             }
         }
         val filter = android.content.IntentFilter(
@@ -1937,6 +1947,32 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private fun loadFriendsRequestCountBadge() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         if (userData.gender != DConstants.MALE) return
+
+        // Unread friend messages. Owner wants the EXACT unread total (e.g. 6), not the
+        // count of conversations-with-unread (which read as 1) — so sum unreadCount
+        // across chats. Kept separate from requests; combined in updateFriendsBadge().
+        apiManager.getMyChatFriends(userData.id, null, 100, 0, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>,
+                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
+            ) {
+                friendsMessagesUnread = if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
+                } else 0
+                updateFriendsBadge()
+            }
+
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
+                friendsMessagesUnread = 0
+                updateFriendsBadge()
+            }
+
+            override fun onNoNetwork() {
+                friendsMessagesUnread = 0
+                updateFriendsBadge()
+            }
+        })
+
         // B_010: only requests he hasn't seen — this badge is pure requests, so the
         // watermark is the whole reason it can ever reach zero.
         apiManager.getFriendTabsCounts(
@@ -1969,20 +2005,29 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     private fun updateFriendsBadge() {
-        val count = friendsRequestsUnread.coerceAtLeast(0)
-        // B_015 — Instagram-style watermark (mirrors updateChatBadge). After the Friends tab
-        // was opened, keep the badge cleared while the count stays at or below the level seen
-        // then; ratchet the level down as it falls (so a later request re-badges); a count
-        // above the level is a genuinely new request, which clears the ack and shows it.
-        if (friendsBadgeSeen) {
-            if (count <= friendsBadgeSeenLevel) {
-                friendsBadgeSeenLevel = count
-                binding.bottomNavigationView.removeBadge(R.id.favourite)
-                return
-            }
-            friendsBadgeSeen = false
+        // The Friends (favourite) tab exists only for male users — mirror updateChatBadge's
+        // guard so a female never gets a badge on a hidden item.
+        if (binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible != true) {
+            binding.bottomNavigationView.removeBadge(R.id.favourite)
+            return
         }
-        setNavBadge(R.id.favourite, count, R.color.colorAccent)
+        // Unread MESSAGES always show their exact total and stay until the messages are
+        // actually READ (owner). Reading a chat drops the server unread, which the next
+        // refresh reflects here — so opening the Friends tab does NOT hide them.
+        val messages = friendsMessagesUnread.coerceAtLeast(0)
+        // Pending REQUESTS keep the B_015 Instagram-style "seen the tab" watermark: opening
+        // the Friends tab acknowledges them (they drop out) and they re-show only when a new
+        // request pushes the count above the level seen at that visit.
+        var requests = friendsRequestsUnread.coerceAtLeast(0)
+        if (friendsBadgeSeen) {
+            if (requests <= friendsBadgeSeenLevel) {
+                friendsBadgeSeenLevel = requests
+                requests = 0
+            } else {
+                friendsBadgeSeen = false
+            }
+        }
+        setNavBadge(R.id.favourite, messages + requests, R.color.colorAccent)
     }
 
     fun getSkuListID() {

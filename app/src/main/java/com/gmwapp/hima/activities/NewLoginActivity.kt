@@ -353,6 +353,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         val logoFull = px(94);  val logoSmall = px(46)
         val padTopFull = px(40); val padTopSmall = px(10)
         val padBotFull = px(16); val padBotSmall = px(6)
+        // The corner radius (27dp) and inner padding (24dp) are tuned for the 94dp
+        // logo. If they stay fixed while the card shrinks to 46dp, the 27dp corners
+        // round it into a full circle and the 24dp padding swallows the whole logo —
+        // leaving just a pink circle (owner-reported). Scale both with the card so it
+        // stays a rounded square with the Hima mark visible at both sizes.
+        val cornerFull = px(27).toFloat(); val cornerSmall = px(13).toFloat()
+        val innerPadFull = px(24); val innerPadSmall = px(11)
 
         fun applyCompact(compact: Boolean) {
             binding.tvTagline.visibility  = if (compact) View.GONE else View.VISIBLE
@@ -361,6 +368,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 width  = if (compact) logoSmall else logoFull
                 height = if (compact) logoSmall else logoFull
             }
+            binding.logoContainer.radius = if (compact) cornerSmall else cornerFull
+            val innerPad = if (compact) innerPadSmall else innerPadFull
+            binding.logoInner.setPadding(innerPad, innerPad, innerPad, innerPad)
             binding.llLogoSection.setPadding(
                 binding.llLogoSection.paddingLeft,
                 if (compact) padTopSmall else padTopFull,

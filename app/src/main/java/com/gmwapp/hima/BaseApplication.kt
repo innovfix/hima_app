@@ -3386,16 +3386,47 @@ class BaseApplication : Application(), Configuration.Provider {
      * call, under DND, or when the male chat-notif master pref is off. Fully fail-open.
      */
     private fun setupInAppChatHeadsUp() {
-        if (!com.gmwapp.hima.utils.FeatureFlags.IN_APP_CHAT_HEADSUP_ENABLED) return
         inAppChatScope.launch {
             com.gmwapp.hima.socket.SocketManager.getInstance().newMessage.collect { msg ->
                 try {
-                    maybeShowInAppChatHeadsUp(msg)
+                    // Foreground messages arrive over the SOCKET (the server sends no push
+                    // while the receiver is socket-connected), so the bottom-nav unread badge
+                    // would otherwise not move until the next onResume. Fire the same
+                    // ACTION_CHAT_LIST_REFRESH the push path uses so the badge bumps instantly.
+                    // Always — independent of the (separately-gated) visual heads-up, since the
+                    // unread count must reflect a message even under DND / notif-off.
+                    broadcastChatListRefreshFromSocket(msg)
+                    if (com.gmwapp.hima.utils.FeatureFlags.IN_APP_CHAT_HEADSUP_ENABLED) {
+                        maybeShowInAppChatHeadsUp(msg)
+                    }
                 } catch (t: Throwable) {
                     Log.w("InAppChatNotif", "heads-up skipped: ${t.message}")
                 }
             }
         }
+    }
+
+    /**
+     * Bottom-nav unread badge refresh for a foreground (socket) message — mirrors the
+     * push path's ACTION_CHAT_LIST_REFRESH so MainActivity's receiver bumps the badge
+     * immediately (it self-skips when the user is already reading that thread, and
+     * re-fetches the true count right after the optimistic bump).
+     */
+    private fun broadcastChatListRefreshFromSocket(msg: com.gmwapp.hima.socket.ChatMessageSocket) {
+        val myId = getPrefs()?.getUserData()?.id ?: return
+        val fromId = msg.fromUserId ?: return
+        // Incoming only — never my own echo, never a message addressed to someone else.
+        if (fromId <= 0 || fromId == myId) return
+        if (msg.toUserId != null && msg.toUserId != myId) return
+        if (msg.isDeleted) return
+        val intent = android.content.Intent(
+            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+        )
+            .setPackage(packageName)
+            .putExtra(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_PEER_ID, fromId)
+            .putExtra(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_LAST_MESSAGE, msg.message)
+            .putExtra(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_MESSAGE_TYPE, msg.messageType)
+        runCatching { sendBroadcast(intent) }
     }
 
     private fun maybeShowInAppChatHeadsUp(msg: com.gmwapp.hima.socket.ChatMessageSocket) {
