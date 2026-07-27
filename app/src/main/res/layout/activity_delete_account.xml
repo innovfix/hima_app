@@ -57,6 +57,7 @@
          was match_parent and overlapped the bottom bar, so on keyboard-open adjustResize
          scrolled the focused description field behind the bar / under the keyboard. -->
     <LinearLayout
+        android:id="@+id/content_column"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
@@ -447,6 +448,7 @@
                         android:paddingTop="16dp"
                         android:paddingEnd="16dp"
                         android:paddingBottom="8dp"
+                        android:textCursorDrawable="@drawable/color_cursor"
                         android:textColor="#212121"
                         android:textColorHint="#9E9E9E"
                         android:textSize="14sp" />
@@ -476,6 +478,7 @@
 
     <!-- Bottom Section with Help and Delete Button (fixed below the scroll area) -->
     <LinearLayout
+        android:id="@+id/ll_bottom_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@android:color/white"
@@ -529,11 +532,15 @@
             android:layout_height="52dp"
             android:background="@drawable/bg_btn_primary"
             android:enabled="false"
-            android:fontFamily="@font/poppins_semibold"
+            android:fontFamily="@font/poppins_bold"
             android:text="@string/delete_account"
             android:textAllCaps="false"
             android:textColor="@color/delete_account_button_text_color"
             android:textSize="16sp"
+            android:shadowColor="#33000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="3"
             android:stateListAnimator="@null"
             android:elevation="0dp" />
 

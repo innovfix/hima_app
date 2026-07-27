@@ -4,6 +4,7 @@ import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Intent
 import android.graphics.Paint
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
@@ -18,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BuildConfig
@@ -51,7 +53,41 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         applyStatusBarPaddingForToolbar()
+        applyNavBarPaddingForBottomBar()
+        setupKeyboardLift()
         initUI()
+    }
+
+    /**
+     * Bug #9 — lift the content above the soft keyboard.
+     *
+     * AppTheme sets windowIsTranslucent=true app-wide, which makes Android IGNORE the
+     * manifest's adjustResize (a translucent window is never resized for the IME), so on
+     * keyboard-open the description field just sits UNDER the keyboard. We measure the
+     * keyboard height off the visible display frame (same technique the login screen uses
+     * under this theme) and pad the content column's bottom by it, so the scroll area
+     * shrinks and the field/Delete button ride above the keyboard. Keyboard-closed the
+     * padding is 0, so the resting layout is unchanged. Then scroll the focused field
+     * into view (reusing the B_040 target).
+     */
+    private fun setupKeyboardLift() {
+        val root = binding.root
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            val rect = Rect()
+            root.getWindowVisibleDisplayFrame(rect)
+            val screenH = root.rootView.height
+            val keypad = screenH - rect.bottom
+            // >15% of the screen ⇒ keyboard, not just the nav/status bars.
+            val kbHeight = if (keypad > screenH * 0.15) keypad else 0
+            if (binding.contentColumn.paddingBottom != kbHeight) {
+                binding.contentColumn.updatePadding(bottom = kbHeight)
+                if (kbHeight > 0 && binding.etDescription.hasFocus()) {
+                    binding.svDetails.post {
+                        binding.svDetails.smoothScrollTo(0, binding.cvDescription.bottom)
+                    }
+                }
+            }
+        }
     }
 
     private fun applyStatusBarPaddingForToolbar() {
@@ -61,6 +97,21 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
             windowInsets
         }
         ViewCompat.requestApplyInsets(binding.appbarLayout)
+    }
+
+    // BUG #8 — the fixed bottom bar sits inside a CoordinatorLayout, which only
+    // routes the top inset to the AppBar; the system nav bar was drawing over the
+    // Delete Account button. Pad the bar's bottom by the nav-bar inset (added to
+    // its base 16dp; baseBottom is captured once so repeated insets don't stack).
+    private fun applyNavBarPaddingForBottomBar() {
+        val bar = binding.llBottomBar
+        val baseBottom = bar.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(bar) { v, windowInsets ->
+            val navBottom = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, baseBottom + navBottom)
+            windowInsets
+        }
+        ViewCompat.requestApplyInsets(bar)
     }
 
     override fun onButtonClick() {
