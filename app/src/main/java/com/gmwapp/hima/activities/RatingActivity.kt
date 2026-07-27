@@ -92,7 +92,19 @@ class RatingActivity : BaseActivity() {
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            // BUG #25: lift the content above the keyboard by padding the bottom with the
+            // IME inset instead of letting adjustPan slide the WHOLE window up (which
+            // dragged the title/subtitle over the status bar). systemBars.top is kept, so
+            // the top never moves; the NestedScrollView shrinks and scrolls the focused
+            // comments field into view. ime.bottom already includes the nav bar → max()
+            // avoids double-counting; keyboard-closed ime.bottom = 0 (unchanged layout).
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            v.setPadding(
+                systemBars.left,
+                systemBars.top,
+                systemBars.right,
+                maxOf(systemBars.bottom, ime.bottom)
+            )
             insets
         }
 
