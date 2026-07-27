@@ -242,9 +242,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var chatBadgeSeenLevel: Int = 0
     // Male "Friends" hub (favourite tab) — pending received friend-requests badge.
     private var friendsRequestsUnread: Int = 0
-    // ...plus unread friend-CHAT conversations, so the Friends badge shows unread
-    // messages the way it used to (mirrors the female Chat badge = messages + requests).
-    private var friendsMessagesUnread: Int = 0
+    // ...plus the number of friend chats with unread activity (one per friend, NOT the
+    // raw message total), so the Friends badge = unread-chats + requests. Mirrors the
+    // female Chat badge (chatFriendsUnread + chatRequestsUnread). QA Bug 5.
+    private var friendsChatsUnread: Int = 0
     // B_015 — Instagram-style "seen the tab" watermark for the Friends (favourite) badge,
     // mirroring the B_010 Chat-badge treatment. Opening the Friends tab clears the badge even
     // with a pending request; it re-shows only when the count climbs above the level seen at
@@ -1678,10 +1679,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 chatFriendsUnread = (chatFriendsUnread + 1).coerceAtLeast(0)
                 updateChatBadge()
                 loadChatUnreadCountBadge()
-                // Male "Friends" hub surfaces unread messages too — bump + correct the
-                // same way. Both paths no-op for the other gender (updateFriendsBadge
-                // guards on the tab's visibility, loadFriendsRequestCountBadge on gender).
-                friendsMessagesUnread = (friendsMessagesUnread + 1).coerceAtLeast(0)
+                // Male "Friends" hub surfaces unread chats too — optimistic +1 here, then
+                // loadFriendsRequestCountBadge() below re-counts chats-with-unread from the
+                // server and corrects any over-count. Both paths no-op for the other gender
+                // (updateFriendsBadge guards on tab visibility, loadFriendsRequestCountBadge
+                // on gender).
+                friendsChatsUnread = (friendsChatsUnread + 1).coerceAtLeast(0)
                 updateFriendsBadge()
                 loadFriendsRequestCountBadge()
             }
@@ -1948,27 +1951,29 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         if (userData.gender != DConstants.MALE) return
 
-        // Unread friend messages. Owner wants the EXACT unread total (e.g. 6), not the
-        // count of conversations-with-unread (which read as 1) — so sum unreadCount
-        // across chats. Kept separate from requests; combined in updateFriendsBadge().
+        // Number of CHATS with unread activity (not the raw message total): a friend who
+        // sent 5 messages counts as 1 here. Mirrors the female CreatorChat path
+        // (count { unreadCount > 0 }) so the nav badge reads "new chats", matching QA
+        // Bug 5. Per-row message counts (WhatsApp-style) are unchanged in ChatListAdapter.
+        // Kept separate from requests; combined in updateFriendsBadge().
         apiManager.getMyChatFriends(userData.id, null, 100, 0, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
             override fun onResponse(
                 call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>,
                 response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
             ) {
-                friendsMessagesUnread = if (response.isSuccessful && response.body()?.success == true) {
-                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
+                friendsChatsUnread = if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.data?.chats?.count { it.unreadCount > 0 } ?: 0
                 } else 0
                 updateFriendsBadge()
             }
 
             override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
-                friendsMessagesUnread = 0
+                friendsChatsUnread = 0
                 updateFriendsBadge()
             }
 
             override fun onNoNetwork() {
-                friendsMessagesUnread = 0
+                friendsChatsUnread = 0
                 updateFriendsBadge()
             }
         })
@@ -2011,10 +2016,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             binding.bottomNavigationView.removeBadge(R.id.favourite)
             return
         }
-        // Unread MESSAGES always show their exact total and stay until the messages are
-        // actually READ (owner). Reading a chat drops the server unread, which the next
-        // refresh reflects here — so opening the Friends tab does NOT hide them.
-        val messages = friendsMessagesUnread.coerceAtLeast(0)
+        // Number of unread CHATS (one per friend with unread activity), not the raw
+        // message total — stays until those chats are actually READ. Reading a chat
+        // drops the server unread, which the next refresh reflects here, so opening the
+        // Friends tab does NOT hide them.
+        val chats = friendsChatsUnread.coerceAtLeast(0)
         // Pending REQUESTS keep the B_015 Instagram-style "seen the tab" watermark: opening
         // the Friends tab acknowledges them (they drop out) and they re-show only when a new
         // request pushes the count above the level seen at that visit.
@@ -2027,7 +2033,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 friendsBadgeSeen = false
             }
         }
-        setNavBadge(R.id.favourite, messages + requests, R.color.colorAccent)
+        setNavBadge(R.id.favourite, chats + requests, R.color.colorAccent)
     }
 
     fun getSkuListID() {
