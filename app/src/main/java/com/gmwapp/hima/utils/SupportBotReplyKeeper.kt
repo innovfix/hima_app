@@ -31,14 +31,22 @@ object SupportBotReplyKeeper {
     interface Listener {
         fun onReplyLoading(loading: Boolean)
         fun onReplyResult(result: SupportBotReplyResponse)
-        /** Network/transport/non-2xx failure — the screen should offer a retry. */
-        fun onReplyError()
+        /**
+         * A reply failed. [retryAfterSeconds] > 0 means the server rate-limited us
+         * (HTTP 429): the screen should show a short back-off and gate the retry for
+         * that long, instead of an instant "Try again" that just fires another
+         * request into the same throttled window. 0 = generic network/transport/
+         * non-2xx failure -> a normal retry is fine.
+         */
+        fun onReplyError(retryAfterSeconds: Int)
     }
 
     private var pendingSessionId: Int = 0
     private var loading: Boolean = false
     private var storedResult: SupportBotReplyResponse? = null
     private var storedError: Boolean = false
+    /** Seconds to wait before retrying, carried with a stored 429 error. */
+    private var storedRetryAfter: Int = 0
     private var listener: Listener? = null
 
     /**
@@ -61,19 +69,29 @@ object SupportBotReplyKeeper {
         loading = true
         storedResult = null
         storedError = false
+        storedRetryAfter = 0
         listener?.onReplyLoading(true)
         repository.reply(sessionId, choiceKey, userMessage, object : NetworkCallback<SupportBotReplyResponse> {
-            override fun onNoNetwork() = deliverError()
+            override fun onNoNetwork() = deliverError(0)
 
             override fun onResponse(
                 call: Call<SupportBotReplyResponse>,
                 response: Response<SupportBotReplyResponse>
             ) {
                 val body = response.body()
-                if (response.isSuccessful && body != null) deliver(body) else deliverError()
+                if (response.isSuccessful && body != null) {
+                    deliver(body)
+                } else {
+                    // Tell a 429 rate-limit (back off) apart from a generic failure.
+                    // Laravel sends Retry-After in whole seconds; clamp + default.
+                    val retryAfter = if (response.code() == 429)
+                        (response.headers()["Retry-After"]?.toIntOrNull()?.coerceIn(1, 60) ?: 5)
+                    else 0
+                    deliverError(retryAfter)
+                }
             }
 
-            override fun onFailure(call: Call<SupportBotReplyResponse>, t: Throwable) = deliverError()
+            override fun onFailure(call: Call<SupportBotReplyResponse>, t: Throwable) = deliverError(0)
         })
     }
 
@@ -90,15 +108,16 @@ object SupportBotReplyKeeper {
         }
     }
 
-    private fun deliverError() {
+    private fun deliverError(retryAfterSeconds: Int) {
         loading = false
         val l = listener
         if (l != null) {
             l.onReplyLoading(false)
-            l.onReplyError()
+            l.onReplyError(retryAfterSeconds)
             storedError = false
         } else {
             storedError = true
+            storedRetryAfter = retryAfterSeconds
         }
     }
 
@@ -120,7 +139,7 @@ object SupportBotReplyKeeper {
         if (storedError) {
             storedError = false
             l.onReplyLoading(false)
-            l.onReplyError()
+            l.onReplyError(storedRetryAfter)
         }
     }
 
@@ -134,5 +153,6 @@ object SupportBotReplyKeeper {
         loading = false
         storedResult = null
         storedError = false
+        storedRetryAfter = 0
     }
 }

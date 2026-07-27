@@ -71,10 +71,12 @@ class SupportBotActivity : BaseActivity() {
             handleReplyResult(result)
         }
 
-        override fun onReplyError() {
+        override fun onReplyError(retryAfterSeconds: Int) {
             adapter.hideTyping()
             busy = false
-            showRetry()
+            // A 429 (rate-limited) gets a back-off, not an instant retry chip that
+            // would just re-trip the same throttle window; anything else retries.
+            if (retryAfterSeconds > 0) showRateLimited(retryAfterSeconds) else showRetry()
         }
     }
 
@@ -366,14 +368,20 @@ class SupportBotActivity : BaseActivity() {
         // Backstop only. The server flips in_progress=false once the session goes
         // stale (~40s), which resolves the poll cleanly before this ever trips;
         // this just stops a hung network from polling forever.
-        if (resumePollAttempts > 20) { // ~50s
+        //
+        // Cadence kept deliberately gentle: this poll hits support_bot_session,
+        // which shares the ONE per-user rate-limit bucket with every reply/menu
+        // tap. At the old 2.5s (~24/min) the poll alone could drain the budget and
+        // turn the next real reply into a 429 "Try again". 4s x 12 = ~48s still
+        // comfortably covers the server's ~35s answer ceiling.
+        if (resumePollAttempts > 12) { // ~48s
             adapter.hideTyping()
             busy = false
             showRetry()
             return
         }
         resumePollHandler.removeCallbacks(resumePollRunnable)
-        resumePollHandler.postDelayed(resumePollRunnable, 2500)
+        resumePollHandler.postDelayed(resumePollRunnable, 4000)
     }
 
     private fun cancelResumePoll() {
@@ -652,6 +660,23 @@ class SupportBotActivity : BaseActivity() {
                 fallbackToForm("start_failed (support_bot_start returned non-2xx / null body — see the http=… line above under tag SupportBotFlow)")
                 return@observe
             }
+            // Transient 429 during resume/poll: DON'T discard the session (that
+            // path is resume_failed above). Keep the chat, show typing, and let
+            // the gentle poll try again — the answer is very likely still coming.
+            if (err == "session_rate_limited") {
+                adapter.showTyping()
+                showInput(BotInputMode.NONE)
+                scheduleResumePoll()
+                return@observe
+            }
+            // 429 on a model call (feedback second attempt) — back off with a
+            // cooldown instead of an instant retry. Encoded as "rate_limited:<s>".
+            if (err.startsWith("rate_limited")) {
+                busy = false
+                val secs = err.substringAfter(':', "5").toIntOrNull()?.coerceIn(1, 60) ?: 5
+                showRateLimited(secs)
+                return@observe
+            }
             showRetry()
         }
     }
@@ -692,6 +717,13 @@ class SupportBotActivity : BaseActivity() {
                 return
             }
             "__retry" -> {
+                // If a 429 put us in a back-off, swallow taps until it passes so
+                // the retry can't just re-trip the same throttle window.
+                val waitMs = retryCooldownUntilMs - android.os.SystemClock.elapsedRealtime()
+                if (waitMs > 0) {
+                    showAppToast(getString(R.string.support_bot_rate_limited_wait), Toast.LENGTH_SHORT)
+                    return
+                }
                 // Replay the action that FAILED, not a sentinel.
                 //
                 // This used to post choice_key="__noop", which falls through to
@@ -858,6 +890,38 @@ class SupportBotActivity : BaseActivity() {
         adapter.hideTyping()
         adapter.addMessage(
             AiChatMessage(getString(R.string.support_bot_error), isUser = false)
+        )
+        adapter.setChipsEnabled(true)
+        adapter.addMessage(
+            AiChatMessage(
+                "",
+                isUser = false,
+                chips = listOf(BotChip("__retry", getString(R.string.support_bot_retry)))
+            )
+        )
+        showInput(BotInputMode.CHIPS)
+        scrollToEnd()
+    }
+
+    /** Retry taps before this (elapsedRealtime) are swallowed — set after a 429
+     *  so the retry can't immediately re-trip the same rate-limit window. */
+    private var retryCooldownUntilMs = 0L
+
+    /**
+     * HTTP 429 — we hit the per-user support-bot rate limit. Unlike a generic
+     * failure, an instant "Try again" here just fires another request into the
+     * same throttled window and leaves the user stuck. So: say "wait a moment",
+     * still offer the retry chip (there must always be a way forward), but gate it
+     * for Retry-After seconds — taps inside the window get a hint toast instead of
+     * a request. With the backend now at a generous 120/min this is rare and
+     * self-clearing. Same replay path as showRetry (the __retry chip).
+     */
+    private fun showRateLimited(retryAfterSeconds: Int) {
+        adapter.hideTyping()
+        retryCooldownUntilMs =
+            android.os.SystemClock.elapsedRealtime() + retryAfterSeconds * 1000L
+        adapter.addMessage(
+            AiChatMessage(getString(R.string.support_bot_rate_limited), isUser = false)
         )
         adapter.setChipsEnabled(true)
         adapter.addMessage(

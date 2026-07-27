@@ -759,4 +759,6 @@
     <string name="support_bot_attach_cta">Add screenshots (up to 3)</string>
     <string name="support_bot_retry">Try again</string>
     <string name="support_bot_error">Something went wrong. Please try again.</string>
+    <string name="support_bot_rate_limited">You\'re going a little fast — please wait a few seconds, then tap Try again.</string>
+    <string name="support_bot_rate_limited_wait">Just a moment…</string>
 </resources>

@@ -111,6 +111,12 @@ class SupportBotViewModel @Inject constructor(
                 val body = response.body()
                 if (response.isSuccessful && body != null && body.success) {
                     sessionLiveData.value = body
+                } else if (response.code() == 429) {
+                    // A transient rate-limit during resume/poll must NOT be read as
+                    // "resume failed" — that clears the session and restarts the
+                    // chat, throwing away an answer the server may still be writing.
+                    // Keep the session; the activity backs off and polls again.
+                    errorLiveData.value = "session_rate_limited"
                 } else {
                     // Expired / not found / not ours — resume simply isn't
                     // available; the activity starts fresh instead.
@@ -136,6 +142,12 @@ class SupportBotViewModel @Inject constructor(
                 val body = response.body()
                 if (response.isSuccessful && body != null) {
                     feedbackLiveData.value = body
+                } else if (response.code() == 429) {
+                    // The 2nd-attempt feedback re-runs the model on this path, so it
+                    // shares the rate-limit bucket. Back off instead of an instant
+                    // retry. Encoded so the activity can show the wait + cooldown.
+                    val retryAfter = response.headers()["Retry-After"]?.toIntOrNull()?.coerceIn(1, 60) ?: 5
+                    errorLiveData.value = "rate_limited:$retryAfter"
                 } else {
                     errorLiveData.value = "feedback_failed"
                 }
