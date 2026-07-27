@@ -3308,7 +3308,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             if (totalSeconds > 360) {
                 proceedOrAwaitVideoSwitch(totalSeconds, userid)
             } else {
-                Toast.makeText(this, "$receiverName don't have enough coins", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "${com.gmwapp.hima.utils.DisplayName.clean(receiverName)} don't have enough coins", Toast.LENGTH_SHORT).show()
             }
         }
         
@@ -3426,7 +3426,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     responded = true
                     Toast.makeText(
                         this,
-                        "$requesterName don't have enough coins",
+                        "${com.gmwapp.hima.utils.DisplayName.clean(requesterName)} don't have enough coins",
                         Toast.LENGTH_SHORT
                     ).show()
                     FcmUtils.clearCallSwitch()

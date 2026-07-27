@@ -2928,7 +2928,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     responded = true
                     Toast.makeText(
                         this,
-                        "$requesterName don't have enough coins",
+                        "${com.gmwapp.hima.utils.DisplayName.clean(requesterName)} don't have enough coins",
                         Toast.LENGTH_SHORT
                     ).show()
                     FcmUtils.clearCallSwitch()
