@@ -238,7 +238,7 @@
                         android:layout_height="42dp"
                         android:clickable="true"
                         android:focusable="true"
-                        app:cardBackgroundColor="@color/white"
+                        app:cardBackgroundColor="#FCE3EE"
                         app:cardCornerRadius="21dp"
                         app:cardElevation="2dp"
                         app:rippleColor="@color/colorAccent"
@@ -251,7 +251,7 @@
                             android:layout_height="18dp"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_phone"
-                            app:tint="#E91E63" />
+                            app:tint="@color/colorAccent" />
                     </com.google.android.material.card.MaterialCardView>
 
                     <LinearLayout
@@ -305,7 +305,7 @@
                         android:layout_height="42dp"
                         android:clickable="true"
                         android:focusable="true"
-                        app:cardBackgroundColor="@color/white"
+                        app:cardBackgroundColor="#E3F3E8"
                         app:cardCornerRadius="21dp"
                         app:cardElevation="2dp"
                         app:rippleColor="@color/colorAccent"
@@ -318,7 +318,7 @@
                             android:layout_height="20dp"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_videocam"
-                            app:tint="#9C27B0" />
+                            app:tint="@color/green" />
                     </com.google.android.material.card.MaterialCardView>
 
                     <LinearLayout

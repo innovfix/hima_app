@@ -407,11 +407,11 @@
                 <ImageView
                     android:layout_width="44dp"
                     android:layout_height="44dp"
-                    android:background="@drawable/circle_bg_accent"
+                    android:background="@drawable/circle_bg_pink_light"
                     android:padding="11dp"
                     android:src="@drawable/ic_phone_modern"
                     android:contentDescription="@string/audio"
-                    app:tint="@color/white" />
+                    app:tint="@color/colorAccent" />
 
                 <LinearLayout
                     android:layout_width="0dp"
