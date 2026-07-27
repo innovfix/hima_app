@@ -11,6 +11,20 @@
         </item>
     </style>
 
+    <!-- Bug #2 (27-Jul) — opaque variant of AppTheme for the call-connecting screens.
+         AppTheme sets windowIsTranslucent=true app-wide, so a launching activity's
+         window stays see-through until it paints its own opaque content; on the heavy
+         connecting layout that left the previous Chat/Profile page visible for ~2-3s.
+         Making JUST these two activities opaque with a dark windowBackground lets the
+         framework draw that background the instant the window appears — covering the
+         old page immediately — while the rest of the app keeps its existing theme.
+         windowBackground matches the connecting layout's own #0D0D10 root, so there
+         is zero visual change other than it appearing sooner. -->
+    <style name="AppTheme.CallConnecting" parent="AppTheme">
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowBackground">@color/call_connecting_bg</item>
+    </style>
+
     <style name="AlertDialogTransparent" parent="Theme.MaterialComponents.Dialog.Alert">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">true</item>

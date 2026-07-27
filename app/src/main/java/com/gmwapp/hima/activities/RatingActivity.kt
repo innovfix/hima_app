@@ -104,6 +104,9 @@ class RatingActivity : BaseActivity() {
         // Add listener to review text input for validation
         binding.etUserName.addTextChangedListener {
             validatebtn() // Validate the button whenever the user types
+            // Bug #11 — keep the character counter in sync with what's typed
+            // (was frozen at "0/100" because tv_char_count was never updated).
+            binding.tvCharCount.text = "${it?.length ?: 0}/100"
         }
 
 

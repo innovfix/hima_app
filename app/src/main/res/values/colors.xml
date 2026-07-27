@@ -2,6 +2,10 @@
 <resources>
     <color name="colorPrimary">#ff1383</color>
     <color name="colorAccent">#ff1383</color>
+    <!-- Opaque window bg for the call-connecting screens (matches their root bg).
+         Lets the connecting activity paint over the previous page instantly instead
+         of the old page lingering while the heavy layout inflates (Bug #2, 27-Jul). -->
+    <color name="call_connecting_bg">#0D0D10</color>
     <!-- Onboarding redesign (gender step) -->
     <color name="onboarding_title">#3A3A3A</color>
     <color name="onboarding_card_border">#E6E7EB</color>

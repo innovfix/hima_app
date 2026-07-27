@@ -165,7 +165,8 @@
             android:turnScreenOn="true" />
         <activity
             android:name=".agora.female.FemaleCallConnectingActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/AppTheme.CallConnecting" />
         <activity
             android:name=".activities.ChatListActivity"
             android:exported="false" />
@@ -186,7 +187,8 @@
             android:theme="@style/Theme.AppCompat.NoActionBar" />
         <activity
             android:name=".agora.male.MaleCallConnectingActivity"
-            android:exported="true" />
+            android:exported="true"
+            android:theme="@style/AppTheme.CallConnecting" />
         <activity
             android:name=".agora.male.MaleCallAcceptActivity"
             android:exported="true"
