@@ -22,6 +22,14 @@ object PeerNameUtils {
     // replaces it with the real short name. Strip the calling boilerplate too.
     private val CALL_SUFFIX = Regex("\\s+is\\s+(video\\s+)?calling\\s+you\\b.*$", RegexOption.IGNORE_CASE)
 
+    // The server also sends the PREFIX form as the push title: "Audio Call from <name>" /
+    // "Video Call from <name>" (also "Incoming/Missed call from <name>"). On the OneSignal
+    // path this whole title seeds the ring's caller name when the structured name field is
+    // absent, so the ring shows "Audio Call from Pankaj" instead of "Pankaj". CALL_SUFFIX
+    // only strips trailing boilerplate, so strip this leading boilerplate too.
+    private val CALL_PREFIX =
+        Regex("^\\s*(incoming\\s+|missed\\s+)?(audio\\s+|video\\s+)?call\\s+from(?:\\s+|$)", RegexOption.IGNORE_CASE)
+
     fun sanitizePeerName(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
         // Remove the push-title boilerplate, then hide ALL digits like every other
@@ -43,6 +51,7 @@ object PeerNameUtils {
     fun sanitizeCallerName(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
         val noBoilerplate = raw.trim()
+            .replace(CALL_PREFIX, "")
             .replace(CALL_SUFFIX, "")
             .replace(MESSAGE_SUFFIX, "")
             .trim()

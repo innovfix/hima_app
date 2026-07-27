@@ -302,17 +302,10 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         }
 
         binding.callerName.setText(com.gmwapp.hima.utils.DisplayName.clean(callerName))
-        // TC_HL_05 — guard against empty image URL so Glide doesn't render
-        // an empty white circle, which made the avatar banner look missing.
-        // Falls back to avatar1 (existing drawable verified in res/drawable/).
-        if (callerImage.isNotBlank()) {
-            Glide.with(this)
-                .load(callerImage)
-                .apply(RequestOptions.circleCropTransform().placeholder(R.drawable.avatar1))
-                .into(binding.ivLogo)
-        } else {
-            binding.ivLogo.setImageResource(R.drawable.avatar1)
-        }
+        // TC_HL_05 / Bug 6 — never let the ring show a blank white circle: empty
+        // URL falls back to avatar1, a real URL loads with both placeholder AND
+        // error set to avatar1 so a failed/slow fetch at ring time falls back too.
+        loadCallerAvatar(callerImage)
 
         Log.d("MaleCallAccept_CallType","from notification $callType")
 
@@ -613,15 +606,34 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 Log.d("MaleCallAccept_UserAvatar", "Image URL: $imageUrl")
 
                 binding.callerName.setText(com.gmwapp.hima.utils.DisplayName.clean(callerName))
-                Glide.with(this)
-                    .load(imageUrl)
-                    .apply(RequestOptions.circleCropTransform())
-                    .into(binding.ivLogo)
+                loadCallerAvatar(imageUrl)
             }
         }
 
         userAvatarViewModel.userAvatarErrorLiveData.observe(this) { errorMessage ->
             Log.e("MaleCallAccept_AvatarError", errorMessage)
+        }
+    }
+
+    /**
+     * Bug 6: load the caller avatar so the incoming-call ring never shows a blank
+     * white circle. Empty/blank URL → the avatar1 fallback directly; a real URL →
+     * Glide with both placeholder AND error set to avatar1, so an empty push
+     * payload, a failed fetch, or a slow network at ring time all fall back
+     * instead of rendering an empty circle.
+     */
+    private fun loadCallerAvatar(url: String?) {
+        if (!url.isNullOrBlank()) {
+            Glide.with(this)
+                .load(url)
+                .apply(
+                    RequestOptions.circleCropTransform()
+                        .placeholder(R.drawable.avatar1)
+                        .error(R.drawable.avatar1)
+                )
+                .into(binding.ivLogo)
+        } else {
+            binding.ivLogo.setImageResource(R.drawable.avatar1)
         }
     }
 
