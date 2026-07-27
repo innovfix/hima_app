@@ -3,6 +3,7 @@ package com.gmwapp.hima.activities
 import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextUtils
@@ -14,6 +15,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import com.gmwapp.hima.BaseApplication
@@ -59,7 +61,38 @@ class FemaleAboutActivity : BaseActivity() {
             statusBarColor = R.color.white,
             darkStatusBarIcons = true,
         )
+        setupKeyboardLift()
         initUI()
+    }
+
+    /**
+     * BUG #26 (same root cause as Bug #9) — lift the content above the soft keyboard.
+     *
+     * AppTheme sets windowIsTranslucent=true app-wide, so Android IGNORES adjustResize
+     * (a translucent window is never resized for the IME); the low "Give us a quick
+     * summary about you" field just sits UNDER the keyboard. Measure the keyboard height
+     * off the visible display frame, pad the scroll's content column by it so there's
+     * room to scroll, then bring the focused summary field into view. Keyboard-closed the
+     * padding is 0, so the resting layout is unchanged.
+     */
+    private fun setupKeyboardLift() {
+        val root = binding.root
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            val rect = Rect()
+            root.getWindowVisibleDisplayFrame(rect)
+            val screenH = root.rootView.height
+            val keypad = screenH - rect.bottom
+            // >15% of the screen ⇒ keyboard, not just the nav/status bars.
+            val kbHeight = if (keypad > screenH * 0.15) keypad else 0
+            if (binding.contentColumn.paddingBottom != kbHeight) {
+                binding.contentColumn.updatePadding(bottom = kbHeight)
+                if (kbHeight > 0 && binding.etSummary.hasFocus()) {
+                    binding.svDetails.post {
+                        binding.svDetails.smoothScrollTo(0, binding.cvSummary.bottom)
+                    }
+                }
+            }
+        }
     }
 
     override fun onResume() {

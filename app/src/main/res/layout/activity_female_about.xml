@@ -121,6 +121,7 @@
         app:layout_constraintTop_toBottomOf="@+id/v_title_accent">
 
         <LinearLayout
+            android:id="@+id/content_column"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:focusable="true"
