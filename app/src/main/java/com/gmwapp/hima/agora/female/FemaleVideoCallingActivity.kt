@@ -1309,6 +1309,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (visible && micGranted) {
             // B033 — tell CallingService which class to deep-link back to.
             CallingService.callerActivityClassName = this::class.java.name
+            // Bug 1 — video call: request the camera FGS type so the camera
+            // survives Recent Apps / lock transitions on Android 14/15.
+            CallingService.withCamera = true
             // ✅ Only start microphone FGS from a visible Activity with mic permission granted
             ContextCompat.startForegroundService(this, Intent(this, CallingService::class.java))
             Log.d("startCallingService","Service class called")
@@ -1935,7 +1938,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     Constants.REMOTE_VIDEO_STATE_DECODING -> {
                         pendingAvatarShow?.let { mainHandlerForAvatar.removeCallbacks(it); pendingAvatarShow = null }
                         hideRemoteAvatarSkeleton()
+                        // Bug 1 — frames are flowing again; clear any blur left over
+                        // from a peer mute/background in case onUserMuteVideo(false)
+                        // never fired, so the recovered feed isn't hidden behind blur.
+                        hideRemoteBlurState()
                     }
+                    // Bug 1 — peer stopped sending video (muted / opened Recent Apps).
+                    // Show the avatar skeleton instead of leaving a stale/black frame.
+                    Constants.REMOTE_VIDEO_STATE_STOPPED -> showRemoteAvatarSkeleton()
                     Constants.REMOTE_VIDEO_STATE_STARTING -> showRemoteAvatarSkeleton()
                     Constants.REMOTE_VIDEO_STATE_FROZEN,
                     Constants.REMOTE_VIDEO_STATE_FAILED -> {
@@ -2997,13 +3007,60 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private fun resumeLocalVideoAfterBackground() {
         if (!isJoined || !videoMutedForBackground) return
+        // Clear the flag up front so a second onResume can't double-run this.
+        videoMutedForBackground = false
+        // Bug 1 — restore the OUTGOING camera so the peer sees us again. The old
+        // path (startPreview + muteLocalVideoStream(false)) was unreliable after
+        // onStop()'s stopPreview() destroyed the capturer/preview Surface on
+        // Android 14/15: startPreview could throw (camera briefly busy) and the
+        // exception was swallowed, leaving our video blank on the peer's screen.
+        restoreOutgoingVideo(attempt = 1)
+        // Bug 1 — if WE were the one who backgrounded, our REMOTE SurfaceView's
+        // Surface was torn down too, so the peer's feed can stay black on our side
+        // until it is re-bound to a fresh Surface. Only when a remote video uid
+        // is known (peer actually joined with video).
+        if (videoUid != 0) {
+            try {
+                setupRemoteVideo(videoUid)
+            } catch (e: Exception) {
+                Log.e("FemaleVideoCalling", "setupRemoteVideo in resume", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
+        }
+    }
+
+    /**
+     * Bug 1 — robustly bring the local camera + publish pipeline back after the
+     * app returns from background. Re-enables the local video module, rebuilds the
+     * local preview Surface (destroyed while backgrounded) on the first attempt,
+     * restarts capture and unmutes the outgoing stream. Retries once after a short
+     * delay if the camera was momentarily unavailable at the exact resume instant.
+     */
+    private fun restoreOutgoingVideo(attempt: Int) {
+        if (!isJoined || isFinishing || isDestroyed) return
+        val engine = agoraEngine ?: return
         try {
-            agoraEngine?.startPreview()
-            agoraEngine?.muteLocalVideoStream(false)
-            videoMutedForBackground = false
+            engine.enableLocalVideo(true)
+            if (attempt == 1) {
+                // Rebuild the local preview Surface once. Remove ONLY the old
+                // (dead) SurfaceView so the self-mute badge sibling survives;
+                // setupLocalVideo() then adds a fresh Surface below the badge.
+                localSurfaceView?.let { old ->
+                    (old.parent as? android.view.ViewGroup)?.removeView(old)
+                }
+                setupLocalVideo()
+            }
+            engine.startPreview()
+            engine.muteLocalVideoStream(false)
+            Log.d("FemaleVideoCalling", "restoreOutgoingVideo ok attempt=$attempt")
         } catch (e: Exception) {
-            Log.e("FemaleVideoCalling", "resumeLocalVideoAfterBackground", e)
+            Log.e("FemaleVideoCalling", "restoreOutgoingVideo attempt=$attempt failed", e)
             FirebaseCrashlytics.getInstance().recordException(e)
+            if (attempt < 2 && !isFinishing && !isDestroyed) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (isJoined && !isFinishing && !isDestroyed) restoreOutgoingVideo(attempt + 1)
+                }, 500L)
+            }
         }
     }
 

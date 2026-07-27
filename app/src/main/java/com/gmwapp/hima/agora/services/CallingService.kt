@@ -29,6 +29,16 @@ class CallingService : Service() {
         // (B125 guards against parallel calls), so the single-slot store
         // is safe.
         @Volatile var callerActivityClassName: String? = null
+
+        // Bug 1 (video-blank-on-background) — the active call activity sets this
+        // to true for VIDEO calls (false for audio) right before starting the
+        // service, so the foreground service can also declare the `camera` type.
+        // On Android 14/15 (targetSdk 35) a call that uses the camera around the
+        // background→foreground transition needs FOREGROUND_SERVICE_TYPE_CAMERA;
+        // without it the OS can suspend the camera and the peer's view stays
+        // blank after the user returns from Recent Apps. Audio calls keep the
+        // microphone-only type so they never require the camera permission gate.
+        @Volatile var withCamera: Boolean = false
     }
 
     override fun onCreate() {
@@ -97,14 +107,39 @@ class CallingService : Service() {
         // Any of these previously hard-crashed the call. Catch, report, and stop
         // cleanly so the process never crashes; the call path already treats a
         // missing foreground service as a failed start.
+        // Bug 1 — add the camera FGS type for video calls, but ONLY when the
+        // CAMERA runtime permission is actually held; requesting the camera type
+        // without the permission would throw on Android 14+. Audio calls (and
+        // video calls that somehow lack camera permission) stay microphone-only.
+        val cameraGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.CAMERA
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val fgsType = if (withCamera && cameraGranted) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+        } else {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        }
         try {
-            ServiceCompat.startForeground(
-                this, NOTIFICATION_ID, notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-            )
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, fgsType)
         } catch (t: Throwable) {
             Log.e(TAG, "startForeground failed: ${t.javaClass.simpleName}: ${t.message}", t)
             com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(t)
+            // If the camera-typed start was rejected, retry microphone-only rather
+            // than crashing the whole call — the call keeps working, only the
+            // background-camera hardening is lost.
+            if (fgsType != ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE) {
+                try {
+                    ServiceCompat.startForeground(
+                        this, NOTIFICATION_ID, notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    )
+                    return
+                } catch (t2: Throwable) {
+                    Log.e(TAG, "mic-only startForeground fallback failed: ${t2.message}", t2)
+                    com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(t2)
+                }
+            }
             runCatching { stopSelf() }
         }
     }
@@ -164,6 +199,8 @@ class CallingService : Service() {
         // start (rare but possible) doesn't post a notification pointing
         // at a dead activity.
         callerActivityClassName = null
+        // Bug 1 — reset so a later audio call never inherits a stale camera type.
+        withCamera = false
         super.onDestroy()
     }
 }
