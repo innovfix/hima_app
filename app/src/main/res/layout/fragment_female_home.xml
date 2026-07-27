@@ -1402,7 +1402,7 @@
                     android:padding="6dp"
                     android:background="@drawable/d_button_bg"
                     android:backgroundTint="#E8F5E9"
-                    android:src="@drawable/coin_d"
+                    android:src="@drawable/ic_wallet_modern"
                     app:tint="@color/green"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
