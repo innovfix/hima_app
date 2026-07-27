@@ -547,6 +547,20 @@ class SupportBotActivity : BaseActivity() {
                 return@observe
             }
 
+            // The backend can RE-ASK for the problem in a text box instead of
+            // escalating: after "Still need help" on a non-problem, secondAttempt's
+            // needs_reply branch returns input_mode=text (step 3), NOT second_attempt
+            // and NOT escalated. Honor it — show the composer and keep the session
+            // OPEN so the typed reply routes back through reply(). This MUST run before
+            // the second_attempt/terminal branches below, which hardcode YESNO/NONE and
+            // otherwise hid the input entirely (QA video 27-Jul: the input box vanished
+            // after "Still need help", leaving a dead screen).
+            if (r.input_mode == BotInputMode.TEXT) {
+                botSays(r.ai_message, null)
+                showInput(BotInputMode.TEXT)
+                return@observe
+            }
+
             // Spec #6 — the second, different attempt. No ticket yet; they get
             // another Yes/No.
             if (r.second_attempt) {
