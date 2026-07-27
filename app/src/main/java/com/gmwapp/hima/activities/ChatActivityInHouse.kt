@@ -1702,6 +1702,18 @@ class ChatActivityInHouse : AppCompatActivity() {
             if (emojiGrid.visibility == View.VISIBLE) hideEmojiPanel()
         }
 
+        // BUG #22 — a swipe/scroll on the focused field re-summons the system keyboard
+        // but isn't a "click", so the emoji panel stayed up and both rendered at once.
+        // Dismiss the panel on ANY touch-down (tap or swipe); return false so normal
+        // focus/keyboard/scroll handling still proceeds — the two can never coexist.
+        etMessage.setOnTouchListener { _, event ->
+            if (event.action == android.view.MotionEvent.ACTION_DOWN &&
+                emojiGrid.visibility == View.VISIBLE) {
+                hideEmojiPanel()
+            }
+            false
+        }
+
         btnMic.setOnTouchListener { _, event ->
             handleMicTouch(event)
         }
