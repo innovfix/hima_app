@@ -714,7 +714,9 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     fun getGiftImages(callback: NetworkCallback<GiftImageResponse>) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<GiftImageResponse> = getApiInterface().getGiftImages()
+            // Send the app version so the server can version-gate the customizable-gifts feature.
+            val apiCall: Call<GiftImageResponse> =
+                getApiInterface().getGiftImages(com.gmwapp.hima.BuildConfig.VERSION_CODE)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -3079,8 +3081,9 @@ interface ApiInterface {
     ): Call<WhatsappLinkResponse>
 
 
+    @FormUrlEncoded
     @POST("gifts_list")
-    fun getGiftImages(): Call<GiftImageResponse>
+    fun getGiftImages(@Field("current_version") currentVersion: Int): Call<GiftImageResponse>
 
     @FormUrlEncoded
     @POST("send_gifts")

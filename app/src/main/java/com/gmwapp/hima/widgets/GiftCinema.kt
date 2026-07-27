@@ -109,8 +109,14 @@ object GiftCinema {
             if (busy.contains(content)) return // throttle / no stacking
             busy.add(content)
 
-            val cost = giftUrl?.let { GiftManager.getGiftIconsWithCoins()[it]?.coins } ?: 0
+            val gd = giftUrl?.let { GiftManager.getGiftIconsWithCoins()[it] }
+            val cost = gd?.coins ?: 0
             val theme = themeForCost(cost)
+            // Admin-controlled name card: show the server gift name unless show_name=false.
+            // Falls back to the cost-theme name when the server sends no name.
+            val showName = gd?.show_name ?: true
+            val serverName = gd?.name?.takeIf { it.isNotBlank() }
+            val displayName = if (showName) (serverName ?: theme.name) else null
 
             val overlay = GiftCinemaView(activity)
             content.addView(
@@ -131,7 +137,7 @@ object GiftCinema {
                     try {
                         val recip = recipientCenter(overlay, recipientView)
                         onStart?.invoke()
-                        overlay.play(bmp, theme, cost, recip, lite, finish)
+                        overlay.play(bmp, theme, cost, recip, lite, finish, displayName)
                     } catch (_: Exception) {
                         finish() // never leave the overlay covering the call
                     }
@@ -174,7 +180,8 @@ object GiftCinema {
         private fun dp(v: Float) = v * resources.displayMetrics.density
 
         fun play(
-            hero: Bitmap?, theme: Theme, cost: Int, recip: PointF, lite: Boolean, onComplete: () -> Unit
+            hero: Bitmap?, theme: Theme, cost: Int, recip: PointF, lite: Boolean, onComplete: () -> Unit,
+            displayName: String? = null
         ) {
             val w = if (width > 0) width else resources.displayMetrics.widthPixels
             val h = if (height > 0) height else resources.displayMetrics.heightPixels
@@ -274,17 +281,20 @@ object GiftCinema {
             val ring2 = ringView(theme.rays, dp(2f)); addView(ring2, centered(dp(120f).toInt(), dp(120f).toInt(), recip.x, recip.y))
             scalePop(ring2, 0.3f, 2.3f, d(1000), d(2520), 1f)
 
-            // 9) gift-name title card (name only) — shimmering, rises in
-            val titleY = startY + dp(96f)
-            val title = ShimmerTitle(context, theme.name.uppercase(), theme.color, theme.rays).apply { alpha = 0f }
-            addView(title, FrameLayout.LayoutParams(MATCH, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP).also {
-                it.topMargin = titleY.toInt()
-            })
-            title.translationY = dp(32f)
-            title.animate().alpha(1f).translationY(0f).setStartDelay(d(250))
-                .setDuration(d(900)).withEndAction {
-                    title.animate().alpha(0f).translationY(-dp(16f)).setStartDelay(d(1100)).setDuration(d(500)).start()
-                }.start()
+            // 9) gift-name title card (name only) — shimmering, rises in.
+            // Admin-controlled: skipped entirely when the gift's show_name is off.
+            if (displayName != null) {
+                val titleY = startY + dp(96f)
+                val title = ShimmerTitle(context, displayName.uppercase(), theme.color, theme.rays).apply { alpha = 0f }
+                addView(title, FrameLayout.LayoutParams(MATCH, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP).also {
+                    it.topMargin = titleY.toInt()
+                })
+                title.translationY = dp(32f)
+                title.animate().alpha(1f).translationY(0f).setStartDelay(d(250))
+                    .setDuration(d(900)).withEndAction {
+                        title.animate().alpha(0f).translationY(-dp(16f)).setStartDelay(d(1100)).setDuration(d(500)).start()
+                    }.start()
+            }
 
             // camera shake near the impact, then tear down
             postDelayed({ shakeContent() }, d(2380))
