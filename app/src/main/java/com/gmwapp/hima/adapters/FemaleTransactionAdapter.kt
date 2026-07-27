@@ -9,6 +9,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.AdapterTransactionBinding
 import com.gmwapp.hima.retrofit.responses.FemaleTransactionsResponseData
 import com.gmwapp.hima.utils.DateTimeUtils
+import com.gmwapp.hima.utils.DisplayName
 
 class FemaleTransactionAdapter(
     val activity: Activity,
@@ -76,7 +77,10 @@ class FemaleTransactionAdapter(
                 val formattedCoins = formatDouble(transaction.coins)
                 holder.binding.tvCoins.text = "$rupeeSymbol$formattedCoins"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
-                holder.binding.tvTransactionTitle.text = transaction.title ?: "Audio Session"
+                // Show only the name (strip digit suffixes like "Ram01" → "Ram"),
+                // matching the home-screen name convention.
+                holder.binding.tvTransactionTitle.text =
+                    DisplayName.clean(transaction.title).ifBlank { "Audio Session" }
                 // FI_05: date, call start time, then duration (pulled from description).
                 holder.binding.tvTransactionDate.maxLines = 1
                 holder.binding.tvTransactionDate.text = buildCallSubtitle(transaction)
@@ -91,7 +95,8 @@ class FemaleTransactionAdapter(
                 val formattedCoins = formatDouble(transaction.coins)
                 holder.binding.tvCoins.text = "$rupeeSymbol$formattedCoins"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
-                holder.binding.tvTransactionTitle.text = transaction.title ?: "Video Session"
+                holder.binding.tvTransactionTitle.text =
+                    DisplayName.clean(transaction.title).ifBlank { "Video Session" }
                 // FI_05: date, call start time, then duration (pulled from description).
                 holder.binding.tvTransactionDate.maxLines = 1
                 holder.binding.tvTransactionDate.text = buildCallSubtitle(transaction)
@@ -106,7 +111,8 @@ class FemaleTransactionAdapter(
                 val formattedCoins = formatDouble(transaction.coins)
                 holder.binding.tvCoins.text = "$rupeeSymbol$formattedCoins"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
-                holder.binding.tvTransactionTitle.text = transaction.title ?: "Referral Earning"
+                holder.binding.tvTransactionTitle.text =
+                    DisplayName.clean(transaction.title).ifBlank { "Referral Earning" }
                 holder.binding.tvTransactionDate.text = transaction.date
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_referral_bonus)
@@ -119,7 +125,8 @@ class FemaleTransactionAdapter(
                 holder.binding.tvCoins.text = "$rupeeSymbol$formattedCoins"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 // Title from backend: "IPL Room with {UserName}"
-                holder.binding.tvTransactionTitle.text = transaction.title ?: "IPL Room Income"
+                holder.binding.tvTransactionTitle.text =
+                    DisplayName.clean(transaction.title).ifBlank { "IPL Room Income" }
                 // Build subtitle: date · duration only (skip room name)
                 val reason = transaction.description ?: ""
                 val durationMatch = Regex("- (\\d+ min)").find(reason)

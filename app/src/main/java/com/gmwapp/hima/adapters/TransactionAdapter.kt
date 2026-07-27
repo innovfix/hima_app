@@ -11,6 +11,7 @@ import java.util.Locale
 import com.gmwapp.hima.databinding.AdapterTransactionBinding
 import com.gmwapp.hima.retrofit.responses.TransactionsResponseData
 import com.gmwapp.hima.utils.DateTimeUtils
+import com.gmwapp.hima.utils.DisplayName
 import kotlin.math.abs
 
 
@@ -71,7 +72,9 @@ class TransactionAdapter(
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
             }
             transaction.type == "coins_deduction" -> {
-                holder.binding.tvTransactionTitle.text = "$callType session with $callUserName"
+                // Show only the name (strip digit suffixes like "Ram01" → "Ram").
+                holder.binding.tvTransactionTitle.text =
+                    "$callType session with ${DisplayName.clean(callUserName)}"
                 // FI_05: two-line subtitle — "date, start-time" then duration —
                 // so it reconciles to the real call without wrapping mid-word.
                 // started_time (time-only) preferred; falls back to the full
