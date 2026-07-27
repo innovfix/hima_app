@@ -367,13 +367,13 @@
                     android:background="@drawable/rounded_green_light_bg"
                     android:fontFamily="@font/poppins_bold"
                     android:gravity="center"
+                    android:includeFontPadding="true"
                     android:minWidth="44dp"
                     android:paddingHorizontal="10dp"
-                    android:paddingVertical="2dp"
+                    android:paddingVertical="4dp"
                     android:text="₹0"
                     android:textColor="@color/green"
                     android:textSize="10sp"
-                    android:textStyle="bold"
                     android:visibility="gone" />
 
                 <com.google.android.material.card.MaterialCardView
