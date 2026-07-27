@@ -752,32 +752,32 @@
             <androidx.cardview.widget.CardView
                 android:id="@+id/cv_referCode"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="56dp"
                 android:layout_marginBottom="14dp"
                 android:visibility="gone"
                 app:cardElevation="0dp"
                 app:cardCornerRadius="14dp"
                 app:cardBackgroundColor="@color/white"
-                app:strokeColor="#E3E6EC"
-                app:strokeWidth="1dp">
+                app:strokeColor="#C7CDD9"
+                app:strokeWidth="1.4dp">
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="10dp">
+                    android:paddingHorizontal="16dp">
                     <EditText
                         android:id="@+id/et_referCode"
                         android:layout_width="0dp"
                         android:layout_weight="1"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:hint="Enter referral code"
                         android:textSize="15sp"
                         android:textColor="#1F2430"
                         android:textColorHint="#9AA0AC"
                         android:fontFamily="@font/poppins_medium"
                         android:background="@android:color/transparent"
+                        android:textCursorDrawable="@drawable/color_cursor"
                         android:imeOptions="actionDone" />
                     <RelativeLayout
                         android:layout_width="wrap_content"
@@ -791,6 +791,9 @@
                             android:textSize="13sp"
                             android:textColor="@color/white"
                             android:fontFamily="@font/poppins_semibold"
+                            android:minHeight="0dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
                             app:cornerRadius="8dp"
                             app:backgroundTint="@color/colorAccent" />
 

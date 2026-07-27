@@ -88,6 +88,7 @@
                 android:minHeight="44dp"
                 android:paddingHorizontal="16dp"
                 android:paddingVertical="10dp"
+                android:textCursorDrawable="@drawable/color_cursor"
                 android:textColor="@color/black_light"
                 android:textColorHint="@color/text_light_grey"
                 android:textSize="13sp" />
