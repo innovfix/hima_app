@@ -452,12 +452,22 @@ class FriendsTabFragment : Fragment() {
                     // same delay as loadData so it reads post-commit (server drops the
                     // friend_tabs_counts cache on the mutation, so this returns the fresh count).
                     (activity as? com.gmwapp.hima.activities.MainActivity)?.refreshChatUnreadBadge()
-                    // Also reload the sibling Friends tab NOW so the just-accepted friend floats
-                    // to the top immediately, instead of the list staying frozen on its
-                    // previously-loaded state until the 30s poll (the reported bug).
-                    (parentFragment as? FriendsHubFragment)?.refreshFriendsTab()
-                    (parentFragment as? CreatorChatFragment)?.refreshFriendsTab()
                 }, 500)
+
+                // Reload the sibling Friends tab so the just-accepted friend floats to the top.
+                // Retry with backoff: my_chat/friends may not include the new friendship within
+                // the first 500ms, and the 30s auto-refresh that used to catch this was removed —
+                // so a single refresh can fire before the server commits and the friend never
+                // floats (the reported bug). Each pass re-fetches + re-sorts; once the friend
+                // appears, the local accept timestamp floats them to #1. Cheap + self-limiting
+                // (only after an accept action).
+                listOf(500L, 2000L, 4500L).forEach { d ->
+                    binding.root.postDelayed({
+                        if (!isAdded) return@postDelayed
+                        (parentFragment as? FriendsHubFragment)?.refreshFriendsTab()
+                        (parentFragment as? CreatorChatFragment)?.refreshFriendsTab()
+                    }, d)
+                }
             }
         })
 
@@ -952,6 +962,14 @@ class FriendsTabFragment : Fragment() {
                     com.gmwapp.hima.utils.RecentlyAcceptedFriendsPrefsHelper
                         .getAcceptedMillis(ctx, myId, it)
                 } ?: 0L
+                // Diagnostic (debug builds only): if a just-accepted friend never floats,
+                // this reveals whether the accept timestamp is being read at all. A log line
+                // for the friend ⇒ the id match works and the friend is present (so any
+                // failure is upstream — server didn't return them yet). NO line after
+                // accepting ⇒ id mismatch or the record wasn't written.
+                if (com.gmwapp.hima.BuildConfig.DEBUG && accepted > 0L) {
+                    Log.d("FriendsTab", "float-check id=${conv.userId} name=${conv.userName} msg=$msg accepted=$accepted")
+                }
                 maxOf(msg, accepted)
             }
             val (active, idle) = unpinned.partition { (effectiveMillis[it] ?: 0L) > 0L }

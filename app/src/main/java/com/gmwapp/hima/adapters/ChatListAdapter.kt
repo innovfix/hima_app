@@ -201,8 +201,17 @@ class ChatListAdapter(
             val i = pinnedOrder.indexOf(conv.userId)
             if (i >= 0) i else Int.MAX_VALUE
         }
-        val sortedUnpinned = unpinned.sortedByDescending {
-            it.lastMessageTime?.toDate()?.time ?: 0L
+        // Order by the later of (last message time, local accept time) so a just-accepted
+        // friend — who has no messages yet — isn't sunk to the bottom when this live
+        // re-sort fires because some OTHER chat got a message. Mirrors the fold-in in
+        // FriendsTabFragment.sortChatConversationsForCurrentTab so both stay consistent.
+        val myId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        val sortedUnpinned = unpinned.sortedByDescending { conv ->
+            val msg = conv.lastMessageTime?.toDate()?.time ?: 0L
+            val accepted = conv.userId.toIntOrNull()?.let {
+                com.gmwapp.hima.utils.RecentlyAcceptedFriendsPrefsHelper.getAcceptedMillis(activity, myId, it)
+            } ?: 0L
+            maxOf(msg, accepted)
         }
         // QA bug #8 — keep blocked conversations pinned to the bottom on live
         // socket re-sorts too, so a new message on a normal chat never floats it
