@@ -220,9 +220,8 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
                                     android:contentDescription="@string/edit"
-                                    android:src="@drawable/ic_tick_inside_circle"
-                                    android:visibility="gone"
-                                    app:tint="#10B981" />
+                                    android:src="@drawable/ic_check_circle"
+                                    android:visibility="gone" />
                             </FrameLayout>
 
                         </RelativeLayout>
