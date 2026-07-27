@@ -647,6 +647,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         // price (mirrors the Recent-calls fix). Male viewers keep the rate they pay.
         val isFemaleViewer = BaseApplication.getInstance()?.getPrefs()
             ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+        // Header coin icon must match the currency the viewer sees on Recent-calls:
+        // female/creator earns in rupees (₹ coin), male pays in Hima coins (H coin).
+        // Previously hardcoded to coin_d in the layout, so creators saw the male
+        // H coin here but the ₹ coin on Recent-calls — the reported inconsistency.
+        val headerCoin = if (isFemaleViewer) R.drawable.ruppee_2 else R.drawable.coin_d
+        findViewById<ImageView>(R.id.iv_audio_coin_top)?.setImageResource(headerCoin)
+        findViewById<ImageView>(R.id.iv_video_coin_top)?.setImageResource(headerCoin)
         if (isFemaleViewer) {
             tvAudioRateTop?.text = "Audio"
             tvVideoRateTop?.text = "Video"
