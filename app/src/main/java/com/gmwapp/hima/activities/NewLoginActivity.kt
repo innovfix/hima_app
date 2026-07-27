@@ -800,7 +800,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             spannableString,
             "community guidelines & moderation policy"
         ) {
-            startActivity(Intent(this, CommunityGuidelineActivity::class.java))
+            // BUG #21: open the native card Guidelines screen (with gradient hero
+            // header), same as Profile → Community Guidelines, instead of the old
+            // headerless CommunityGuidelineActivity. Mirrors the B_057 Terms fix above.
+            startActivity(Intent(this, CommunityGuidelinesPolicyActivity::class.java))
         }
 
         binding.tvTermsAndConditions.text = spannableString
