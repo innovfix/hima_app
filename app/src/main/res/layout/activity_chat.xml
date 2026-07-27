@@ -718,6 +718,7 @@
                     android:maxLines="4"
                     android:paddingVertical="12dp"
                     android:scrollbars="vertical"
+                    android:textCursorDrawable="@drawable/color_cursor"
                     android:textColor="@color/chat_text_received"
                     android:textColorHint="@color/chat_time_received"
                     android:textSize="15sp" />
