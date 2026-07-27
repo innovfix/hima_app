@@ -217,6 +217,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
 
     private var isVideoCallGoing : Boolean = false
+    // Bug 1 (audio→video switch): true while a switched-to-video call has had its
+    // camera paused for background, so onResume knows to restore camera+surfaces.
+    private var videoMutedForBackground = false
     // B18 (switch-to-video parity): auto-hide the video-mode chrome after 10s idle.
     // Only active while isVideoCallGoing; normal audio mode is unaffected.
     private var videoChromeVisible = true
@@ -3010,7 +3013,122 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             showMessage("Microphone permission was revoked. Ending call.")
             agoraEngine?.leaveChannel()
             finish()
+            return
         }
+
+        // Bug 1 (audio→video switch) — restore the camera + video surfaces after
+        // returning from background (Recent Apps / lock). No-op in pure audio mode.
+        if (isVideoCallGoing) resumeVideoAfterBackground()
+    }
+
+    // Bug 1 (audio→video switch): the video-activity fix, ported for calls that
+    // START as audio and switch to video (they stay in THIS activity). Everything
+    // below is gated on isVideoCallGoing, so pure audio calls are unaffected.
+    override fun onPause() {
+        if (isVideoCallGoing) pauseVideoForBackground()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        if (isVideoCallGoing) {
+            try {
+                agoraEngine?.stopPreview()
+            } catch (e: Exception) {
+                Log.e("FemaleAudioCalling", "stopPreview in onStop", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
+        }
+        super.onStop()
+    }
+
+    private fun pauseVideoForBackground() {
+        if (!isJoined) return
+        try {
+            agoraEngine?.muteLocalVideoStream(true)
+            videoMutedForBackground = true
+        } catch (e: Exception) {
+            Log.e("FemaleAudioCalling", "pauseVideoForBackground", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+        }
+    }
+
+    private fun resumeVideoAfterBackground() {
+        if (!isVideoCallGoing || !isJoined || !videoMutedForBackground) return
+        videoMutedForBackground = false
+        restoreOutgoingVideo(attempt = 1)
+        if (videoUid != 0) {
+            try {
+                rebindRemoteVideo()
+            } catch (e: Exception) {
+                Log.e("FemaleAudioCalling", "rebindRemoteVideo in resume", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
+        }
+    }
+
+    /**
+     * Re-establish the OUTGOING camera pipeline after background. Re-enables local
+     * video, rebuilds the (destroyed) preview Surface once, restarts capture and
+     * unmutes; retries once if the camera was momentarily busy at resume. Honours
+     * the no-camera fallback (peer still sees us via avatar; we still see them).
+     */
+    private fun restoreOutgoingVideo(attempt: Int) {
+        if (!isVideoCallGoing || !isJoined || isFinishing || isDestroyed) return
+        val engine = agoraEngine ?: return
+        try {
+            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
+            engine.enableLocalVideo(cameraOk)
+            if (cameraOk) {
+                if (attempt == 1) rebuildLocalPreview()
+                engine.startPreview()
+                engine.muteLocalVideoStream(false)
+            } else {
+                engine.muteLocalVideoStream(true)
+            }
+            Log.d("FemaleAudioCalling", "restoreOutgoingVideo ok attempt=$attempt cameraOk=$cameraOk")
+        } catch (e: Exception) {
+            Log.e("FemaleAudioCalling", "restoreOutgoingVideo attempt=$attempt failed", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+            if (attempt < 2 && isVideoCallGoing && !isFinishing && !isDestroyed) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (isVideoCallGoing && isJoined && !isFinishing && !isDestroyed) {
+                        restoreOutgoingVideo(attempt + 1)
+                    }
+                }, 500L)
+            }
+        }
+    }
+
+    /** Rebuild the local preview Surface (destroyed while backgrounded) — mirrors
+     *  enableVideoCall()'s setup so the self-mute badge stays above a live Surface. */
+    private fun rebuildLocalPreview() {
+        val engine = agoraEngine ?: return
+        val localContainer = binding.localVideoViewContainer
+        localContainer.removeAllViews()
+        val localView = SurfaceView(this)
+        localContainer.addView(localView, 0)
+        localView.setZOrderMediaOverlay(true)
+        (binding.ivSelfMicMuted.parent as? android.view.ViewGroup)?.removeView(binding.ivSelfMicMuted)
+        localContainer.addView(binding.ivSelfMicMuted)
+        engine.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
+        binding.localVideoViewContainer.visibility = View.VISIBLE
+        binding.localCardView.visibility = View.VISIBLE
+        applySavedLocalPreviewPosition()
+    }
+
+    /** Rebuild + re-bind the remote Surface so the peer's feed re-renders after the
+     *  app returns from background (its Surface was destroyed while backgrounded). */
+    private fun rebindRemoteVideo() {
+        val engine = agoraEngine ?: return
+        val container = binding.remoteVideoViewContainer
+        container.removeAllViews()
+        val surface = SurfaceView(this)
+        surface.setZOrderMediaOverlay(false)
+        remoteSurfaceView = surface
+        container.addView(surface)
+        container.visibility = View.VISIBLE
+        engine.setupRemoteVideo(VideoCanvas(surface, VideoCanvas.RENDER_MODE_HIDDEN, videoUid))
+        surface.visibility = View.VISIBLE
     }
 
     private fun startMicRevokeWatcher() {
