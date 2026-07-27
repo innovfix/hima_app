@@ -4,11 +4,14 @@ import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -89,7 +92,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private var isFavorite: Boolean = false
     private var reportReasons: List<ReportReason> = emptyList()
     private var reportReasonsLoadingDialog: AlertDialog? = null
-    private var reportDialog: AlertDialog? = null
+    private var reportDialog: android.app.Dialog? = null
     private var isUserBlocked: Boolean = false
     private var blockStatusChecked: Boolean = false
     private var isClosingDueToBlock = false
@@ -931,17 +934,19 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 text = reason.reason
                 isCheckable = true
                 tag = reason
-                
-                // Styling for unselected state
+
+                // Typography first — setTextAppearance would otherwise clobber the
+                // text-color selector below (white label on the pink selected chip).
+                setTextAppearance(R.style.ChipTextAppearance)
+                textSize = 13f
+
+                // Selected = pink fill + white label + white check; unselected = grey pill.
                 chipBackgroundColor = resources.getColorStateList(R.color.chip_background_selector, null)
                 setTextColor(resources.getColorStateList(R.color.chip_text_selector, null))
                 chipStrokeWidth = 3f
                 chipStrokeColor = resources.getColorStateList(R.color.chip_stroke_selector, null)
                 chipCornerRadius = 24f
-                
-                // Typography
-                textSize = 13f
-                setTextAppearance(R.style.ChipTextAppearance)
+                checkedIconTint = ColorStateList.valueOf(Color.WHITE)
             }
             chipGroup.addView(chip)
         }
@@ -955,14 +960,26 @@ class UserProfileDetailActivity : AppCompatActivity() {
             }
             val requiresText = selectedReason?.requires_text == 1
             reasonInputLayout.visibility = if (requiresText) View.VISIBLE else View.GONE
+            if (requiresText) {
+                // Reveal the field and lift the keyboard; the sheet resizes above it.
+                reasonEditText.requestFocus()
+                reasonEditText.post {
+                    (getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+                        ?.showSoftInput(reasonEditText, InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
         }
 
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
+        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        dialog.setContentView(dialogView)
+        dialog.setCancelable(true)
+        // Resize the sheet above the keyboard so the pinned footer (Submit) stays visible.
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        // Transparent sheet container so the layout's rounded top corners show cleanly.
+        (dialogView.parent as? View)?.setBackgroundColor(Color.TRANSPARENT)
+        dialog.behavior.skipCollapsed = true
+        dialog.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
 
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel)
             .setOnClickListener { dialog.dismiss() }
 

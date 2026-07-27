@@ -4873,8 +4873,11 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun showUnblockConfirmationDialog() {
-        // Create a custom dialog with beautiful UI (reusing the same layout)
-        val dialogView = layoutInflater.inflate(R.layout.dialog_block_user_confirmation, null)
+        // BUG #6 — use the dedicated unblock layout (✓ check icon, correct copy) so
+        // this popup renders identically to the Profile-triggered one and matches the
+        // other confirm modals. Previously this hijacked the block layout (✗ X icon)
+        // and patched text/icon via view traversal.
+        val dialogView = layoutInflater.inflate(R.layout.dialog_unblock_user_confirmation, null)
 
         val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setView(dialogView)
@@ -4884,73 +4887,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Make dialog background transparent
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        // Find TextViews by traversing the view hierarchy
-        fun findTextViews(parent: android.view.ViewGroup): Pair<android.widget.TextView?, android.widget.TextView?> {
-            var titleTextView: android.widget.TextView? = null
-            var messageTextView: android.widget.TextView? = null
-            
-            for (i in 0 until parent.childCount) {
-                val child = parent.getChildAt(i)
-                if (child is android.widget.TextView) {
-                    if (titleTextView == null) {
-                        titleTextView = child
-                    } else if (messageTextView == null) {
-                        messageTextView = child
-                        break
-                    }
-                } else if (child is android.view.ViewGroup) {
-                    val result = findTextViews(child)
-                    if (result.first != null && titleTextView == null) titleTextView = result.first
-                    if (result.second != null && messageTextView == null) messageTextView = result.second
-                    if (titleTextView != null && messageTextView != null) break
-                }
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel)
+            .setOnClickListener { dialog.dismiss() }
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_unblock)
+            .setOnClickListener {
+                unblockUser()
+                dialog.dismiss()
             }
-            return Pair(titleTextView, messageTextView)
-        }
-        
-        val (titleTextView, messageTextView) = findTextViews(dialogView as android.view.ViewGroup)
-        val btnBlock = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block)
-        
-        // Update title and message text
-        titleTextView?.text = getString(R.string.chat_unblock_user_title)
-        messageTextView?.text = getString(R.string.chat_unblock_user_message)
-        btnBlock?.text = getString(R.string.chat_unblock_action)
-
-        // The shared layout carries the "Also delete chat for me" checkbox for the
-        // BLOCK flow. Unblock never reads it, so hide it here so it doesn't show on
-        // the Unblock dialog.
-        dialogView.findViewById<android.widget.CheckBox>(R.id.cb_also_delete_chat)?.visibility =
-            android.view.View.GONE
-
-        // Find the ImageView (icon) and change its background to dark pink
-        fun findImageView(parent: android.view.ViewGroup): android.widget.ImageView? {
-            for (i in 0 until parent.childCount) {
-                val child = parent.getChildAt(i)
-                if (child is android.widget.ImageView) {
-                    return child
-                } else if (child is android.view.ViewGroup) {
-                    val result = findImageView(child)
-                    if (result != null) return result
-                }
-            }
-            return null
-        }
-        
-        val iconImageView = findImageView(dialogView as android.view.ViewGroup)
-        
-        // Icon circle + Block button use the canonical Hima primary gradient (same as
-        // the "Send friend request" CTA), applied in the layout. Deliberately NOT
-        // tinted here — a solid backgroundTint paints over the gradient, flattening it.
-
-        // Set button listeners
-        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
-            dialog.dismiss()
-        }
-
-        btnBlock?.setOnClickListener {
-            unblockUser()
-            dialog.dismiss()
-        }
 
         dialog.show()
     }

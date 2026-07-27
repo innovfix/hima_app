@@ -1,155 +1,168 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Report-user bottom sheet.
+    Shown via BottomSheetDialog with SOFT_INPUT_ADJUST_RESIZE (see
+    UserProfileDetailActivity.showReportReasonPickerDialog). The header + reason
+    chips live in a weighted ScrollView so they shrink/scroll when the keyboard
+    rises, while the Cancel/Submit footer stays pinned above the keyboard.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@android:color/transparent">
+    android:background="@drawable/bottom_sheet_background">
 
-    <com.google.android.material.card.MaterialCardView
+    <!-- Drag handle -->
+    <View
+        android:layout_width="38dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="4dp"
+        android:background="@drawable/report_sheet_grabber" />
+
+    <!-- Scrollable reason zone: shrinks & scrolls when the keyboard is up -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="20dp"
-        app:cardCornerRadius="20dp"
-        app:cardBackgroundColor="@color/white"
-        app:cardElevation="12dp">
+        android:layout_weight="1"
+        android:fillViewport="false"
+        android:overScrollMode="never"
+        android:scrollbars="none">
 
-        <ScrollView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:maxHeight="520dp"
-            android:fillViewport="true">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingStart="24dp"
-                android:paddingEnd="24dp"
-                android:paddingTop="20dp"
-                android:paddingBottom="20dp">
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="8dp">
 
             <ImageView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
                 android:layout_gravity="center_horizontal"
                 android:background="@drawable/dialog_icon_background_warning"
                 android:contentDescription="Report icon"
+                android:padding="12dp"
                 android:src="@drawable/ic_warning"
-                android:padding="14dp"
                 android:tint="@color/white" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="6dp"
+                android:layout_marginTop="10dp"
                 android:fontFamily="@font/poppins_bold"
+                android:letterSpacing="-0.01"
                 android:text="Report user"
                 android:textColor="#1F2937"
-                android:textSize="20sp"
-                android:letterSpacing="-0.01" />
+                android:textSize="19sp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:fontFamily="@font/poppins_regular"
                 android:gravity="center"
                 android:lineSpacingExtra="2dp"
-                android:layout_marginBottom="4dp"
                 android:text="Select a reason and add details if needed."
                 android:textColor="#6B7280"
-                android:textSize="14sp" />
+                android:textSize="13.5sp" />
 
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/chip_group_reasons"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:singleSelection="true"
+                android:layout_marginTop="16dp"
                 app:chipSpacingHorizontal="8dp"
-                app:chipSpacingVertical="6dp" />
+                app:chipSpacingVertical="8dp"
+                app:singleSelection="true" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/til_reason_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:hint="Tell us more (optional)"
+                android:layout_marginTop="16dp"
+                android:hint="Tell us more"
+                android:visibility="gone"
                 app:boxBackgroundMode="outline"
-                app:boxCornerRadiusBottomEnd="12dp"
-                app:boxCornerRadiusBottomStart="12dp"
-                app:boxCornerRadiusTopEnd="12dp"
-                app:boxCornerRadiusTopStart="12dp"
+                app:boxCornerRadiusBottomEnd="13dp"
+                app:boxCornerRadiusBottomStart="13dp"
+                app:boxCornerRadiusTopEnd="13dp"
+                app:boxCornerRadiusTopStart="13dp"
                 app:boxStrokeColor="@color/colorAccent"
                 app:boxStrokeWidth="2dp"
-                app:hintTextColor="@color/colorAccent"
-                app:hintEnabled="true">
+                app:counterEnabled="true"
+                app:counterMaxLength="300"
+                app:hintEnabled="true"
+                app:hintTextColor="@color/colorAccent">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_reason_text"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="textMultiLine"
-                    android:minLines="2"
-                    android:maxLines="4"
+                    android:fontFamily="@font/poppins_regular"
                     android:gravity="top"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:maxLength="300"
+                    android:maxLines="4"
+                    android:minLines="2"
                     android:textColor="#111827"
-                    android:textSize="14sp"
-                    android:fontFamily="@font/poppins_regular" />
+                    android:textCursorDrawable="@drawable/color_cursor"
+                    android:textSize="14sp" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:background="#E5E7EB" />
+        </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center">
+    </ScrollView>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_cancel"
-                    android:layout_width="0dp"
-                    android:layout_height="50dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:text="Cancel"
-                    android:textColor="#6B7280"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:textSize="15sp"
-                    android:textAllCaps="false"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    app:strokeColor="#D1D5DB"
-                    app:strokeWidth="1.5dp"
-                    app:cornerRadius="25dp"
-                    app:rippleColor="#F3F4F6" />
+    <!-- Pinned footer: always above the keyboard -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@color/white"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="18dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_submit"
-                    android:layout_width="0dp"
-                    android:layout_height="50dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:text="Submit"
-                    android:textColor="@color/white"
-                    android:fontFamily="@font/poppins_bold"
-                    android:textSize="15sp"
-                    android:textAllCaps="false"
-                    app:backgroundTint="@color/colorAccent"
-                    app:cornerRadius="25dp"
-                    app:elevation="4dp" />
-            </LinearLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_cancel"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:fontFamily="@font/poppins_semibold"
+            android:text="Cancel"
+            android:textAllCaps="false"
+            android:textColor="#6B7280"
+            android:textSize="15sp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            app:cornerRadius="25dp"
+            app:rippleColor="#F3F4F6"
+            app:strokeColor="#D1D5DB"
+            app:strokeWidth="1.5dp" />
 
-            </LinearLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_submit"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Submit"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            app:backgroundTint="@color/colorAccent"
+            app:cornerRadius="25dp"
+            app:elevation="4dp" />
 
-        </ScrollView>
-
-    </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 
 </LinearLayout>

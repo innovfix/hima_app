@@ -28,7 +28,7 @@
                 android:tint="@color/white"
                 android:scaleType="centerInside"
                 android:padding="14dp"
-                android:background="@drawable/circle_bg_primary_gradient"
+                android:background="@drawable/circle_bg_primary_flat"
                 android:layout_gravity="center_horizontal"
                 android:contentDescription="Action icon" />
 
@@ -74,35 +74,36 @@
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="50dp"
                     android:layout_weight="1"
                     android:text="@string/cancel"
+                    android:textAllCaps="false"
                     android:layout_marginEnd="10dp"
                     android:textColor="#6B7280"
                     android:fontFamily="@font/poppins_semibold"
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     app:strokeColor="#D1D5DB"
-                    app:strokeWidth="1dp"
-                    app:cornerRadius="8dp"
+                    app:strokeWidth="1.5dp"
+                    app:cornerRadius="25dp"
                     app:rippleColor="#F3F4F6" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_confirm"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="50dp"
                     android:layout_weight="1"
                     android:text="@string/chat_clearchat_confirm"
+                    android:textAllCaps="false"
                     android:textColor="@color/white"
                     android:fontFamily="@font/poppins_semibold"
-                    android:textSize="14sp"
-                    android:background="@drawable/bg_btn_primary"
+                    android:textSize="15sp"
                     android:stateListAnimator="@null"
                     android:minHeight="0dp"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
-                    app:backgroundTint="@null"
-                    app:cornerRadius="8dp" />
+                    app:backgroundTint="@color/colorAccent"
+                    app:cornerRadius="25dp" />
 
             </LinearLayout>
 
