@@ -2087,25 +2087,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             isIndividual = true
         )
 
-        // 2026-05-23 v26 — Spend Credits event removed per marketing. Fire
-        // 2min_call event instead: marker for "this call lasted long enough
-        // to be a real engagement" (>= 120s).
-        if (callId > 0 && startTime.isNotEmpty()) {
-            try {
-                val sdf = dateFormat
-                val durationSec = ((sdf.parse(endTime)?.time ?: 0L) - (sdf.parse(startTime)?.time ?: 0L)) / 1000
-                if (durationSec >= 120) {
-                    com.gmwapp.hima.utils.HimaAnalytics.log2MinCall(
-                        ctx = this,
-                        callId = callId,
-                        contentType = "audio_call",
-                        durationSec = durationSec,
-                    )
-                }
-            } catch (t: Throwable) {
-                android.util.Log.w("HimaAnalytics", "MaleAudio 2min_call estimate failed: ${t.message}")
-            }
-        }
+        // 2026-07-27 — two_min_new_male is now VIDEO-only and fires once per
+        // male on his first 2-minute video call, so audio calls no longer emit it.
 
         if (switchCallID != 0) {
             callId = switchCallID

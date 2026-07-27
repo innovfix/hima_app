@@ -2075,8 +2075,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             isIndividual = true
         )
 
-        // 2026-05-23 v26 — Spend Credits removed per marketing. Fire 2min_call
-        // when video call duration >= 120s.
+        // 2026-05-23 v26 — Spend Credits removed per marketing. Fire the
+        // two_min_new_male event when video call duration >= 120s.
+        // 2026-07-27 — now fires once per male on his FIRST 2-min video call;
+        // the per-user idempotency guard lives inside log2MinCall.
         if (callId > 0 && startTime.isNotEmpty()) {
             try {
                 val sdf = dateFormat
@@ -2084,13 +2086,14 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 if (durationSec >= 120) {
                     com.gmwapp.hima.utils.HimaAnalytics.log2MinCall(
                         ctx = this,
+                        userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id,
                         callId = callId,
                         contentType = "video_call",
                         durationSec = durationSec,
                     )
                 }
             } catch (t: Throwable) {
-                Log.w("HimaAnalytics", "MaleVideo 2min_call estimate failed: ${t.message}")
+                Log.w("HimaAnalytics", "MaleVideo two_min_new_male estimate failed: ${t.message}")
             }
         }
 

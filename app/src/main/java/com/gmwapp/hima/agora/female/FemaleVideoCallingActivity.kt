@@ -2351,6 +2351,27 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             isIndividual = true
         )
 
+        // 2026-07-27 — fire two_min_new_female once per creator on her FIRST
+        // 2-minute VIDEO call. The per-user idempotency guard lives inside
+        // log2MinNewFemale. Keyed to HER own user id (getUserData), not the peer.
+        if (call_Id > 0 && startTime.isNotEmpty()) {
+            try {
+                val sdf = dateFormat
+                val durationSec = ((sdf.parse(endTime)?.time ?: 0L) - (sdf.parse(startTime)?.time ?: 0L)) / 1000
+                if (durationSec >= 120) {
+                    com.gmwapp.hima.utils.HimaAnalytics.log2MinNewFemale(
+                        ctx = this,
+                        userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id,
+                        callId = call_Id,
+                        contentType = "video_call",
+                        durationSec = durationSec,
+                    )
+                }
+            } catch (t: Throwable) {
+                Log.w("HimaAnalytics", "FemaleVideo two_min_new_female estimate failed: ${t.message}")
+            }
+        }
+
 
         if (switchCallID!=0){
             call_Id = switchCallID

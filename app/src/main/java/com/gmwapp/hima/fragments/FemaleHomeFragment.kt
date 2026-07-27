@@ -923,46 +923,11 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             pendingVideoStatus = null
         })
         
-        // Observe female talk duration response
-        femaleUsersViewModel.femaleTalkDurationResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
-            Log.d("FemaleHomeFragment", "📥 Observer received femaleTalkDurationResponseLiveData: $response")
-            Log.d("FemaleHomeFragment", "📥 Response details - isNull: ${response == null}, success: ${response?.success}, data: ${response?.data}")
-            if (response != null && response.success) {
-                Log.d("FemaleHomeFragment", "✅ Response is successful")
-                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                Log.d("FemaleHomeFragment", "👤 UserData check - isNull: ${userData == null}, userId: ${userData?.id}")
-                if (userData != null) {
-                    val totalMinutes = response.data?.total_talk_duration_minutes ?: 0
-                    
-                    Log.d("FemaleHomeFragment", "⏱️ Total talk duration for user ${userData.id}: $totalMinutes minutes")
-                    Log.d("FemaleHomeFragment", "⏱️ Duration check - totalMinutes: $totalMinutes, isGreaterOrEqual2: ${totalMinutes >= 2}")
-                    
-                    // Check if total duration >= 2 minutes
-                    if (totalMinutes >= 2) {
-                        Log.d("FemaleHomeFragment", "✅ Total duration ($totalMinutes min) >= 2 minutes, logging event")
-                        // Log the event to Firebase, Meta, AppsFlyer, and backend
-                        logTwoMinDurationCompleted(userData, totalMinutes)
-                        
-                        // Mark as logged locally
-                        sharedPreferences.edit()
-                            .putBoolean("last_two_min_duration_logged_${userData.id}", true)
-                            .apply()
-                    } else {
-                        Log.d("FemaleHomeFragment", "⏭️ Total duration ($totalMinutes min) is less than 2 minutes")
-                    }
-                } else {
-                    Log.e("FemaleHomeFragment", "❌ UserData is null in observer")
-                }
-            } else {
-                Log.e("FemaleHomeFragment", "❌ Response is null or not successful: $response")
-            }
-        })
-        
-        femaleUsersViewModel.femaleTalkDurationErrorLiveData.observe(viewLifecycleOwner, Observer { error ->
-            if (error != null) {
-                Log.e("FemaleHomeFragment", "❌ Error getting talk duration: $error")
-            }
-        })
+        // 2026-07-27 — the old cumulative two_min_duration_completed event was
+        // retired. Its replacement (two_min_new_female) now fires from
+        // FemaleVideoCallingActivity at call-end (first 2-min video call, once
+        // per creator), so the talk-duration API + these observers are no longer
+        // used here.
         
         // Set up switch listeners once at the end of initUI
         setupSwitchListeners(userData)
@@ -1252,10 +1217,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         if (userData != null && userData.id != null) {
             // Check and log voice_verified event if status is 2
             checkAndLogVoiceVerified(userData)
-            
-            // Check and log two_min_duration_completed event
-            checkAndLogTwoMinDuration(userData)
-            
+
             femaleUsersViewModel.getReports(userData.id)
             femaleUsersViewModel.getFemaleDiscovery(userData.id)
             updateEarnings()
@@ -1356,123 +1318,6 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             }
         }
     }
-
-    private fun checkAndLogTwoMinDuration(userData: UserData) {
-        Log.d("FemaleHomeFragment", "🔍 checkAndLogTwoMinDuration called for user ${userData.id}")
-        Log.d("FemaleHomeFragment", "🔍 Function entry - userData.id: ${userData.id}, created_at: ${userData.created_at}")
-        
-        // Check if account was created after 8 Jan 2026
-        val cutoffDate = Calendar.getInstance().apply {
-            set(2026, Calendar.JANUARY, 8, 0, 0, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        
-        Log.d("FemaleHomeFragment", "📅 Cutoff date: ${cutoffDate.time}")
-        Log.d("FemaleHomeFragment", "📅 User created_at: ${userData.created_at}")
-        
-        val userCreatedAt = try {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val parsedDate = userData.created_at?.let { dateFormat.parse(it) }
-            if (parsedDate == null) {
-                Log.e("FemaleHomeFragment", "❌ created_at is null, returning early")
-                return
-            }
-            Log.d("FemaleHomeFragment", "✅ Successfully parsed created_at: $parsedDate")
-            parsedDate
-        } catch (e: Exception) {
-            Log.e("FemaleHomeFragment", "❌ Error parsing created_at: ${e.message}", e)
-            return
-        }
-        
-        val userCreatedCalendar = Calendar.getInstance().apply {
-            time = userCreatedAt
-        }
-        
-        Log.d("FemaleHomeFragment", "📅 Parsed user created date: ${userCreatedCalendar.time}")
-        Log.d("FemaleHomeFragment", "📅 Is before cutoff? ${userCreatedCalendar.before(cutoffDate)}")
-        
-        // Only proceed if account was created after 8 Jan 2026
-        if (userCreatedCalendar.before(cutoffDate)) {
-            Log.d("FemaleHomeFragment", "⏭️ Account created before cutoff date (${userCreatedCalendar.time}), skipping two_min_duration check")
-            return
-        }
-        
-        // Check if we've already logged this event locally
-        val lastLoggedTwoMin = sharedPreferences.getBoolean("last_two_min_duration_logged_${userData.id}", false)
-        Log.d("FemaleHomeFragment", "🔐 Already logged locally? $lastLoggedTwoMin")
-        if (lastLoggedTwoMin) {
-            Log.d("FemaleHomeFragment", "⏭️ two_min_duration_completed already logged locally for user ${userData.id}")
-            return
-        }
-        
-        // Call API via ViewModel to get total talk duration
-        Log.d("FemaleHomeFragment", "✅ Calling getFemaleTalkDuration API for user ${userData.id}")
-        Log.d("FemaleHomeFragment", "✅ API call initiated - ViewModel: ${femaleUsersViewModel.javaClass.simpleName}")
-        femaleUsersViewModel.getFemaleTalkDuration(userData.id)
-        Log.d("FemaleHomeFragment", "✅ API call completed - waiting for response")
-    }
-
-    private fun logTwoMinDurationCompleted(userData: UserData, totalMinutes: Int) {
-        val userId = userData.id
-        
-        // 1. Firebase Analytics - two_min_duration_completed
-        val firebaseBundle = Bundle().apply {
-            putString("user_id", "$userId")
-            putInt("total_talk_duration_minutes", totalMinutes)
-            putString("gender", userData.gender ?: "")
-        }
-        BaseApplication.firebaseAnalytics.logEvent("two_min_duration_completed", firebaseBundle)
-        
-        // 2. Meta/Facebook Analytics - two_min_duration_completed
-        val metaParams = Bundle().apply {
-            putString("user_id", "$userId")
-            putInt("total_talk_duration_minutes", totalMinutes)
-            putString("gender", userData.gender ?: "")
-        }
-        AppEventsLogger.newLogger(requireContext()).logEvent("two_min_duration_completed", metaParams)
-        
-        // 3. MMP - two_min_duration_completed
-        MmpClient.trackEvent(
-            eventName = "two_min_duration_completed",
-            params = mapOf(
-                "user_id" to "$userId",
-                "total_talk_duration_minutes" to totalMinutes,
-                "gender" to (userData.gender ?: "")
-            ),
-            customerUserId = "$userId"
-        )
-        
-        // 4. Log to backend (only Firebase events)
-        AppEventLogger.logEvent(
-            context = requireContext(),
-            eventName = "two_min_duration_completed",
-            platform = "firebase",
-            userId = userId,
-            params = AppEventLogger.bundleToMap(firebaseBundle)
-        )
-
-        // 5. Adjust - two_min_duration_completed (mirrors alongside the above)
-        com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
-            "two_min_duration_completed",
-            params = mapOf(
-                "user_id" to "$userId",
-                "total_talk_duration_minutes" to totalMinutes,
-                "gender" to (userData.gender ?: "")
-            )
-        )
-
-        // Bug #7 fix (2026-05-25): persist that we've fired this event for
-        // this user so subsequent app opens skip the re-fire. Without this
-        // the SharedPrefs gate in checkAndLogTwoMinDuration always read
-        // false (because nothing was writing true), so marketing was seeing
-        // two_min_duration_completed fire on every app open instead of once.
-        sharedPreferences.edit()
-            .putBoolean("last_two_min_duration_logged_${userData.id}", true)
-            .apply()
-
-        Log.d("FemaleHomeFragment", "✅ two_min_duration_completed event logged for user $userId ($totalMinutes minutes)")
-    }
-
 
     private fun openWhatsAppGroup(groupLink: String) {
         try {

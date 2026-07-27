@@ -36,6 +36,9 @@ object HimaAnalytics {
     private const val KEY_DAY1_PURCHASE_COUNT = "day1_purchase_count"
     private const val PREFS_VOICE_SUBMITTED = "hima_voice_submitted_prefs"
     private const val KEY_VOICE_SUBMITTED_PREFIX = "female_voice_submitted_"
+    private const val PREFS_2MIN_CALL = "hima_2min_call_prefs"
+    private const val KEY_2MIN_NEW_MALE_PREFIX = "two_min_new_male_"
+    private const val KEY_2MIN_NEW_FEMALE_PREFIX = "two_min_new_female_"
 
     // Standard Meta event names not in AppEventsConstants (Facebook hasn't
     // exposed them all). Source: Marketing's email + Facebook Events Manager.
@@ -61,7 +64,7 @@ object HimaAnalytics {
         // 2026-05-23 v26 — DISABLED per marketing. They keep only:
         // purchase, complete_registration, activate_app, app_install,
         // new_user_purchase, new_user_first_purchase, voice_verified,
-        // 2min_call. Method kept as no-op so existing call sites compile.
+        // two_min_new_male. Method kept as no-op so existing call sites compile.
         return
     }
 
@@ -100,35 +103,57 @@ object HimaAnalytics {
 
     // -----------------------------------------------------------------
     // 2026-05-23 v26 — 2-Minute Call event (new, per marketing request)
+    // 2026-07-27 — narrowed + renamed to two_min_new_male: now fires ONCE per
+    // male, on his FIRST VIDEO call that stays connected for >=120s. Audio
+    // calls no longer fire it.
     // -----------------------------------------------------------------
     /**
-     * Fired ONCE per call when the connected call duration reaches 120 seconds.
-     * Use a per-callId flag in the calling activity so this fires at most once
-     * per call_id (even across reconnects or switch-audio-to-video).
+     * Fired ONCE per male user — the FIRST time one of his VIDEO calls stays
+     * connected for >= 120 seconds. A per-user SharedPreferences guard,
+     * committed SYNCHRONOUSLY and BEFORE emitting, makes it idempotent: neither
+     * a later long call, nor the call-end handler running from multiple
+     * lifecycle paths (onUserOffline + leaveChannel + late FCM), can re-fire it.
+     * A rare lost event is preferable to a double-count, so the guard stays set
+     * regardless of individual platform emit failures.
      *
-     * @param callId      the user_calls.id for this session (dedup key)
-     * @param contentType "audio_call" / "video_call"
+     * @param userId      the male's UserData.id — dedup key; required (skips if null/<=0)
+     * @param callId      the user_calls.id for this session
+     * @param contentType "video_call" (audio no longer calls this)
      * @param durationSec actual duration in seconds (>=120)
      */
-    fun log2MinCall(ctx: Context, callId: Int, contentType: String, durationSec: Long) {
+    fun log2MinCall(ctx: Context, userId: Int?, callId: Int, contentType: String, durationSec: Long) {
         try {
+            if (userId == null || userId <= 0) {
+                Log.d(TAG, "two_min_new_male skipped — no valid userId")
+                return
+            }
+            val prefs = ctx.getSharedPreferences(PREFS_2MIN_CALL, Context.MODE_PRIVATE)
+            val key = "$KEY_2MIN_NEW_MALE_PREFIX$userId"
+            if (prefs.getBoolean(key, false)) {
+                Log.d(TAG, "two_min_new_male already fired for user $userId — skip")
+                return
+            }
+            // Commit the idempotency guard SYNCHRONOUSLY and BEFORE emitting so a
+            // process kill, or a re-entrant call-end path, cannot re-fire it.
+            prefs.edit().putBoolean(key, true).commit()
+
             val params = Bundle().apply {
                 putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, contentType)
                 putString(AppEventsConstants.EVENT_PARAM_CONTENT_ID, callId.toString())
                 putLong("duration_seconds", durationSec)
             }
-            AppEventsLogger.newLogger(ctx).logEvent("2min_call", durationSec.toDouble(), params)
+            AppEventsLogger.newLogger(ctx).logEvent("two_min_new_male", durationSec.toDouble(), params)
 
             val fbBundle = Bundle().apply {
                 putString("content_type", contentType)
                 putString("call_id", callId.toString())
                 putLong("duration_seconds", durationSec)
             }
-            BaseApplication.firebaseAnalytics.logEvent("2min_call", fbBundle)
+            BaseApplication.firebaseAnalytics.logEvent("two_min_new_male", fbBundle)
 
             // Adjust (mirrors alongside Meta + Firebase).
             com.gmwapp.hima.mmp.AdjustTracker.trackEvent(
-                "2min_call",
+                "two_min_new_male",
                 params = mapOf(
                     "content_type" to contentType,
                     "call_id" to callId.toString(),
@@ -136,9 +161,52 @@ object HimaAnalytics {
                 )
             )
 
-            Log.d(TAG, "2min_call fired: callId=$callId type=$contentType dur=${durationSec}s")
+            Log.d(TAG, "two_min_new_male fired: user=$userId callId=$callId type=$contentType dur=${durationSec}s")
         } catch (t: Throwable) {
             Log.w(TAG, "log2MinCall failed: ${t.message}")
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // 2026-07-27 — two_min_new_female (creator counterpart of the above)
+    // -----------------------------------------------------------------
+    /**
+     * Female counterpart of [log2MinCall]. Fired ONCE per female creator — the
+     * FIRST time one of HER video calls stays connected for >= 120 seconds.
+     * Per-user guard committed synchronously BEFORE emitting (via [firstTimeOnly])
+     * so a re-entrant call-end path can't double-count. Fans out to Firebase +
+     * Meta + Adjust + MMP + backend via [emit] — the same sink set the old
+     * home-screen two_min_duration_completed event used.
+     *
+     * @param userId      the female's UserData.id — dedup key; required (skips if null/<=0)
+     * @param callId      the user_calls.id for this session
+     * @param contentType "video_call"
+     * @param durationSec actual duration in seconds (>=120)
+     */
+    fun log2MinNewFemale(ctx: Context, userId: Int?, callId: Int, contentType: String, durationSec: Long) {
+        try {
+            if (userId == null || userId <= 0) {
+                Log.d(TAG, "two_min_new_female skipped — no valid userId")
+                return
+            }
+            if (!firstTimeOnly(ctx, "$KEY_2MIN_NEW_FEMALE_PREFIX$userId")) {
+                Log.d(TAG, "two_min_new_female already fired for user $userId — skip")
+                return
+            }
+            emit(
+                ctx,
+                "two_min_new_female",
+                params = mapOf(
+                    "user_id" to userId,
+                    "content_type" to contentType,
+                    "call_id" to callId,
+                    "duration_seconds" to durationSec
+                ),
+                userId = userId
+            )
+            Log.d(TAG, "two_min_new_female fired: user=$userId callId=$callId type=$contentType dur=${durationSec}s")
+        } catch (t: Throwable) {
+            Log.w(TAG, "log2MinNewFemale failed: ${t.message}")
         }
     }
 

@@ -43,8 +43,10 @@ object AdjustTracker {
      *
      * Any value still starting with "TODO_" is skipped at runtime.
      *
-     * Note: `2min_call` and `two_min_duration_completed` both map to the
-     * dashboard's single "two_minute_duration_complete" event.
+     * Note: `two_min_new_male` (male, formerly `2min_call`) and
+     * `two_min_new_female` (female, formerly `two_min_duration_completed`) both
+     * map to the dashboard's single "two_minute_duration_complete" event. Each
+     * now fires once per user on their FIRST 2-minute VIDEO call.
      */
     private val EVENT_TOKENS: Map<String, String> = mapOf(
         "complete_registration"        to "3qvcls", // Complete_registration
@@ -53,8 +55,8 @@ object AdjustTracker {
         "female_voice_submitted"       to "pme4wb", // female_voice_submitted
         "first_call"                   to "avhcv2", // First_Call
         "call_started"                 to "1dz7el", // Call_Started
-        "two_min_duration_completed"   to "43kw07", // two_minute_duration_complete
-        "2min_call"                    to "43kw07", // -> shares two_minute_duration_complete
+        "two_min_new_female"           to "43kw07", // two_minute_duration_complete (female, was two_min_duration_completed)
+        "two_min_new_male"             to "43kw07", // -> shares two_minute_duration_complete (male, was 2min_call)
         "initial_checkout"             to "h2ybx8", // Initial_checkout
         "purchase"                     to "mf46ew", // Purchases
         "new_user_purchase"            to "hsggks", // new_user_purchase
