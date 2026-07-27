@@ -754,12 +754,23 @@ class SupportBotActivity : BaseActivity() {
         if (!message.isNullOrBlank()) {
             adapter.addMessage(AiChatMessage(message, isUser = false))
         }
-        if (!chips.isNullOrEmpty()) {
+        val shown = withoutSkip(chips)
+        if (!shown.isNullOrEmpty()) {
             adapter.setChipsEnabled(true)
-            adapter.addMessage(AiChatMessage("", isUser = false, chips = chips))
+            adapter.addMessage(AiChatMessage("", isUser = false, chips = shown))
         }
         scrollToEnd()
     }
+
+    /**
+     * Product decision (Jul 2026) — the "Skip" option is removed from the AI ticket
+     * flow entirely: the "describe your problem" step must be answered, never skipped.
+     * The Skip chip is server-driven, so strip any "__skip" chip here so it can NEVER
+     * render, no matter what the backend sends. (The bot backend should also stop
+     * emitting it; this is the belt-and-braces client guard so it "never arrives".)
+     */
+    private fun withoutSkip(chips: List<BotChip>?): List<BotChip>? =
+        chips?.filterNot { it.key == "__skip" }
 
     /** Exactly one input is visible; the server decides which. */
     private fun showInput(mode: String?) {
@@ -915,9 +926,10 @@ class SupportBotActivity : BaseActivity() {
 
         when (r.input_mode) {
             BotInputMode.CHIPS -> {
-                if (!r.chips.isNullOrEmpty()) {
+                val shownChips = withoutSkip(r.chips)
+                if (!shownChips.isNullOrEmpty()) {
                     adapter.setChipsEnabled(true)
-                    adapter.addMessage(AiChatMessage("", isUser = false, chips = r.chips))
+                    adapter.addMessage(AiChatMessage("", isUser = false, chips = shownChips))
                 }
                 showInput(BotInputMode.CHIPS)
             }
@@ -929,9 +941,10 @@ class SupportBotActivity : BaseActivity() {
             else -> {
                 // Terminal (escalated). Any leftover action chips (attach /
                 // view ticket) are still valid on a resumed session.
-                if (!r.chips.isNullOrEmpty()) {
+                val shownChips = withoutSkip(r.chips)
+                if (!shownChips.isNullOrEmpty()) {
                     adapter.setChipsEnabled(true)
-                    adapter.addMessage(AiChatMessage("", isUser = false, chips = r.chips))
+                    adapter.addMessage(AiChatMessage("", isUser = false, chips = shownChips))
                 }
                 r.ticket_id?.let {
                     binding.tvViewTicket.text = getString(R.string.support_bot_view_ticket, it)
