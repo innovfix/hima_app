@@ -40,6 +40,7 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.text.HtmlCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
@@ -340,6 +341,28 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     // exactly once per transition (guards the global-layout listener against loops).
     private var keyboardOpen = false
 
+    // Pristine (keyboard-closed) constraints of the root ConstraintLayout, captured
+    // once so the orb re-anchoring can be reverted exactly on keyboard close.
+    private var baseConstraints: ConstraintSet? = null
+
+    // While the keyboard is up the logo cluster shrinks; the floating orbs + sparkles
+    // are re-anchored INTO that short band (instead of the full page) so they wrap the
+    // small logo and never clip. Values = vertical bias within the logo band; the
+    // horizontal bias set in XML is preserved, so each stays on its own side.
+    private val orbCompactBias: Map<Int, Float> = linkedMapOf(
+        R.id.orb_chat    to 0.10f,   // top-left
+        R.id.orb_star    to 0.40f,   // mid-left
+        R.id.orb_phone   to 0.72f,   // bottom-left
+        R.id.orb_video   to 0.10f,   // top-right
+        R.id.orb_connect to 0.40f,   // mid-right
+        R.id.orb_heart   to 0.72f,   // bottom-right
+        R.id.spark1      to 0.04f,
+        R.id.spark2      to 0.90f,
+        R.id.spark3      to 0.06f,
+        R.id.spark4      to 0.88f,
+        R.id.spark5      to 0.94f
+    )
+
     /**
      * When the soft keyboard opens, compress the decorative logo cluster (hide the
      * tagline + Chat/Video/Voice/Connect row, shrink the logo) so the bottom-pinned
@@ -361,7 +384,12 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         val cornerFull = px(27).toFloat(); val cornerSmall = px(13).toFloat()
         val innerPadFull = px(24); val innerPadSmall = px(11)
 
+        val cl = binding.rootLayout
+
         fun applyCompact(compact: Boolean) {
+            // The big labelled Chat/Video/Voice/Connect row + tagline have no room
+            // above the keypad, so they drop away. The small floating orbs STAY and
+            // re-anchor to frame the shrunk logo (see orbCompactBias).
             binding.tvTagline.visibility  = if (compact) View.GONE else View.VISIBLE
             binding.llFeatureRow.visibility = if (compact) View.GONE else View.VISIBLE
             binding.logoContainer.layoutParams = binding.logoContainer.layoutParams.apply {
@@ -377,6 +405,30 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 binding.llLogoSection.paddingRight,
                 if (compact) padBotSmall else padBotFull
             )
+
+            // Capture the pristine orb constraints once (they're still XML-original at
+            // the first compaction because we haven't touched them yet).
+            if (baseConstraints == null) baseConstraints = ConstraintSet().apply { clone(cl) }
+
+            // Clone the LIVE state so app-managed visibility (e.g. the OTP back button,
+            // login vs OTP section) is preserved — we only rewrite the orb anchors.
+            val set = ConstraintSet().apply { clone(cl) }
+            if (compact) {
+                orbCompactBias.forEach { (id, bias) ->
+                    set.connect(id, ConstraintSet.TOP, R.id.ll_logo_section, ConstraintSet.TOP)
+                    set.connect(id, ConstraintSet.BOTTOM, R.id.ll_logo_section, ConstraintSet.BOTTOM)
+                    set.setVerticalBias(id, bias)
+                }
+            } else {
+                baseConstraints?.let { base ->
+                    orbCompactBias.keys.forEach { id ->
+                        set.connect(id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
+                        set.connect(id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
+                        set.setVerticalBias(id, base.getConstraint(id).layout.verticalBias)
+                    }
+                }
+            }
+            set.applyTo(cl)
         }
 
         val root = binding.root
@@ -389,11 +441,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             if (open != keyboardOpen) {
                 keyboardOpen = open
                 applyCompact(open)
-                if (open) root.post {
-                    val field = currentFocus
-                        ?: if (binding.otpSection.visibility == View.VISIBLE) binding.pvOtp else binding.etMobileNumber
-                    field?.let { root.smoothScrollTo(0, it.bottom) }
-                }
+                // No forced scroll: once the tagline + feature row collapse and the orbs
+                // re-anchor, the compact hero (~110dp) + form fit above the keypad, so the
+                // logo stays pinned and visible. (The old smoothScrollTo(field.bottom)
+                // pushed the shrunk logo off the top edge — the reported clipping.)
             }
         }
     }
