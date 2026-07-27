@@ -282,19 +282,22 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
                 }
             }
             // The sheet draws to the screen bottom (behind the nav bar), so the last row
-            // ("View more plans") was clipped by the ~48dp navigation bar. Pad the content
-            // bottom by the actual navigation-bar inset so it always clears the nav bar
-            // (0 on gesture nav → no wasted gap).
+            // ("View more plans") was clipped by the navigation bar. The old one-shot
+            // getRootWindowInsets() read fired before insets were dispatched (navInset=0),
+            // so the padding never grew — BUG #24. Use an inset listener, and take
+            // max(baseGap, navInset) — NOT baseGap + navInset — so 3-button nav just
+            // clears the bar without stacking an extra 20dp on top of it. Gesture nav
+            // (navInset≈0) keeps the 20dp resting gap; no wasted space either way.
             _binding?.let { b ->
-                val navInset = androidx.core.view.ViewCompat.getRootWindowInsets(b.root)
-                    ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
-                val basePx = (20 * resources.displayMetrics.density).toInt()
-                b.llWelcomeContent.setPadding(
-                    b.llWelcomeContent.paddingLeft,
-                    b.llWelcomeContent.paddingTop,
-                    b.llWelcomeContent.paddingRight,
-                    basePx + navInset
-                )
+                val baseGap = (20 * resources.displayMetrics.density).toInt()
+                androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(b.llWelcomeContent) { v, insets ->
+                    val navInset = insets.getInsets(
+                        androidx.core.view.WindowInsetsCompat.Type.navigationBars()
+                    ).bottom
+                    v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, maxOf(baseGap, navInset))
+                    insets
+                }
+                androidx.core.view.ViewCompat.requestApplyInsets(b.llWelcomeContent)
             }
         }
         return dialog
