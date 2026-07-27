@@ -48,6 +48,10 @@ class TransactionsActivity : BaseActivity() {
         binding.rvTransactions.layoutManager = LinearLayoutManager(this)
         binding.rvTransactions.adapter = transactionAdapter
 
+        // BUG #14 — pull-to-refresh
+        binding.swipeRefresh.setColorSchemeResources(R.color.pink)
+        binding.swipeRefresh.setOnRefreshListener { refreshTransactions() }
+
         // Load Initial Transactions
         if (isInternetAvailable(this)) {
             loadTransactions()
@@ -74,15 +78,34 @@ class TransactionsActivity : BaseActivity() {
         transactionsViewModel.transactionsResponseLiveData.observe(this) { response ->
             isLoading = false
             setLoading(false)
+            binding.swipeRefresh.isRefreshing = false
             if (response != null && response.success && response.data != null && response.data.isNotEmpty()) {
-                transactionAdapter.addTransactions(response.data)
+                // offset==0 → first page or refresh: replace; else append the next page.
+                if (offset == 0) transactionAdapter.setTransactions(response.data)
+                else transactionAdapter.addTransactions(response.data)
                 binding.llNoRecords.visibility = View.GONE
                 binding.rvTransactions.visibility = View.VISIBLE
-            } else if (transactionAdapter.itemCount == 0) {
+            } else if (offset == 0) {
+                // Refresh/initial returned nothing — clear any stale rows and show empty state.
+                transactionAdapter.setTransactions(emptyList())
                 binding.llNoRecords.visibility = View.VISIBLE
                 binding.rvTransactions.visibility = View.GONE
             }
         }
+    }
+
+    // BUG #14 — reset to the first page and reload (spinner is the SwipeRefresh's own).
+    private fun refreshTransactions() {
+        if (!isInternetAvailable(this)) {
+            binding.swipeRefresh.isRefreshing = false
+            binding.llNoInternet.visibility = View.VISIBLE
+            binding.rvTransactions.visibility = View.GONE
+            return
+        }
+        binding.llNoInternet.visibility = View.GONE
+        offset = 0
+        isLoading = true
+        loadTransactions()
     }
 
     private fun loadTransactions() {
@@ -93,7 +116,8 @@ class TransactionsActivity : BaseActivity() {
     }
 
     private fun setLoading(isLoading: Boolean) {
-        val shouldShow = isLoading && offset == 0
+        // Suppress the centre spinner during a pull-to-refresh (SwipeRefresh shows its own).
+        val shouldShow = isLoading && offset == 0 && !binding.swipeRefresh.isRefreshing
         binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
     }
 

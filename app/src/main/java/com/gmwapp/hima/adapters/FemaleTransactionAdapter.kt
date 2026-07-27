@@ -216,6 +216,13 @@ class FemaleTransactionAdapter(
         notifyItemRangeInserted(startPos, newTransactions.size)
     }
 
+    // BUG #14 — replace the whole list (used by pull-to-refresh / first page).
+    fun setTransactions(newTransactions: List<FemaleTransactionsResponseData>) {
+        transactions.clear()
+        transactions.addAll(newTransactions)
+        notifyDataSetChanged()
+    }
+
     override fun getItemCount(): Int {
         return transactions.size
     }

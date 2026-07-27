@@ -58,7 +58,9 @@ class TransactionAdapter(
             // so existing history shows up without IPL branding.
             transaction.is_ipl_room && com.gmwapp.hima.utils.FeatureFlags.IPL_ENABLED -> {
                 val hostName = transaction.ipl_host_name?.takeIf { it.isNotBlank() } ?: "Host"
-                holder.binding.tvTransactionTitle.text = "IPL Room with $hostName"
+                // Strip digit suffixes ("Darshika8" → "Darshika"), matching the call-row
+                // and female-adapter convention so the host's numeric ID isn't exposed.
+                holder.binding.tvTransactionTitle.text = "IPL Room with ${DisplayName.clean(hostName)}"
                 val durationMin = transaction.ipl_duration_min ?: 0
                 val subtitle = if (durationMin > 0) "${transaction.date} · ${durationMin} min" else transaction.date
                 holder.binding.tvTransactionDate.text = subtitle
@@ -136,6 +138,13 @@ class TransactionAdapter(
         val startPos = transactions.size
         transactions.addAll(newTransactions)
         notifyItemRangeInserted(startPos, newTransactions.size)
+    }
+
+    // BUG #14 — replace the whole list (used by pull-to-refresh / first page).
+    fun setTransactions(newTransactions: List<TransactionsResponseData>) {
+        transactions.clear()
+        transactions.addAll(newTransactions)
+        notifyDataSetChanged()
     }
 
 
