@@ -182,64 +182,7 @@
             android:layout_weight="1"/>
 
         <!-- Timer Container -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/timer_container"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/professional_timer_bg"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp">
-
-            <!-- Timer Icon -->
-            <ImageView
-                android:id="@+id/iv_timer_icon"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:src="@drawable/ic_timer_professional"
-                android:layout_marginEnd="6dp"
-                android:contentDescription="Timer"
-                app:tint="#1A237E"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"/>
-
-            <!-- Timer Text -->
-            <TextView
-                android:id="@+id/tvRemainingTime"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="00:00:00"
-                android:textColor="#1A237E"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium"
-                android:letterSpacing="0.05"
-                app:layout_constraintStart_toEndOf="@id/iv_timer_icon"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"/>
-
-            <!-- Plus Icon (for adding time) -->
-            <ImageView
-                android:id="@+id/iv_plus"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginStart="8dp"
-                android:src="@drawable/baseline_add_24"
-                android:visibility="gone"
-                android:contentDescription="Add Time"
-                app:tint="#FFFFFF"
-                app:layout_constraintStart_toEndOf="@id/tvRemainingTime"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"/>
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <!-- Spacer -->
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1"/>
+        
 
         <!-- Menu Button (Hidden) -->
         <ImageView
@@ -871,5 +814,73 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:elevation="50dp"/>
+
+
+    <!-- BUG #2 — user-positioned call timer. This used to sit between two weighted
+         spacers inside top_bar, which centred it horizontally and put it straight under
+         the top-right self-view preview (localCardView is 120sdp wide and starts at the
+         very top). It now lives at the root, constrained to all four edges so
+         DraggableTimer can drive it with horizontal/vertical bias, and defaults to the
+         left edge under the bar - clear of the preview even if the user never drags it. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/timer_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        android:elevation="12dp"
+        android:background="@drawable/professional_timer_bg"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintVertical_bias="0.0">
+
+            <!-- Timer Icon -->
+            <ImageView
+                android:id="@+id/iv_timer_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_timer_professional"
+                android:layout_marginEnd="6dp"
+                android:contentDescription="Timer"
+                app:tint="#1A237E"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"/>
+
+            <!-- Timer Text -->
+            <TextView
+                android:id="@+id/tvRemainingTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00:00"
+                android:textColor="#1A237E"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.05"
+                app:layout_constraintStart_toEndOf="@id/iv_timer_icon"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"/>
+
+            <!-- Plus Icon (for adding time) -->
+            <ImageView
+                android:id="@+id/iv_plus"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/baseline_add_24"
+                android:visibility="gone"
+                android:contentDescription="Add Time"
+                app:tint="#FFFFFF"
+                app:layout_constraintStart_toEndOf="@id/tvRemainingTime"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"/>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

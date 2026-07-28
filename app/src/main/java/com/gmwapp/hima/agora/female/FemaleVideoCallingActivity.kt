@@ -741,6 +741,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleVideoCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupDraggableTimer()
         // NET-002/003: "No internet" banner on a REAL device net loss only (not blips).
         com.gmwapp.hima.utils.CallNetLossBanner.attach(this)
         // B042: show "Connecting..." instead of stuck 00:00:00 while we wait
@@ -1363,7 +1364,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         videoChromeVisible = visible
         // Include the icebreaker hint button only when it's active for this call,
         // so a hidden/disabled button isn't force-shown when chrome re-appears.
-        val chrome = mutableListOf<View>(binding.topBar, binding.controlsContainer)
+        val chrome = mutableListOf<View>(binding.topBar, binding.timerContainer, binding.controlsContainer)
         if (icebreakerActive) chrome.add(binding.icebreakerHintButton)
         chrome.forEach { v ->
             v.animate().cancel()
@@ -1386,6 +1387,24 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun toggleVideoChrome() = setVideoChromeVisible(!videoChromeVisible)
+
+    /**
+     * BUG #2 — the duration pill overlapped the self-view preview. Instead of relocating
+     * it to a spot that is clear on one device, the user drags it where they want; the
+     * position is shared by all four call screens. onTap keeps the pill transparent to
+     * the existing tap-to-toggle-chrome gesture, and the auto-hide is suspended mid-drag
+     * so the pill cannot fade out from under the finger.
+     */
+    private fun setupDraggableTimer() {
+        com.gmwapp.hima.utils.DraggableTimer.attach(
+            binding.timerContainer,
+            onTap = { toggleVideoChrome() },
+            onDrag = { dragging ->
+                if (dragging) chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
+                else armVideoChromeAutoHide()
+            }
+        )
+    }
 
     /** Any touch (button, drag, tap) keeps visible chrome alive by restarting
      *  the countdown. When chrome is hidden, the root tap-catcher re-shows it. */

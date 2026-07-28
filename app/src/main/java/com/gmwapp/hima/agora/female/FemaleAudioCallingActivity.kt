@@ -717,6 +717,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupDraggableTimer()
         // NET-002/003: "No internet" banner on a REAL device net loss only (not blips).
         com.gmwapp.hima.utils.CallNetLossBanner.attach(this)
 
@@ -3663,6 +3664,24 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun toggleVideoChrome() = setVideoChromeVisible(!videoChromeVisible)
+
+    /**
+     * BUG #2 — the duration pill overlapped the self-view preview. Instead of relocating
+     * it to a spot that is clear on one device, the user drags it where they want; the
+     * position is shared by all four call screens. onTap keeps the pill transparent to
+     * the existing tap-to-toggle-chrome gesture, and the auto-hide is suspended mid-drag
+     * so the pill cannot fade out from under the finger.
+     */
+    private fun setupDraggableTimer() {
+        com.gmwapp.hima.utils.DraggableTimer.attach(
+            binding.timerContainer,
+            onTap = { toggleVideoChrome() },
+            onDrag = { dragging ->
+                if (dragging) chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
+                else armVideoChromeAutoHide()
+            }
+        )
+    }
 
     /** Cancel auto-hide and force chrome visible — used when leaving video mode. */
     private fun showVideoChromeAndCancelAutoHide() {

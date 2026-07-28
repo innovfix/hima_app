@@ -204,23 +204,29 @@
 
     </LinearLayout>
 
-    <!-- B041: Timer pinned to true horizontal center of the screen, vertically
-         centered on the top_bar row. Independent of tv_call_type / btn_menu
-         widths, so it no longer drifts when the call-type label is localized. -->
+    <!-- B041 moved this out of top_bar so it could centre on the screen rather than on
+         the leftover space in that row. BUG #2 keeps it at the root but frees both axes:
+         constrained to all four parent edges so DraggableTimer can drive it with
+         horizontal/vertical bias. Default is the left edge under the bar, clear of the
+         self-view preview, and the same saved position is shared with the direct-video
+         screens so the user only places it once. -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/timer_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_margin="12dp"
         android:background="@drawable/professional_timer_bg"
         android:elevation="11dp"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
-        app:layout_constraintTop_toTopOf="@id/top_bar"
-        app:layout_constraintBottom_toBottomOf="@id/top_bar"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintVertical_bias="0.0">
 
         <!-- Timer Icon -->
         <ImageView
@@ -280,7 +286,7 @@
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/timer_container">
+        app:layout_constraintTop_toBottomOf="@id/top_bar">
 
         <ImageView
             android:id="@+id/iv_peer_mute_top"
