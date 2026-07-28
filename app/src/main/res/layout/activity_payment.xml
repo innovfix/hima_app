@@ -24,8 +24,7 @@
             android:layout_height="24dp"
             android:layout_marginStart="4dp"
             android:contentDescription="@string/edit"
-            android:rotation="180"
-            android:src="@drawable/right_arrow"
+            android:src="@drawable/ic_back"
             android:padding="4dp"
             app:tint="@color/black"/>
 

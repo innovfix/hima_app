@@ -44,8 +44,7 @@
                     android:id="@+id/iv_back"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/right_arrow"
-                    android:rotation="180"
+                    android:src="@drawable/ic_back"
                     app:tint="#2D3436"/>
 
                 <TextView

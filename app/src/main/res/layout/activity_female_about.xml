@@ -18,8 +18,7 @@
         android:background="@drawable/bg_back_btn_square"
         android:contentDescription="@string/account_privacy"
         android:padding="11dp"
-        android:rotation="180"
-        android:src="@drawable/right_arrow"
+        android:src="@drawable/ic_back"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:tint="@color/onboarding_title" />
