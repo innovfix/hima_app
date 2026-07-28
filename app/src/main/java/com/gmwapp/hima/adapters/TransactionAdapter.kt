@@ -117,7 +117,7 @@ class TransactionAdapter(
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#EF4444"))
                 holder.binding.tvTransactionTitle.text = "Gift Sent"
                 holder.binding.tvTransactionDate.text = transaction.date
-                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_gift_sent)
+                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_gift_modern)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFF3E0"))
             }
             else -> {

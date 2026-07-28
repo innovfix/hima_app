@@ -150,7 +150,7 @@ class FemaleTransactionAdapter(
                 holder.binding.tvTransactionDate.text =
                     DateTimeUtils.buildTxnSubtitle(transaction.date, transaction.datetime, null)
                 // Set icon and background color - same as male transactions (using gift icon)
-                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_gift_sent)
+                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_gift_modern)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFF3E0"))
                 Log.d("femaleTrasactionLog", "onBindViewHolder: Set gift icon, amount=+₹$formattedCoins")
             }

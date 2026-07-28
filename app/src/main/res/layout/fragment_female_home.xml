@@ -720,6 +720,8 @@
                 app:layout_constraintTop_toBottomOf="@+id/tv_price_title" />
 
             <!-- Audio Call Rate Row -->
+            <!-- BUG 14 (same defect, second instance) — pink phone on an amber card, next
+                 to a Video Call card that is green-on-green. Now pink-on-pink to match. -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_audio_rate"
                 android:layout_width="match_parent"
@@ -727,7 +729,7 @@
                 android:layout_marginTop="16dp"
                 android:padding="12dp"
                 android:background="@drawable/d_button_bg"
-                android:backgroundTint="#FFF3E0"
+                android:backgroundTint="#FCE3EE"
                 app:layout_constraintTop_toBottomOf="@id/v_price_divider">
 
                 <ImageView
@@ -736,7 +738,7 @@
                     android:layout_height="40dp"
                     android:padding="8dp"
                     android:background="@drawable/d_button_bg"
-                    android:backgroundTint="#FFF3E0"
+                    android:backgroundTint="#FCE3EE"
                     android:src="@drawable/ic_phone_modern"
                     app:tint="@color/colorAccent"
                     app:layout_constraintStart_toStartOf="parent"
@@ -1464,7 +1466,7 @@
                     android:padding="6dp"
                     android:background="@drawable/d_button_bg"
                     android:backgroundTint="#FDF0D9"
-                    android:src="@drawable/ic_gift_box"
+                    android:src="@drawable/ic_gift_modern"
                     app:tint="#F59E0B"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
@@ -1519,13 +1521,19 @@
                 android:backgroundTint="#F3F4F6"
                 app:layout_constraintTop_toBottomOf="@id/v_divider">
 
+                <!-- BUG 14 — this tile was #FFF3E0 (the amber the GIFT rows use) while its
+                     icon is tinted colorAccent, making it the one icon on this screen whose
+                     tint and background disagree. A few rows above, Availability Status draws
+                     the SAME ic_phone_modern on pink circle_bg_pink_light (#FCE3EE) — so the
+                     mismatched field, not the glyph, is what QA read as "a different icon".
+                     Shape stays d_button_bg: all three Today's Activity rows use it. -->
                 <ImageView
                     android:id="@+id/iv_calls_icon"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:padding="6dp"
                     android:background="@drawable/d_button_bg"
-                    android:backgroundTint="#FFF3E0"
+                    android:backgroundTint="#FCE3EE"
                     android:src="@drawable/ic_phone_modern"
                     app:tint="@color/colorAccent"
                     app:layout_constraintStart_toStartOf="parent"
