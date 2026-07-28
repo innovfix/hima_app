@@ -1473,20 +1473,79 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         else
             MaleCallAcceptActivity::class.java
 
-        val intent = Intent(this, acceptCls).apply {
-            // Use SINGLE_TOP so re-entering with the same call doesn't
-            // stack a second accept activity; CLEAR_TOP brings the
-            // existing one to front if it's already alive.
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channel)
-            putExtra("Caller_NAME", callerName)
-            putExtra("Caller_Image", callerImage)
-            putExtra("CALL_ID", callId)
+        val launchAccept = {
+            val intent = Intent(this, acceptCls).apply {
+                // Use SINGLE_TOP so re-entering with the same call doesn't
+                // stack a second accept activity; CLEAR_TOP brings the
+                // existing one to front if it's already alive.
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("CALL_TYPE", callType)
+                putExtra("SENDER_ID", senderId)
+                putExtra("CHANNEL_NAME", channel)
+                putExtra("Caller_NAME", callerName)
+                putExtra("Caller_Image", callerImage)
+                putExtra("CALL_ID", callId)
+            }
+            Log.d("HimaIncomingCall", "MainActivity routing to $acceptCls (senderId=$senderId callType=$callType)")
+            startActivity(intent)
         }
-        Log.d("HimaIncomingCall", "MainActivity routing to $acceptCls (senderId=$senderId callType=$callType)")
-        startActivity(intent)
+
+        // BUG #6 — the ghost re-ring. isIncomingCallFresh() is a 45s STOPWATCH, and until
+        // now it was the only gate here: reopen the app inside that window and this
+        // re-showed the ring whether or not the call still existed. The user then got a
+        // banner that vanished ~2.5s later, when MaleCallAcceptActivity's alive poll
+        // (aliveIntervalMs) finally asked the backend and was told the call had ended —
+        // which is exactly the "rings only for few seconds" in the report.
+        //
+        // It goes wrong when the OS kills the app mid-ring WITHOUT running onDestroy
+        // (Realme/OPPO task removal), and FcmCallService is not up to catch it either
+        // (B030 skips it when the ring arrives with the app foreground+unlocked). No
+        // reject is posted and no local marker is written; the server ends the call on
+        // its own when the ring heartbeat stops. So the phone still believes a call is
+        // ringing while the server has already reaped it. Needing all of that to line up
+        // is why QA saw it 1-2 times in 5.
+        if (!app.shouldSurfaceRing(callId)) {
+            Log.d("HimaIncomingCall", "MainActivity: callId=$callId already ended locally — clearing, not ringing")
+            app.clearIncomingCall()
+            return
+        }
+
+        if (callId <= 0) {
+            // No id to ask the server about. Keep the pre-existing behaviour rather than
+            // risk swallowing a real ring — a stale banner is a nuisance, a missed call
+            // is not.
+            launchAccept()
+            return
+        }
+
+        // Confirm against server truth BEFORE showing anything, instead of 2.5s after.
+        // Blocking call, so off the main thread; ~5s call timeout caps it.
+        Thread({
+            val state = com.gmwapp.hima.utils.CallAliveChecker.ringStateNow(callId)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                // The ring may have been torn down (or superseded by a newer call) while
+                // we were on the network.
+                if (!app.isIncomingCallFresh()) {
+                    Log.d("HimaIncomingCall", "MainActivity: ring no longer fresh after check callId=$callId — not ringing")
+                    return@runOnUiThread
+                }
+                if ((app.getCallIdForSplashActivity() ?: 0) != callId) {
+                    Log.d("HimaIncomingCall", "MainActivity: pending call changed during check (was $callId) — not ringing")
+                    return@runOnUiThread
+                }
+                when (state) {
+                    com.gmwapp.hima.utils.CallAliveChecker.RingState.ENDED -> {
+                        Log.d("HimaIncomingCall", "MainActivity: backend says callId=$callId ended — clearing, not ringing")
+                        app.clearIncomingCall()
+                    }
+                    // UNKNOWN = we could not reach the backend. Ring anyway: that is the
+                    // behaviour this screen has always had, and a missed call costs far
+                    // more than a banner that turns out to be stale.
+                    else -> launchAccept()
+                }
+            }
+        }, "RingConfirm-$callId").start()
     }
 
 

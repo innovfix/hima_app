@@ -3066,6 +3066,38 @@ class BaseApplication : Application(), Configuration.Provider {
     fun wasForceRejectedCallId(callId: Int): Boolean =
         runCatching { getPrefs()?.wasForceRejectedCallId(callId) == true }.getOrDefault(false)
 
+    /**
+     * BUG #6 — the two LOCAL "this ring is over" markers, under one name.
+     *
+     * Both already existed and are checked by the FCM path
+     * ([com.gmwapp.hima.agora.MyFirebaseMessagingService]), the OneSignal path, the
+     * creator recovery poll and the Telecom connection — four consumers, each given
+     * the guard after its own bug report. MainActivity's re-ring on app reopen was the
+     * fifth and only one without it. Naming the pair here so a sixth consumer has an
+     * obvious thing to call instead of re-deriving it.
+     *
+     * Cheap and offline-safe (prefs + an in-memory map), so it is the FIRST gate.
+     * It is not sufficient on its own: when the OS kills the app mid-ring without
+     * running onDestroy, NO marker is ever written — the server reaps the call from
+     * the missing ring heartbeat instead. That case needs server truth, which is why
+     * callers follow this with [com.gmwapp.hima.utils.CallAliveChecker.ringStateNow].
+     *
+     * @return false when the ring must NOT be surfaced. True means "no local evidence
+     *         against it" — NOT proof the call is still live.
+     */
+    fun shouldSurfaceRing(callId: Int): Boolean {
+        if (callId <= 0) return true // nothing to key on; caller keeps its prior behaviour
+        if (wasForceRejectedCallId(callId)) {
+            Log.d("HimaIncomingCall", "shouldSurfaceRing=false callId=$callId (force-rejected)")
+            return false
+        }
+        if (wasCallRecentlyEnded(callId)) {
+            Log.d("HimaIncomingCall", "shouldSurfaceRing=false callId=$callId (recently ended)")
+            return false
+        }
+        return true
+    }
+
     /** Mark that the FCM (primary) path owns the incoming call from [senderId]. */
     fun markCallOwnedByFcm(senderId: Int) {
         if (senderId <= 0) return

@@ -160,6 +160,56 @@ object CallAliveChecker {
     }
 
     /**
+     * BUG #6 — tri-state twin of [isRingingNow], for callers that must tell
+     * "the server says this ring is over" apart from "we could not reach the server".
+     *
+     * [isRingingNow] deliberately collapses both to `false` (fail-CLOSED), which is
+     * right where it is used: the FCM path calls it to RESCUE a push it was already
+     * going to drop, so an error just leaves that drop in place. Using the same
+     * fail-closed answer as a PRIMARY gate would be the opposite trade — a timeout on
+     * a weak link would swallow a genuinely ringing call, and a missed call is far
+     * worse than a ring that shouldn't have appeared.
+     *
+     * So this returns [UNKNOWN] on any error and lets the caller decide. Same
+     * endpoint, same client, same `ringable` semantics (unanswered AND fresh) as
+     * [isRingingNow] — only the error case differs. Left as a separate function on
+     * purpose: [isRingingNow] is load-bearing on the FCM dispatch thread and is not
+     * touched by this.
+     *
+     * BLOCKING — call from a background thread.
+     */
+    enum class RingState { RINGABLE, ENDED, UNKNOWN }
+
+    fun ringStateNow(callId: Int): RingState {
+        if (callId <= 0) return RingState.UNKNOWN
+        return try {
+            val url = BuildConfig.BASE_URL + "check_call_alive"
+            val body = okhttp3.FormBody.Builder().add("call_id", callId.toString()).build()
+            val req = okhttp3.Request.Builder().url(url).post(body).build()
+            ringingNowClient.newCall(req).execute().use { resp ->
+                val raw = resp.body?.string()
+                if (raw.isNullOrBlank()) {
+                    Log.w(TAG, "ringStateNow callId=$callId empty body → UNKNOWN")
+                    return RingState.UNKNOWN
+                }
+                Log.d(TAG, "ringStateNow callId=$callId resp=$raw")
+                when {
+                    raw.contains("\"ringable\":true") || raw.contains("\"ringable\": true") -> RingState.RINGABLE
+                    raw.contains("\"ringable\":false") || raw.contains("\"ringable\": false") -> RingState.ENDED
+                    // Old server without `ringable` — fall back to `alive`, matching
+                    // isRingingNow. A body we cannot read either way is UNKNOWN, never ENDED.
+                    raw.contains("\"alive\":true") || raw.contains("\"alive\": true") -> RingState.RINGABLE
+                    raw.contains("\"alive\":false") || raw.contains("\"alive\": false") -> RingState.ENDED
+                    else -> RingState.UNKNOWN
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "ringStateNow failed (→ UNKNOWN, caller decides): ${t.message}")
+            RingState.UNKNOWN
+        }
+    }
+
+    /**
      * CHECK_CALL_ALIVE_HEARTBEAT_2026_07_14 (QA bug #2 / [B6] — fast ring cancel).
      * Caller-side ring heartbeat: while OUR "Connecting…" screen is up (call still
      * unanswered), ping /api/auth/call_ring_heartbeat every poll tick so the backend
