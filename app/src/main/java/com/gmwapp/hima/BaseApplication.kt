@@ -2607,6 +2607,23 @@ class BaseApplication : Application(), Configuration.Provider {
 
     fun markCallActive() { isCallActive = true }
     fun markCallEnded() { isCallActive = false }
+
+    /**
+     * BUG #17 — the user swiped Hima away during a LIVE call. Activity onDestroy is not
+     * guaranteed on task removal, so the ActivityLifecycleCallbacks that normally
+     * decrement [activeCallActivityCount] may never run, and CallingService (a foreground
+     * service) keeps the process alive for a while afterwards. In that window
+     * [isInActiveCall] would still report true, which silently suppresses incoming pushes
+     * and blocks outgoing calls with "You're already in a call".
+     *
+     * Same two assignments the cold-start self-heal in onCreate does, just applied at the
+     * moment we know the call is over instead of waiting for the next process start.
+     * Called from CallingService.onTaskRemoved.
+     */
+    fun clearCallStateOnTaskRemoved() {
+        isCallActive = false
+        activeCallActivityCount.set(0)
+    }
     fun isInActiveCall(): Boolean =
         isCallActive || activeCallActivityCount.get() > 0
 

@@ -192,6 +192,33 @@ class CallingService : Service() {
         return null
     }
 
+    /**
+     * BUG #17 — creator force-closes (swipes Hima from Recents) during a LIVE call. The
+     * user's side ends cleanly on its own because Agora fires onUserOffline, but the
+     * creator was left with "Your session is in progress" showing indefinitely, and
+     * tapping it deep-linked into a dead call screen.
+     *
+     * A foreground service is deliberately NOT killed when its task is removed — that is
+     * the whole point of an FGS, so a backgrounded call survives the app being closed.
+     * Something has to stop it explicitly. The only place that happened was the call
+     * activities' onDestroy, and onDestroy is not guaranteed to run on task removal, so
+     * on a swipe nothing ever took the notification down.
+     *
+     * FcmCallService already does exactly this for the RINGING case
+     * (FORCE_CLOSE_REJECT_2026_07_07); the live-call case never got the equivalent.
+     *
+     * Deliberately app-side only: this does NOT tell the server the call ended. That
+     * would mean a new write to the call/billing row, which needs a backend decision
+     * rather than an assumption here.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // Clear first — once stopSelf() lands the process can go at any moment.
+        runCatching { com.gmwapp.hima.BaseApplication.getInstance()?.clearCallStateOnTaskRemoved() }
+        runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+        runCatching { stopSelf() }
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         isRunning = false                     // ✅ clear flag
