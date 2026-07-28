@@ -69,23 +69,35 @@
         android:orientation="horizontal" />
 
     <!-- ===== Floating decorative feature badges + sparkles (top area) =====
-         Every item is constrained to BOTH parent edges so horizontal_bias
-         positions it across the full width (otherwise it pins to one edge). -->
+         BUG 4 — these were each positioned independently with percentage
+         horizontal_bias / vertical_bias while being fixed-dp squares. A bias
+         resolves to bias * (parentSize - viewSize), so the gap between two
+         neighbours is (Δbias * parentSize - iconSize): it shrinks with the
+         parent and never scales with the icons. The values were tuned on one
+         device where the clearances came out at 0.4-2.5dp, so any narrower or
+         shorter screen pushed them negative and the orbs visibly overlapped.
+
+         Now every orb is anchored to its neighbour (and the cluster to
+         ll_logo_section) with fixed dp margins, so the gaps are constants and
+         overlap is impossible at any size, density or font scale. The sparkles
+         hang off their own orb for the same reason.
+
+         Sizes + the top margins below are re-applied in NewLoginActivity's
+         applyOrbSizing() when the keyboard compacts the logo; the ANCHORS never
+         change, so the cluster can only get tighter, never tangled. -->
 
     <!-- Chat -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:id="@+id/orb_chat"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="4dp"
         app:cardBackgroundColor="#FDE7F1"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.05"
-        app:layout_constraintVertical_bias="0.05"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintTop_toTopOf="@id/ll_logo_section">
         <ImageView
             android:layout_width="22dp"
             android:layout_height="22dp"
@@ -100,15 +112,13 @@
         android:layout_width="44dp"
         android:layout_height="44dp"
         android:id="@+id/orb_star"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
         app:cardBackgroundColor="#FFF1D6"
         app:cardCornerRadius="15dp"
         app:cardElevation="0dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.20"
-        app:layout_constraintVertical_bias="0.105"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintStart_toEndOf="@id/orb_chat"
+        app:layout_constraintTop_toBottomOf="@id/orb_chat">
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
@@ -123,15 +133,13 @@
         android:layout_width="46dp"
         android:layout_height="46dp"
         android:id="@+id/orb_connect"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="8dp"
         app:cardBackgroundColor="#FFEAD9"
         app:cardCornerRadius="15dp"
         app:cardElevation="0dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.80"
-        app:layout_constraintVertical_bias="0.105"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintEnd_toStartOf="@id/orb_video"
+        app:layout_constraintTop_toBottomOf="@id/orb_video">
         <ImageView
             android:layout_width="22dp"
             android:layout_height="22dp"
@@ -146,15 +154,13 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:id="@+id/orb_video"
+        android:layout_marginEnd="14dp"
+        android:layout_marginTop="4dp"
         app:cardBackgroundColor="#E3EDFF"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.95"
-        app:layout_constraintVertical_bias="0.05"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintTop_toTopOf="@id/ll_logo_section">
         <ImageView
             android:layout_width="22dp"
             android:layout_height="22dp"
@@ -169,15 +175,13 @@
         android:layout_width="44dp"
         android:layout_height="44dp"
         android:id="@+id/orb_phone"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="10dp"
         app:cardBackgroundColor="#E4F8EA"
         app:cardCornerRadius="15dp"
         app:cardElevation="0dp"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.05"
-        app:layout_constraintVertical_bias="0.15"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/orb_star">
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
@@ -192,15 +196,13 @@
         android:layout_width="46dp"
         android:layout_height="46dp"
         android:id="@+id/orb_heart"
+        android:layout_marginEnd="14dp"
+        android:layout_marginTop="10dp"
         app:cardBackgroundColor="#EFEAFF"
         app:cardCornerRadius="15dp"
         app:cardElevation="0dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.95"
-        app:layout_constraintVertical_bias="0.15"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/orb_connect">
         <ImageView
             android:layout_width="22dp"
             android:layout_height="22dp"
@@ -215,70 +217,58 @@
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:id="@+id/spark1"
+        android:layout_marginStart="6dp"
         android:src="@drawable/ic_sparkle"
         app:tint="#F5A623"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.31"
-        app:layout_constraintVertical_bias="0.05"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/orb_star"
+        app:layout_constraintTop_toTopOf="@id/orb_star"
         tools:ignore="ContentDescription" />
 
     <ImageView
         android:layout_width="18dp"
         android:layout_height="18dp"
         android:id="@+id/spark2"
+        android:layout_marginEnd="10dp"
         android:src="@drawable/ic_sparkle"
         app:tint="#FF1383"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.85"
-        app:layout_constraintVertical_bias="0.02"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/orb_video"
+        app:layout_constraintTop_toTopOf="@id/orb_video"
         tools:ignore="ContentDescription" />
 
     <ImageView
         android:layout_width="12dp"
         android:layout_height="12dp"
         android:id="@+id/spark3"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="14dp"
         android:src="@drawable/ic_sparkle"
         app:tint="#FF6A2B"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.65"
-        app:layout_constraintVertical_bias="0.065"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/orb_connect"
+        app:layout_constraintTop_toTopOf="@id/orb_connect"
         tools:ignore="ContentDescription" />
 
     <ImageView
         android:layout_width="14dp"
         android:layout_height="14dp"
         android:id="@+id/spark4"
+        android:layout_marginStart="6dp"
+        android:layout_marginTop="6dp"
         android:src="@drawable/ic_sparkle"
         app:tint="#34D399"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.20"
-        app:layout_constraintVertical_bias="0.15"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/orb_star"
+        app:layout_constraintTop_toBottomOf="@id/orb_star"
         tools:ignore="ContentDescription" />
 
     <ImageView
         android:layout_width="13dp"
         android:layout_height="13dp"
         android:id="@+id/spark5"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="8dp"
         android:src="@drawable/ic_sparkle"
         app:tint="#A78BFA"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.82"
-        app:layout_constraintVertical_bias="0.155"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/orb_connect"
+        app:layout_constraintTop_toBottomOf="@id/orb_connect"
         tools:ignore="ContentDescription" />
 
     <!-- Back button shown only on OTP step, top-left -->
@@ -307,6 +297,10 @@
     </androidx.cardview.widget.CardView>
 
     <!-- ===== Logo + Brand + Feature row ===== -->
+    <!-- BUG #3 — this block is centred between the top and the pinned login card, so the gap
+         under the feature row is leftover free space: (available - hero) / 2 + paddingBottom.
+         On short/dense screens the leftover goes to ~0 and only paddingBottom is left, which
+         put the Chat/Video/Voice/Connect labels against the card. 16dp -> 28dp raises that floor. -->
     <LinearLayout
         android:id="@+id/ll_logo_section"
         android:layout_width="match_parent"
@@ -315,7 +309,7 @@
         android:gravity="center"
         android:paddingHorizontal="24dp"
         android:paddingTop="40dp"
-        android:paddingBottom="16dp"
+        android:paddingBottom="28dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -353,7 +347,11 @@
 
         </androidx.cardview.widget.CardView>
 
+        <!-- BUG 6 — needs an id: the keyboard compaction has to be able to resize
+             this wordmark. Without one it could not participate in the hero tiers
+             and got sliced off whenever the hero band was shorter than the stack. -->
         <TextView
+            android:id="@+id/tv_brand_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/app_name"
@@ -603,13 +601,42 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- ===== Login Section ===== -->
+        <!-- ===== Login Section =====
+             BUG #5 — this card is wrap_content pinned to the bottom, so ConstraintLayout
+             measures it with AT_MOST(spaceAboveKeyboard) and LinearLayout.resolveSizeAndState()
+             CLAMPS it to that. Children were still laid out top-down, so once the referral row
+             (+70dp) was revealed the tail of the card - bottom padding, terms line and part of
+             Send OTP itself - fell outside the clamped bounds and was simply never drawn. There
+             was nothing to scroll either: heroScroll wraps the hero, not this form.
+
+             Fix: the fields live in loginFieldsScroll, which is the ONLY weighted child here.
+             A vertical LinearLayout under AT_MOST computes delta = allowed - content and
+             distributes it to weighted children ONLY. delta >= 0 (form fits) -> nothing is
+             distributed and the card looks exactly as before. delta < 0 -> the whole shortfall
+             comes out of the scroll, which scrolls instead of clipping. Send OTP + terms sit
+             outside the scroll with no weight, so they can never shrink or be cut, at any
+             scroll position, on any screen size or font scale. -->
         <LinearLayout
             android:id="@+id/login_section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:orientation="vertical"
             android:visibility="gone">
+
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/loginFieldsScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fillViewport="true"
+                android:overScrollMode="ifContentScrolls"
+                android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -811,10 +838,15 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Send OTP Button -->
+            </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
+
+            <!-- Send OTP Button — PINNED. Outside loginFieldsScroll and carries no
+                 layout_weight, so the shortfall can never be taken out of it. -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:layout_marginBottom="14dp">
 
                 <com.google.android.material.button.MaterialButton

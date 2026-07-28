@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
+import android.widget.LinearLayout
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.R
@@ -35,12 +36,13 @@ import android.text.style.ClickableSpan
 import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
-import androidx.constraintlayout.widget.ConstraintSet
+import androidx.core.view.updateLayoutParams
 import androidx.core.text.HtmlCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
@@ -341,27 +343,57 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     // exactly once per transition (guards the global-layout listener against loops).
     private var keyboardOpen = false
 
-    // Pristine (keyboard-closed) constraints of the root ConstraintLayout, captured
-    // once so the orb re-anchoring can be reverted exactly on keyboard close.
-    private var baseConstraints: ConstraintSet? = null
-
-    // While the keyboard is up the logo cluster shrinks; the floating orbs + sparkles
-    // are re-anchored INTO that short band (instead of the full page) so they wrap the
-    // small logo and never clip. Values = vertical bias within the logo band; the
-    // horizontal bias set in XML is preserved, so each stays on its own side.
-    private val orbCompactBias: Map<Int, Float> = linkedMapOf(
-        R.id.orb_chat    to 0.10f,   // top-left
-        R.id.orb_star    to 0.40f,   // mid-left
-        R.id.orb_phone   to 0.72f,   // bottom-left
-        R.id.orb_video   to 0.10f,   // top-right
-        R.id.orb_connect to 0.40f,   // mid-right
-        R.id.orb_heart   to 0.72f,   // bottom-right
-        R.id.spark1      to 0.04f,
-        R.id.spark2      to 0.90f,
-        R.id.spark3      to 0.06f,
-        R.id.spark4      to 0.88f,
-        R.id.spark5      to 0.94f
+    // BUG 4 — the orbs used to be re-anchored into the compact logo band with a table
+    // of vertical BIASES. Six 44-48dp icons cannot fit three-per-side inside a ~120dp
+    // band, so a percentage bias always resolved them on top of each other. They are
+    // now chained to one another in XML with fixed dp margins (see the layout header),
+    // and compaction only shrinks the icons + tightens those margins — both pure dp,
+    // so the cluster can get tighter but never overlap.
+    //
+    // full dp -> compact dp, per orb id: size, then the top margin to its anchor.
+    private val orbCompactSpec: Map<Int, Triple<Int, Int, Int>> = linkedMapOf(
+        //                    fullSize, compactSize, compactTopMargin
+        R.id.orb_chat    to Triple(48, 36, 2),   // top-left,     anchored to ll_logo_section
+        R.id.orb_star    to Triple(44, 33, 5),   // mid-left,     anchored below orb_chat
+        R.id.orb_phone   to Triple(44, 33, 5),   // bottom-left,  anchored below orb_star
+        R.id.orb_video   to Triple(48, 36, 2),   // top-right,    anchored to ll_logo_section
+        R.id.orb_connect to Triple(46, 34, 5),   // mid-right,    anchored below orb_video
+        R.id.orb_heart   to Triple(46, 34, 5)    // bottom-right, anchored below orb_connect
     )
+
+    // The XML top margins, restored verbatim when the keyboard closes.
+    private val orbFullTopMargin: Map<Int, Int> = linkedMapOf(
+        R.id.orb_chat to 4, R.id.orb_star to 8, R.id.orb_phone to 10,
+        R.id.orb_video to 4, R.id.orb_connect to 8, R.id.orb_heart to 10
+    )
+
+    // Every decoration, so a tier can hide the ones it has no room for.
+    private val orbAllIds = listOf(
+        R.id.orb_chat, R.id.orb_star, R.id.orb_phone,
+        R.id.orb_video, R.id.orb_connect, R.id.orb_heart,
+        R.id.spark1, R.id.spark2, R.id.spark3, R.id.spark4, R.id.spark5
+    )
+
+    // ROW keeps one orb per side, level with the logo; the rest go GONE. They are a
+    // fixed-margin chain, so dropping the tail cannot disturb these two.
+    private val orbRowKeep = setOf(R.id.orb_chat, R.id.orb_video)
+
+    /**
+     * BUG 6 — how much hero we can afford.
+     *
+     * FULL    keyboard closed — today's layout, untouched.
+     * COMPACT keyboard up with room to spare: logo ABOVE the wordmark   (~120dp).
+     * ROW     keyboard up on a short band: logo BESIDE the wordmark      (~58dp).
+     *
+     * The old code only had FULL/COMPACT and assumed COMPACT always fits. On the OTP
+     * step it often does not — that form is the tallest in the app (~361dp), so on a
+     * 760dp device with a 300dp keypad only ~71dp is left. The 120dp stack then
+     * overflowed and the NestedScrollView showed just its top slice, slicing off
+     * "Hi ma" (which sits at y 68-113). ROW is short enough to always fit.
+     */
+    private enum class HeroTier { FULL, COMPACT, ROW }
+
+    private var heroTier: HeroTier? = null
 
     /**
      * When the soft keyboard opens, compress the decorative logo cluster (hide the
@@ -375,7 +407,11 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         fun px(v: Int) = (v * density).toInt()
         val logoFull = px(94);  val logoSmall = px(46)
         val padTopFull = px(40); val padTopSmall = px(10)
-        val padBotFull = px(16); val padBotSmall = px(6)
+        // BUG #3 — padBotFull MUST mirror ll_logo_section's android:paddingBottom in
+        // activity_new_login.xml. applyCompact(false) re-applies it on every keyboard
+        // close, so a stale value here silently reverts the XML after the first
+        // open/close cycle and the feature-row gap collapses again.
+        val padBotFull = px(28); val padBotSmall = px(6)
         // The corner radius (27dp) and inner padding (24dp) are tuned for the 94dp
         // logo. If they stay fixed while the card shrinks to 46dp, the 27dp corners
         // round it into a full circle and the 24dp padding swallows the whole logo —
@@ -383,22 +419,83 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         // stays a rounded square with the Hima mark visible at both sizes.
         val cornerFull = px(27).toFloat(); val cornerSmall = px(13).toFloat()
         val innerPadFull = px(24); val innerPadSmall = px(11)
+        // BUG 6 — ROW tier: logo sits beside the wordmark, so it is a touch smaller
+        // than COMPACT and gains an END margin instead of a BOTTOM one.
+        val logoRow = px(42); val cornerRow = px(12).toFloat(); val innerPadRow = px(10)
 
         val cl = binding.rootLayout
 
-        fun applyCompact(compact: Boolean) {
+        // BUG 4 — resize the orbs and tighten their chain margins per tier. The
+        // ANCHORS set in XML are never touched, so whatever the sizes, each orb still
+        // sits a fixed dp below/beside its neighbour and can never overlap it.
+        fun applyOrbSizing(tier: HeroTier) {
+            if (tier == HeroTier.ROW) {
+                orbAllIds.forEach { id ->
+                    cl.findViewById<View>(id)?.visibility =
+                        if (id in orbRowKeep) View.VISIBLE else View.GONE
+                }
+                orbRowKeep.forEach { id ->
+                    cl.findViewById<View>(id)?.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                        width = px(32); height = px(32); topMargin = px(12)
+                    }
+                }
+                return
+            }
+            orbAllIds.forEach { cl.findViewById<View>(it)?.visibility = View.VISIBLE }
+            val compact = tier == HeroTier.COMPACT
+            orbCompactSpec.forEach { (id, spec) ->
+                val (fullSize, compactSize, compactTop) = spec
+                val orb = cl.findViewById<View>(id) ?: return@forEach
+                orb.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    width = px(if (compact) compactSize else fullSize)
+                    height = px(if (compact) compactSize else fullSize)
+                    topMargin = px(if (compact) compactTop else (orbFullTopMargin[id] ?: 0))
+                }
+            }
+        }
+
+        fun applyHero(tier: HeroTier) {
+            val compact = tier != HeroTier.FULL
+            val row = tier == HeroTier.ROW
+
             // The big labelled Chat/Video/Voice/Connect row + tagline have no room
-            // above the keypad, so they drop away. The small floating orbs STAY and
-            // re-anchor to frame the shrunk logo (see orbCompactBias).
+            // above the keypad, so they drop away in both keyboard tiers.
             binding.tvTagline.visibility  = if (compact) View.GONE else View.VISIBLE
             binding.llFeatureRow.visibility = if (compact) View.GONE else View.VISIBLE
-            binding.logoContainer.layoutParams = binding.logoContainer.layoutParams.apply {
-                width  = if (compact) logoSmall else logoFull
-                height = if (compact) logoSmall else logoFull
+
+            // BUG 6 — the whole point of ROW: stacking the logo above the wordmark
+            // needs ~120dp, laying them side by side needs ~58dp. ll_logo_section is
+            // already a LinearLayout with gravity="center", which works for both
+            // orientations, and the orbs anchor to its TOP EDGE, which is
+            // orientation-independent — so the Bug 4 chain survives the flip.
+            binding.llLogoSection.orientation =
+                if (row) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+
+            binding.logoContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                val size = when (tier) {
+                    HeroTier.FULL -> logoFull
+                    HeroTier.COMPACT -> logoSmall
+                    HeroTier.ROW -> logoRow
+                }
+                width = size
+                height = size
+                // Stacked: gap BELOW the logo. Row: gap to the RIGHT of it.
+                bottomMargin = if (row) 0 else px(12)
+                marginEnd = if (row) px(10) else 0
             }
-            binding.logoContainer.radius = if (compact) cornerSmall else cornerFull
-            val innerPad = if (compact) innerPadSmall else innerPadFull
+            binding.logoContainer.radius = when (tier) {
+                HeroTier.FULL -> cornerFull
+                HeroTier.COMPACT -> cornerSmall
+                HeroTier.ROW -> cornerRow
+            }
+            val innerPad = when (tier) {
+                HeroTier.FULL -> innerPadFull
+                HeroTier.COMPACT -> innerPadSmall
+                HeroTier.ROW -> innerPadRow
+            }
             binding.logoInner.setPadding(innerPad, innerPad, innerPad, innerPad)
+            binding.tvBrandName.textSize = if (row) 25f else 30f
+
             binding.llLogoSection.setPadding(
                 binding.llLogoSection.paddingLeft,
                 if (compact) padTopSmall else padTopFull,
@@ -406,29 +503,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 if (compact) padBotSmall else padBotFull
             )
 
-            // Capture the pristine orb constraints once (they're still XML-original at
-            // the first compaction because we haven't touched them yet).
-            if (baseConstraints == null) baseConstraints = ConstraintSet().apply { clone(cl) }
-
-            // Clone the LIVE state so app-managed visibility (e.g. the OTP back button,
-            // login vs OTP section) is preserved — we only rewrite the orb anchors.
-            val set = ConstraintSet().apply { clone(cl) }
-            if (compact) {
-                orbCompactBias.forEach { (id, bias) ->
-                    set.connect(id, ConstraintSet.TOP, R.id.ll_logo_section, ConstraintSet.TOP)
-                    set.connect(id, ConstraintSet.BOTTOM, R.id.ll_logo_section, ConstraintSet.BOTTOM)
-                    set.setVerticalBias(id, bias)
-                }
-            } else {
-                baseConstraints?.let { base ->
-                    orbCompactBias.keys.forEach { id ->
-                        set.connect(id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
-                        set.connect(id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
-                        set.setVerticalBias(id, base.getConstraint(id).layout.verticalBias)
-                    }
-                }
-            }
-            set.applyTo(cl)
+            applyOrbSizing(tier)
         }
 
         val root = binding.root
@@ -438,13 +513,27 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             val screenH = root.rootView.height
             val keypad = screenH - rect.bottom
             val open = keypad > screenH * 0.15   // >15% of screen ⇒ keyboard, not just nav/status bars
-            if (open != keyboardOpen) {
-                keyboardOpen = open
-                applyCompact(open)
-                // No forced scroll: once the tagline + feature row collapse and the orbs
-                // re-anchor, the compact hero (~110dp) + form fit above the keypad, so the
-                // logo stays pinned and visible. (The old smoothScrollTo(field.bottom)
-                // pushed the shrunk logo off the top edge — the reported clipping.)
+            keyboardOpen = open
+
+            // BUG 6 — pick the tier from the band we actually have rather than
+            // assuming the compact stack fits. heroScroll's height is set by the
+            // constraint solver as (outerRoot - ll_login_section); it does NOT depend
+            // on what we put inside it, so reading it here cannot feed back into
+            // another layout pass. The heroTier guard keeps this to one apply per
+            // real transition.
+            val heroSpace = binding.heroScroll.height
+            val tier = when {
+                !open -> HeroTier.FULL
+                heroSpace >= px(120) -> HeroTier.COMPACT
+                else -> HeroTier.ROW
+            }
+            if (tier != heroTier) {
+                heroTier = tier
+                applyHero(tier)
+                // No forced scroll: every tier is sized to fit the band it was chosen
+                // for, so the hero never overflows and nothing needs scrolling into
+                // view. (The old smoothScrollTo(field.bottom) pushed the shrunk logo
+                // off the top edge — the originally reported clipping.)
             }
         }
     }
@@ -1121,6 +1210,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 //  binding.btnSendOtp.setBackgroundResource(R.drawable.d_button_bg_white)
                 binding.cvReferCode.visibility = View.VISIBLE
                 updateReferralApplyButtonState()
+                // BUG #5 — with the keyboard up the fields region is already shorter than its
+                // content, so a newly revealed referral field lands below the fold. Drop the
+                // scroll to the bottom so it is in view. Send OTP is pinned outside this
+                // scroll, so it stays fully visible either way.
+                binding.loginFieldsScroll.post {
+                    binding.loginFieldsScroll.fullScroll(View.FOCUS_DOWN)
+                }
             } else {
 
                 binding.etReferCode.setText("")
