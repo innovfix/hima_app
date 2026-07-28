@@ -613,7 +613,12 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
 
 
-    fun updatePurchaseOnMeta(){
+    /**
+     * @param isFirstRecharge server verdict on whether this payment is the user's
+     *   first ever recharge (see FirstPurchaseTracker.readFlag). Null from callers
+     *   that have no gateway status payload to read it from — e.g. Play billing.
+     */
+    fun updatePurchaseOnMeta(isFirstRecharge: Boolean? = null){
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
         val userId = userData?.id
@@ -634,6 +639,18 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             "purchase",
             revenueInr = coinAmount,
             params = mapOf("user_id" to "$userId", "coin_id" to "$coinId")
+        )
+
+        // new_user_first_purchase — this screen previously fired NO first-purchase
+        // event at all, so a user whose first ever recharge went through here was
+        // invisible to Adjust/Meta. Shared tracker, same rule as the other screens.
+        com.gmwapp.hima.utils.FirstPurchaseTracker.maybeFire(
+            context = this,
+            isFirstRecharge = isFirstRecharge,
+            userId = userId,
+            coinId = coinId,
+            coinAmount = coinAmount,
+            createdAt = userData?.created_at,
         )
     }
 
@@ -694,12 +711,14 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     Log.d("PhonePeOrderStatus", "Order Status: $resultStr")
                     Log.d("PhonePeOrderState", "Order State: $state,  Coin_id : $coin_id , Order_id :$order_id ")
 
+                    val isFirstRecharge = com.gmwapp.hima.utils.FirstPurchaseTracker.readFlag(json)
+
                     if (state == "COMPLETED") {
                         runOnUiThread {
                             showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             if (coin_id.isNotEmpty() && order_id.isNotEmpty()) {
                                 user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
-                                updatePurchaseOnMeta()
+                                updatePurchaseOnMeta(isFirstRecharge)
                             } else {
                                 Log.e("PhonePeError", "Missing coin_id or order_id. coin_id=$coin_id, order_id=$order_id")
                                 showAppToast("Error: Missing coin_id or order_id", Toast.LENGTH_SHORT)
@@ -1028,11 +1047,13 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
                     Log.d("cashfreePaymentStatus", "Status: $paymentStatus, Coin ID: $coin_id, Order ID: $order_id")
 
+                    val isFirstRecharge = com.gmwapp.hima.utils.FirstPurchaseTracker.readFlag(json)
+
                     if (paymentStatus.equals("PAID", ignoreCase = true)) {
                         runOnUiThread {
                             showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
-                            updatePurchaseOnMeta()
+                            updatePurchaseOnMeta(isFirstRecharge)
                         }
                     } else {
                         runOnUiThread {
