@@ -277,9 +277,31 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             ?: data.optInt("user_id", 0)
         val callId = data.optInt("call_id", 0)
         val channelName = firstNonEmpty(data, "channelName", "channel_name") ?: "default_channel"
-        val callerName = firstNonEmpty(data, "callerName", "sender_name", "name", "title")
+        // QA 28-Jul "Audio Call from Pank…" on the ring (~2 calls in 10).
+        //
+        // Every incoming call is pushed by BOTH providers and whichever handler wins
+        // claimRingSurface() owns the ring. The FCM path reads the name from a POSITIONAL
+        // field (parts.drop(4)) so it is structurally always a bare name; this path walks
+        // a key list whose last entry is "title" and then falls back to the notification
+        // title itself — so when the payload omits the structured name we end up holding
+        // the whole sentence "Audio Call from Pankaj". Which provider wins is network
+        // timing, which is exactly why it was intermittent and never reproducible.
+        //
+        // The 27-Jul fix cleaned this at the ring Activity only. But the raw value is also
+        // handed to setIncomingCallerInfo() and to the CallStyle notification's
+        // Person.setName() — neither of which cleaned it. Clean at the source instead, so
+        // a dirty name cannot enter the app through any of the three consumers. Mirrors
+        // what the missed-call branch below already does with its raw title.
+        val rawCallerName = firstNonEmpty(data, "callerName", "sender_name", "name", "title")
             ?: event.notification.title?.trim().orEmpty()
+        val callerName = com.gmwapp.hima.utils.PeerNameUtils
+            .sanitizeCallerName(rawCallerName)
+            .ifBlank { "Caller" }
         val callerImage = firstNonEmpty(data, "callerImage", "sender_image", "image", "avatar").orEmpty()
+        // The missed-call branch logs its parse; this one never did, which is why three
+        // rounds of investigation had to guess at what the server actually sent. If the
+        // ring ever shows boilerplate again, this line has the exact input string.
+        Log.d(TAG, "nse-incoming parsed rawCaller=\"$rawCallerName\" callerName=\"$callerName\" callId=$callId")
 
         if (senderId <= 0) return false
 

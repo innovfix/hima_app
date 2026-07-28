@@ -30,6 +30,27 @@ object PeerNameUtils {
     private val CALL_PREFIX =
         Regex("^\\s*(incoming\\s+|missed\\s+)?(audio\\s+|video\\s+)?call\\s+from(?:\\s+|$)", RegexOption.IGNORE_CASE)
 
+    // CALL_PREFIX above is anchored with "^\s*", i.e. "start of string, then WHITESPACE
+    // only". Two real-world titles slipped past it and rendered in full on the ring
+    // screen (QA 28-Jul, "Audio Call from Pank…", ~2 calls in 10):
+    //
+    //   * a leading symbol — the server decorates some templates ("☎ Audio Call from X").
+    //     A symbol is not whitespace, so the anchor never matched and NOTHING was
+    //     stripped. CallNotifications.normalizeMissedCallCallerName hit exactly this and
+    //     documents it: "the server sends e.g. '📞 Missed call from Kishore12'".
+    //   * "voice" — the alternation only knows audio|video, yet the ring screen's own
+    //     label is "Incoming Voice Call", so "Voice Call from X" passed through clean.
+    //
+    // So match the SAME shape anywhere in the string and keep the captured tail, which
+    // is what the missed-call normaliser already does successfully.
+    private val CALL_PREFIX_CAPTURE = Regex(
+        "(?:incoming\\s+|missed\\s+)?(?:audio\\s+|video\\s+|voice\\s+)?call\\s+from\\s*[:\\-]?\\s+(.+?)\\s*$",
+        RegexOption.IGNORE_CASE
+    )
+
+    /** Leading emoji / symbols / punctuation sitting before the real name. */
+    private val LEADING_JUNK = Regex("^[^\\p{L}\\p{N}]+")
+
     fun sanitizePeerName(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
         // Remove the push-title boilerplate, then hide ALL digits like every other
@@ -50,10 +71,28 @@ object PeerNameUtils {
      */
     fun sanitizeCallerName(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
-        val noBoilerplate = raw.trim()
-            .replace(CALL_PREFIX, "")
+        val trimmed = raw.trim()
             .replace(CALL_SUFFIX, "")
             .replace(MESSAGE_SUFFIX, "")
+            .trim()
+            .removeSuffix("…")
+            .trim()
+
+        // "<anything> call from <name>" -> keep only <name>. Runs first because it is
+        // the only branch that survives a decorated title; a plain name simply does not
+        // match and falls through untouched.
+        CALL_PREFIX_CAPTURE.find(trimmed)?.groupValues?.getOrNull(1)
+            ?.trim()?.removeSuffix("…")?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return DisplayName.clean(it) }
+
+        // Not the prefix form. Keep the original anchored strip so every case that
+        // already worked keeps behaving identically (notably a bare "Audio Call from"
+        // with no name, which must still collapse to ""), then drop any leading
+        // emoji/symbol so a decorated title can never reach the screen.
+        val noBoilerplate = trimmed
+            .replace(CALL_PREFIX, "")
+            .replace(LEADING_JUNK, "")
             .trim()
         // "" when nothing but boilerplate remains, so callers can fall back to a
         // neutral default; otherwise hide all digits like the rest of the app.
