@@ -2230,50 +2230,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             })
     }
 
-    private fun isNewUser(createdAt: String?): Boolean {
-        if (createdAt.isNullOrEmpty()) return false
-        
-        try {
-            // Parse the created_at timestamp (format: "2025-11-05 12:09:17" or similar)
-            val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
-            val createdDate = dateFormat.parse(createdAt) ?: return false
-            val createdCalendar = java.util.Calendar.getInstance().apply { time = createdDate }
-            
-            // Get today and yesterday dates
-            val today = java.util.Calendar.getInstance()
-            val yesterday = java.util.Calendar.getInstance().apply {
-                add(java.util.Calendar.DAY_OF_YEAR, -1)
-            }
-            
-            // Check if created_at is today (compare only dates, not time)
-            val createdDateOnly = createdCalendar.apply {
-                set(java.util.Calendar.HOUR_OF_DAY, 0)
-                set(java.util.Calendar.MINUTE, 0)
-                set(java.util.Calendar.SECOND, 0)
-                set(java.util.Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            
-            val todayDateOnly = today.apply {
-                set(java.util.Calendar.HOUR_OF_DAY, 0)
-                set(java.util.Calendar.MINUTE, 0)
-                set(java.util.Calendar.SECOND, 0)
-                set(java.util.Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            
-            val yesterdayDateOnly = yesterday.apply {
-                set(java.util.Calendar.HOUR_OF_DAY, 0)
-                set(java.util.Calendar.MINUTE, 0)
-                set(java.util.Calendar.SECOND, 0)
-                set(java.util.Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            
-            return createdDateOnly == todayDateOnly
-            
-        } catch (e: Exception) {
-            Log.e("NewUserCheck", "Error parsing created_at: $createdAt", e)
-            return false
-        }
-    }
+    /**
+     * Gate for `new_user_purchase`: 24 hours from the REGISTRATION MOMENT, not
+     * "same calendar date". Used to reset at midnight, so an 11:50 PM signup got a
+     * 10-minute window. See SignupWindow.
+     */
+    private fun isNewUser(createdAt: String?): Boolean =
+        com.gmwapp.hima.utils.SignupWindow.isWithinFirst24h(createdAt)
 
     /**
      * @param isFirstRecharge server verdict on whether this payment is the user's
