@@ -1601,6 +1601,21 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- BUG 15 — native, backend-driven version of the rates poster.
+                 GONE by default and only shown when the reports response carries
+                 earning_details, so with today's backend this container never
+                 inflates a single row and the screen behaves exactly as before.
+                 Rows are added at runtime from the API payload. -->
+            <LinearLayout
+                android:id="@+id/ll_earning_details"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
 

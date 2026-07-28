@@ -76,6 +76,135 @@ import kotlin.random.Random
 
 @AndroidEntryPoint
 class FemaleHomeFragment : BaseFragment(), Refreshable {
+
+    // ── BUG 15 — native "Earning details" card ────────────────────────────────────
+    /**
+     * Draws the rates card from the API payload instead of the hardcoded poster PNG.
+     *
+     * Returns TRUE only when a usable card was actually built. Every other outcome —
+     * null payload (today's backend), no sections, sections with no usable rows, or ANY
+     * exception while building — returns false so the caller falls back to the legacy
+     * image. That is deliberate: this feature must be incapable of making the screen
+     * worse than it is today, and it stays completely dormant until the backend starts
+     * sending earning_details.
+     *
+     * The backend supplies pre-formatted strings for both columns, so the app never does
+     * rate maths and can never print a number that disagrees with what is actually paid.
+     */
+    private fun renderEarningDetails(details: com.gmwapp.hima.retrofit.responses.EarningDetails?): Boolean =
+        runCatching {
+            if (!::binding.isInitialized || !isAdded) return false
+            val ctx = context ?: return false
+            val sections = details?.sections
+                ?.filter { sec -> !sec.rows.isNullOrEmpty() }
+                .orEmpty()
+            if (sections.isEmpty()) return false
+
+            fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+            val host = binding.llEarningDetails
+            host.removeAllViews()
+            host.setBackgroundResource(R.drawable.bg_earning_card)
+            host.setPadding(dp(14), dp(14), dp(14), dp(14))
+
+            // Heading
+            details?.title?.takeIf { it.isNotBlank() }?.let { title ->
+                host.addView(TextView(ctx).apply {
+                    text = title
+                    setTextColor(android.graphics.Color.parseColor("#FFD25A"))
+                    textSize = 15f
+                    gravity = Gravity.CENTER
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { bottomMargin = dp(10) }
+                })
+            }
+
+            var built = 0
+            sections.forEach { sec ->
+                // Section label pill ("Audio call")
+                sec.label?.takeIf { it.isNotBlank() }?.let { label ->
+                    host.addView(TextView(ctx).apply {
+                        text = label
+                        setTextColor(android.graphics.Color.WHITE)
+                        textSize = 11f
+                        setTypeface(typeface, android.graphics.Typeface.BOLD)
+                        setBackgroundResource(R.drawable.bg_earning_pill)
+                        setPadding(dp(12), dp(3), dp(12), dp(3))
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(6) }
+                    })
+                }
+
+                // Rows. A row needs at least one populated column to be worth drawing.
+                val rows = sec.rows.orEmpty().filter {
+                    !it.time.isNullOrBlank() || !it.rate.isNullOrBlank()
+                }
+                if (rows.isEmpty()) return@forEach
+
+                fun cell(text: String, header: Boolean) = TextView(ctx).apply {
+                    this.text = text
+                    setTextColor(android.graphics.Color.WHITE)
+                    textSize = if (header) 11f else 11.5f
+                    gravity = Gravity.CENTER
+                    if (header) setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setBackgroundResource(
+                        if (header) R.drawable.bg_earning_cell_header else R.drawable.bg_earning_cell
+                    )
+                    setPadding(dp(6), dp(5), dp(6), dp(5))
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+
+                fun rowOf(a: String, b: String, header: Boolean) = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(cell(a, header))
+                    addView(cell(b, header))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                }
+
+                host.addView(rowOf(
+                    getString(R.string.earning_details_col_time),
+                    getString(R.string.earning_details_col_rate),
+                    header = true
+                ))
+                rows.forEach { r ->
+                    host.addView(rowOf(r.time.orEmpty(), r.rate.orEmpty(), header = false))
+                }
+                (host.getChildAt(host.childCount - 1) as? View)?.let {
+                    (it.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = dp(10)
+                }
+                built++
+            }
+
+            if (built == 0) return false
+
+            // Optional footer note (e.g. the short-call rule).
+            details?.note?.takeIf { it.isNotBlank() }?.let { note ->
+                host.addView(TextView(ctx).apply {
+                    text = note
+                    setTextColor(android.graphics.Color.WHITE)
+                    textSize = 10.5f
+                    setBackgroundResource(R.drawable.bg_earning_note)
+                    setPadding(dp(9), dp(7), dp(9), dp(7))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                })
+            }
+            true
+        }.getOrElse {
+            android.util.Log.w("FemaleHome", "earning_details render failed, falling back to poster image", it)
+            false
+        }
+
     private val OVERLAY_REQUEST_CODE: Int = 2
     private var mContext: Context? = null
     private val CALL_PERMISSIONS_REQUEST_CODE = 1
@@ -749,23 +878,38 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     // tv_total_calls above.
                     binding.tvTotalCallsOld.text = it.data[0].today_calls.toString()
 
-                    // Restored 2026-05-22: load admin-uploaded call rates poster.
-                    // (Autopay merge had hidden this; user confirmed the admin poster
-                    // is the source of truth for the female-home Earnings Details card.)
-                    it.data[0].call_rates?.let { imageUrl ->
-                        if (imageUrl.isNotEmpty()) {
-                            binding.ivCallRates.visibility = View.VISIBLE
-                            binding.cvCallRates.visibility = View.VISIBLE
-                            Glide.with(requireContext())
-                                .load(imageUrl)
-                                .into(binding.ivCallRates)
-                        } else {
+                    // BUG 15 — prefer the structured earning_details payload and draw the
+                    // card natively; fall back to the legacy poster image otherwise.
+                    //
+                    // renderEarningDetails() returns false for null / empty / malformed
+                    // input AND on any exception, so with today's backend (which does not
+                    // send the field) this is a no-op and the image path below runs
+                    // exactly as it always has. That is what keeps live users unaffected:
+                    // the new branch cannot engage until the backend opts in.
+                    if (renderEarningDetails(it.data[0].earning_details)) {
+                        binding.ivCallRates.visibility = View.GONE
+                        binding.llEarningDetails.visibility = View.VISIBLE
+                        binding.cvCallRates.visibility = View.VISIBLE
+                    } else {
+                        binding.llEarningDetails.visibility = View.GONE
+                        // Restored 2026-05-22: load admin-uploaded call rates poster.
+                        // (Autopay merge had hidden this; user confirmed the admin poster
+                        // is the source of truth for the female-home Earnings Details card.)
+                        it.data[0].call_rates?.let { imageUrl ->
+                            if (imageUrl.isNotEmpty()) {
+                                binding.ivCallRates.visibility = View.VISIBLE
+                                binding.cvCallRates.visibility = View.VISIBLE
+                                Glide.with(requireContext())
+                                    .load(imageUrl)
+                                    .into(binding.ivCallRates)
+                            } else {
+                                binding.ivCallRates.visibility = View.GONE
+                                binding.cvCallRates.visibility = View.GONE
+                            }
+                        } ?: run {
                             binding.ivCallRates.visibility = View.GONE
                             binding.cvCallRates.visibility = View.GONE
                         }
-                    } ?: run {
-                        binding.ivCallRates.visibility = View.GONE
-                        binding.cvCallRates.visibility = View.GONE
                     }
 
                     var firstCall = it.data[0].first_call

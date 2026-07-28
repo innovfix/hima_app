@@ -761,4 +761,8 @@
     <string name="support_bot_error">Something went wrong. Please try again.</string>
     <string name="support_bot_rate_limited">You\'re going a little fast — please wait a few seconds, then tap Try again.</string>
     <string name="support_bot_rate_limited_wait">Just a moment…</string>
+    <!-- BUG 15 — column headers for the native Earning-details card. In strings.xml
+         (not hardcoded) so the card can be localised, which the poster image never could. -->
+    <string name="earning_details_col_time">Time</string>
+    <string name="earning_details_col_rate">₹ Per minute</string>
 </resources>
