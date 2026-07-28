@@ -61,6 +61,11 @@ class FemaleTransactionsActivity : BaseActivity() {
         } else {
             getString(R.string.earnings)
         }
+        // BUG #13 — the subtitle is shared with the male screen exactly like the title
+        // above, but was never relabelled here, so the XML default had to carry creator
+        // wording and the user screen inherited "View your earnings history". The default
+        // is now the user wording; the creator copy is restored here, unchanged.
+        binding.tvSubtitle.text = "View your earnings history"
 
         initUI()
     }
