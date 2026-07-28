@@ -121,7 +121,7 @@
                         android:layout_gravity="center"
                         android:src="@drawable/ic_back"
                         android:contentDescription="Back"
-                        app:tint="#374151" />
+                        app:tint="@color/pink" />
 
                 </androidx.cardview.widget.CardView>
 

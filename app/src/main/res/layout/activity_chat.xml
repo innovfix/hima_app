@@ -45,7 +45,7 @@
                     android:layout_gravity="center"
                     android:src="@drawable/ic_back"
                     android:contentDescription="@string/chat_back_desc"
-                    app:tint="#374151" />
+                    app:tint="@color/pink" />
 
             </androidx.cardview.widget.CardView>
 
@@ -283,7 +283,7 @@
         android:layout_marginTop="8dp"
         android:visibility="gone"
         app:cardBackgroundColor="#FFF1F7"
-        app:cardCornerRadius="14dp"
+        app:cardCornerRadius="12dp"
         app:cardElevation="0dp"
         app:strokeColor="#FFD6E6"
         app:strokeWidth="1dp"
@@ -960,8 +960,10 @@
             android:textColor="#6B7280"
             android:textSize="12sp" />
 
-        <!-- Canonical Hima primary CTA (bg_btn_primary — r14/gradient/52dp). Card kept
-             transparent so the gradient inner layout supplies the fill; card clips to r14. -->
+        <!-- Canonical Hima primary CTA (bg_btn_primary — r12/flat brand pink). Card kept
+             transparent so the inner layout supplies the fill; card clips to r12.
+             Creator QA bug #4 — radius follows the drawable (14dp -> 12dp) or the card
+             clips a 12dp fill at 14dp and leaves a hairline at each corner. -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/btn_friend_lock_primary"
             android:layout_width="match_parent"

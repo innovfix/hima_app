@@ -38,8 +38,8 @@
 
     <ImageView
         android:id="@+id/iv_back"
-        android:layout_width="15dp"
-        android:layout_height="15dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
         android:layout_marginStart="4dp"
         android:layout_marginTop="8dp"
         android:contentDescription="@string/edit"
@@ -50,8 +50,11 @@
         app:layout_constraintTop_toTopOf="@id/gl_top_margin"
         app:layout_constraintWidth_default="percent"
         app:layout_constraintWidth_percent="0.05"
-        app:tint="@color/white"
-        tools:ignore="MissingConstraints" />
+        app:tint="@color/pink"
+        tools:ignore="MissingConstraints"
+            android:padding="11dp"
+            android:background="@drawable/bg_back_button"
+            android:elevation="2dp" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/gl_content_top_margin"

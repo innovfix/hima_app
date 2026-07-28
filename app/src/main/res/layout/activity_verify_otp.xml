@@ -30,16 +30,18 @@
 
     <ImageView
         android:id="@+id/iv_back"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:padding="8dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:padding="11dp"
         android:src="@drawable/ic_back"
         android:contentDescription="Back"
         android:clickable="true"
         android:focusable="true"
-        app:tint="@color/white"
+        app:tint="@color/pink"
         app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
-        app:layout_constraintTop_toTopOf="@+id/gl_top_margin" />
+        app:layout_constraintTop_toTopOf="@+id/gl_top_margin"
+            android:background="@drawable/bg_back_button"
+            android:elevation="2dp" />
 
     <TextView
         android:id="@+id/tl_title"

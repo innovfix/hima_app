@@ -20,13 +20,15 @@
 
         <ImageView
             android:id="@+id/iv_back"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:layout_marginStart="4dp"
             android:contentDescription="@string/edit"
             android:src="@drawable/ic_back"
-            android:padding="4dp"
-            app:tint="@color/black"/>
+            android:padding="11dp"
+            app:tint="@color/pink"
+            android:background="@drawable/bg_back_button"
+            android:elevation="2dp" />
 
         <TextView
             android:id="@+id/tv_payment"

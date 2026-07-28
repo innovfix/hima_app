@@ -59,7 +59,15 @@
             <!-- B099 follow-up — WhatsApp-style "also delete chat" option.
                  When ticked, the existing chat-block call still fires AND the
                  local chat list for this peer is cleared so the user doesn't
-                 keep seeing the conversation history on this device. -->
+                 keep seeing the conversation history on this device.
+
+                 Creator QA bug #5 — marginBottom was 20dp against the divider's 16dp
+                 below it, so the rule sat off-centre in its own gap and the block read
+                 as lopsided. 16dp both sides now, matching the message spacing above.
+                 The button row also carried android:spacing="12dp"; LinearLayout has no
+                 such attribute, so it was silently ignored — removed. The real gap comes
+                 from btn_cancel's end margin, which is now marginEnd (RTL-correct) rather
+                 than marginRight. -->
             <CheckBox
                 android:id="@+id/cb_also_delete_chat"
                 android:layout_width="wrap_content"
@@ -69,7 +77,7 @@
                 android:textColor="#374151"
                 android:fontFamily="@font/poppins_regular"
                 android:layout_gravity="start"
-                android:layout_marginBottom="20dp" />
+                android:layout_marginBottom="16dp" />
 
             <!-- Divider -->
             <View
@@ -83,8 +91,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="end"
-                android:spacing="12dp">
+                android:gravity="end">
 
                 <!-- BUG 16 — these were bespoke r25 pills. Now on the canonical
                      Widget.Hima.Button.Secondary / .Primary pair (r12), so this dialog and
@@ -102,7 +109,7 @@
                     android:layout_height="50dp"
                     android:layout_weight="1"
                     android:text="Cancel"
-                    android:layout_marginRight="@dimen/_10sdp"
+                    android:layout_marginEnd="@dimen/_10sdp"
                     android:textColor="#6B7280"
                     app:strokeColor="#D1D5DB"
                     app:strokeWidth="1.5dp"
@@ -119,8 +126,7 @@
                     android:stateListAnimator="@null"
                     android:minHeight="0dp"
                     android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    app:backgroundTint="@color/colorAccent" />
+                    android:insetBottom="0dp" />
 
             </LinearLayout>
 

@@ -44,12 +44,15 @@
 
                 <ImageView
                     android:id="@+id/iv_back"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
                         android:layout_gravity="center"
                     android:contentDescription="Back"
                     android:src="@drawable/ic_back"
-                        app:tint="#374151" />
+                        app:tint="@color/pink"
+            android:padding="11dp"
+            android:background="@drawable/bg_back_button"
+            android:elevation="2dp" />
 
                 </androidx.cardview.widget.CardView>
 
@@ -217,17 +220,18 @@
 
                     <ImageView
                         android:id="@+id/iv_close_video"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
                         android:layout_margin="12dp"
-                        android:background="@drawable/circle_background"
+                        android:background="@drawable/bg_back_button"
                         android:backgroundTint="#80000000"
-                        android:padding="8dp"
+                        android:padding="11dp"
                         android:src="@drawable/ic_back"
                         android:rotation="45"
-                        app:tint="@android:color/white"
+                        app:tint="@color/pink"
                         app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent" />
+                        app:layout_constraintEnd_toEndOf="parent"
+            android:elevation="2dp" />
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 

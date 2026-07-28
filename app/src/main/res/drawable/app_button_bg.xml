@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Primary CTA fill for Wallet "Add Coins" and the old-user subscribe sheet. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_enabled="false">
         <shape android:shape="rectangle">
@@ -8,11 +9,10 @@
     </item>
     <item>
         <shape android:shape="rectangle">
-            <gradient
-                android:angle="90"
-                android:startColor="#EC4899"
-                android:endColor="#D946EF"
-                android:type="linear" />
+            <!-- Creator QA bug #4 — was the #EC4899 -> #D946EF gradient (vertical here,
+                 horizontal in bg_btn_primary, which is why Add Coins and Remove never
+                 quite matched). Flat brand pink now, same as every other primary CTA. -->
+            <solid android:color="@color/pink" />
             <corners android:radius="12dp" />
         </shape>
     </item>

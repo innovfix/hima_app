@@ -47,7 +47,7 @@
                         android:layout_gravity="center"
                         android:src="@drawable/ic_back"
                         android:contentDescription="@string/chat_back_desc"
-                        app:tint="#374151" />
+                        app:tint="@color/pink" />
 
                 </androidx.cardview.widget.CardView>
 

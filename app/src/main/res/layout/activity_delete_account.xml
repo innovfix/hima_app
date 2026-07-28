@@ -25,14 +25,17 @@
 
             <ImageView
                 android:id="@+id/iv_back"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:contentDescription="@string/account_privacy"
                 android:src="@drawable/ic_back"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:tint="#212121" />
+                app:tint="@color/pink"
+            android:padding="11dp"
+            android:background="@drawable/bg_back_button"
+            android:elevation="2dp" />
 
             <TextView
                 android:id="@+id/tv_edit_profile"

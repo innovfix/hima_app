@@ -1,24 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Canonical Hima primary CTA: 14dp corner, brand gradient, shared grey disabled state.
-     Geometry pairs with height 52dp + 16sp poppins_semibold + white text.
-     Used by: Delete Account, Edit-Profile Update, Chat Unblock (friend-lock primary). -->
+<!-- Canonical Hima primary CTA: 12dp corner, flat brand pink, shared grey disabled state.
+     Geometry pairs with 16sp poppins_semibold + white text.
+     Used by: Chat friend-lock primary, Edit-Profile Update, Remove Friend.
+
+     Creator QA bug #4 — this was a gradient #EC4899 -> #D946EF at 14dp. That pair is
+     pink-500 to fuchsia-500 (stock Tailwind), i.e. pink-to-PURPLE, and is not the brand
+     colour any other control uses — which is what QA saw as "slightly varying colour
+     combinations". btn_primary_bg_tint already made exactly this call for Delete Account
+     in BUG 16 and documented the gradient as wrong; this finishes it for the rest.
+     Radius 14dp -> 12dp so it matches Widget.Hima.Button.Primary. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_enabled="false">
         <shape android:shape="rectangle">
             <solid android:color="#D1D5DB" />
-            <corners android:radius="14dp" />
+            <corners android:radius="12dp" />
         </shape>
     </item>
     <item>
         <ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#40FFFFFF">
             <item>
                 <shape android:shape="rectangle">
-                    <gradient
-                        android:angle="0"
-                        android:startColor="#EC4899"
-                        android:endColor="#D946EF"
-                        android:type="linear" />
-                    <corners android:radius="14dp" />
+                    <solid android:color="@color/pink" />
+                    <corners android:radius="12dp" />
                 </shape>
             </item>
         </ripple>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Creator QA bugs #1/#2/#3 — the one back-button container.
+
+  14 screens already wrap their back arrow in a white CardView (2dp elevation,
+  12dp radius, 42dp box). The other 20 had the arrow sitting bare on the page,
+  on a grey square, on a circle, or on a borderless ripple — which is what QA
+  reported as "not highlighted" and "different styles across pages".
+
+  Those screens use this drawable instead of being re-nested in a CardView:
+  the arrow keeps its own id, its constraints and its click listener, and its
+  tap target grows from ~24dp to 42dp rather than shrinking inside a wrapper
+  (the mistake B_016 was filed for). Visually identical to the CardView ones.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FFFFFF" />
+    <corners android:radius="12dp" />
+</shape>

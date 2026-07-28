@@ -11,17 +11,18 @@
     <!-- ===== Top bar: back button + 4-step progress (step 2 of 4) ===== -->
     <ImageView
         android:id="@+id/iv_back"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
         android:layout_marginStart="20dp"
         android:layout_marginTop="14dp"
-        android:background="@drawable/bg_back_btn_square"
+        android:background="@drawable/bg_back_button"
         android:contentDescription="@string/account_privacy"
         android:padding="11dp"
         android:src="@drawable/ic_back"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:tint="@color/onboarding_title" />
+        app:tint="@color/pink"
+            android:elevation="2dp" />
 
     <LinearLayout
         android:id="@+id/ll_steps"

@@ -20,13 +20,14 @@
 
         <ImageView
             android:id="@+id/btn_back"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:padding="8dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:padding="11dp"
             android:src="@drawable/ic_arrow_back"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            app:tint="#333333"
-            android:contentDescription="Back" />
+            android:background="@drawable/bg_back_button"
+            app:tint="@color/pink"
+            android:contentDescription="Back"
+            android:elevation="2dp" />
 
         <TextView
             android:id="@+id/tv_toolbar_title"

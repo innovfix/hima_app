@@ -17,15 +17,16 @@
 
         <ImageView
             android:id="@+id/iv_back"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:layout_alignParentStart="true"
             android:layout_alignParentTop="true"
-            android:background="@drawable/ripple_effect"
+            android:background="@drawable/bg_back_button"
             android:contentDescription="@string/back"
-            android:padding="8dp"
+            android:padding="11dp"
             android:src="@drawable/ic_back"
-            app:tint="@color/white" />
+            app:tint="@color/pink"
+            android:elevation="2dp" />
 
         <LinearLayout
             android:layout_width="match_parent"
