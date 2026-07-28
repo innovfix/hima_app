@@ -71,6 +71,10 @@ class SupportBotActivity : BaseActivity() {
             handleReplyResult(result)
         }
 
+        override fun onFeedbackResult(result: com.gmwapp.hima.retrofit.responses.SupportBotFeedbackResponse) {
+            handleFeedbackResult(result)
+        }
+
         override fun onReplyError(retryAfterSeconds: Int) {
             adapter.hideTyping()
             busy = false
@@ -164,6 +168,10 @@ class SupportBotActivity : BaseActivity() {
         }
         showInput(c.inputMode)
         scrollToEnd()
+        // BUG 18 — the cache can legitimately hold input_mode=none (e.g. a request was
+        // in flight when we left). Painting it verbatim is exactly how the dead screen
+        // appeared, so assert the invariant right after repainting.
+        ensureUserCanAct()
     }
 
     /** Snapshot the live chat so the NEXT return can restore it instantly. Drops
@@ -196,6 +204,10 @@ class SupportBotActivity : BaseActivity() {
         // while we were gone, it is delivered right now; if one is still in-flight,
         // the typing dots come back and its result arrives live when it lands.
         com.gmwapp.hima.utils.SupportBotReplyKeeper.attach(sessionId, replyKeeperListener)
+        // BUG 18 — posted, so a result the keeper delivers synchronously inside
+        // attach() has already been applied before we judge whether the screen is
+        // stranded. If the keeper had our answer, this is a no-op.
+        binding.root.post { ensureUserCanAct() }
     }
 
     override fun onStop() {
@@ -538,64 +550,10 @@ class SupportBotActivity : BaseActivity() {
         // started before the user backed out is still delivered on return. The
         // keeper's listener calls handleReplyResult() below.
 
-        viewModel.feedbackLiveData.observe(this) { r ->
-            // The rating re-post's response is an acknowledgement only — the
-            // thank-you already showed in the sheet. Swallow it so the closing
-            // message is not rendered into the chat a second time.
-            if (awaitingRatingAck) {
-                awaitingRatingAck = false
-                return@observe
-            }
-
-            // The backend can RE-ASK for the problem in a text box instead of
-            // escalating: after "Still need help" on a non-problem, secondAttempt's
-            // needs_reply branch returns input_mode=text (step 3), NOT second_attempt
-            // and NOT escalated. Honor it — show the composer and keep the session
-            // OPEN so the typed reply routes back through reply(). This MUST run before
-            // the second_attempt/terminal branches below, which hardcode YESNO/NONE and
-            // otherwise hid the input entirely (QA video 27-Jul: the input box vanished
-            // after "Still need help", leaving a dead screen).
-            if (r.input_mode == BotInputMode.TEXT) {
-                botSays(r.ai_message, null)
-                showInput(BotInputMode.TEXT)
-                return@observe
-            }
-
-            // Spec #6 — the second, different attempt. No ticket yet; they get
-            // another Yes/No.
-            if (r.second_attempt) {
-                botSays(r.ai_message, null)
-                binding.tvFeedbackPrompt.text = r.feedback_prompt.orEmpty()
-                showInput(BotInputMode.YESNO)
-                return@observe
-            }
-
-            // Past the second attempt the session is terminal either way
-            // (resolved, or a ticket raised) — the next open should start
-            // fresh, not resume this closed conversation.
-            clearActiveSession()
-
-            botSays(r.ai_message, null)
-            ticketId = r.ticket_id
-
-            if (r.escalated && r.ticket_id != null) {
-                binding.tvViewTicket.text = getString(R.string.support_bot_view_ticket, r.ticket_id)
-                showInput(BotInputMode.NONE)
-                binding.tvViewTicket.visibility = View.VISIBLE
-                // Spec #7 — if the team is off shift, say when they'll look.
-                if (!r.out_of_hours.isNullOrBlank()) {
-                    adapter.addMessage(AiChatMessage(r.out_of_hours, isUser = false))
-                }
-                // Spec #8 — offered the moment a human is involved, which is
-                // when a screenshot stops being clutter and becomes evidence.
-                if (r.can_attach) offerAttachment(r.attach_prompt)
-            } else {
-                showInput(BotInputMode.NONE)
-                // Spec #9 — rating only after they confirmed it's resolved.
-                // Now a bottom-sheet popup, not an inline chat row.
-                if (r.ask_rating) showCsatSheet()
-            }
-        }
+        // Only the CSAT re-post still arrives here (see SupportBotViewModel.feedback);
+        // every user-facing Yes / "Still need help" tap now lands in
+        // handleFeedbackResult via the keeper so it survives back-navigation.
+        viewModel.feedbackLiveData.observe(this) { r -> handleFeedbackResult(r) }
 
         // Success body only (the ViewModel owns file cleanup and the in-flight
         // flag now). A server-side reject (too_many, etc.) still comes back as
@@ -649,6 +607,10 @@ class SupportBotActivity : BaseActivity() {
         viewModel.sessionLiveData.observe(this) { r ->
             adapter.hideTyping()
             renderResumedSession(r)
+            // BUG 18 — closes the loop on the guard: if this re-sync was triggered by
+            // ensureUserCanAct() and the server ALSO returns nothing actionable, the
+            // second call falls through to showRetry() rather than a blank bar.
+            ensureUserCanAct()
         }
 
         // Network/server trouble mid-conversation: stay in the chat and offer
@@ -835,6 +797,62 @@ class SupportBotActivity : BaseActivity() {
         }
     }
 
+    /**
+     * BUG 18 — the backstop that is meant to stop this class of bug recurring.
+     *
+     * This dead screen has now been reported three times, each time via a different
+     * route, because the screen has SEVEN showInput(NONE) call sites and every one of
+     * them leaves the user with nothing to tap until some LATER callback arrives with
+     * a real input_mode. Any way that later callback fails to arrive — a dropped
+     * observer, a killed Activity, a network stall, a server that answers something
+     * unexpected — strands the user. Patching the routes one at a time is why it keeps
+     * coming back; the previous two fixes each closed exactly one of them.
+     *
+     * So assert the invariant instead: WHEN IDLE, THE USER MUST HAVE AT LEAST ONE
+     * AFFORDANCE. Composer, yes/no, chips in the transcript, or the View-ticket
+     * button. If none of those is true we are stranded no matter how we got here, so
+     * re-sync from the server once — the session state there is authoritative and
+     * still correct. If even that yields nothing, fall back to the retry chip, which
+     * is always actionable.
+     *
+     * Deliberately cheap and idempotent: it only acts when the screen is genuinely
+     * dead, and self-heals at most once per Activity instance so a server that really
+     * has nothing to say can never spin.
+     */
+    private var selfHealAttempted = false
+
+    private fun ensureUserCanAct() {
+        if (busy) return                                   // request in flight; dots are up
+        if (sessionId <= 0) return                         // start()/retry owns this state
+        // The keeper is holding an answer for us (in-flight, or landed while we were
+        // away and not yet replayed). restoreFromCache() runs in onCreate, BEFORE the
+        // onStart attach() that sets busy, so without this check the guard would fire a
+        // session() fetch that races and duplicates the keeper's result — the exact
+        // hazard the bootstrap comment warns about. Let the keeper finish; its delivery
+        // sets a real input_mode, and the posted check in onStart re-runs this anyway.
+        if (com.gmwapp.hima.utils.SupportBotReplyKeeper.isBusyFor(sessionId)) return
+        if (currentInputMode == BotInputMode.TEXT) return
+        if (currentInputMode == BotInputMode.YESNO) return
+        if ((ticketId ?: 0) > 0) return                    // "View ticket #N" is the action
+        // Chips live in the transcript, not the input bar, and are a valid affordance
+        // (this also covers the retry chip, which is rendered the same way).
+        if (adapter.getMessages().any { !it.chips.isNullOrEmpty() }) return
+
+        if (selfHealAttempted) {
+            // Server had nothing actionable either — leave a retry rather than a
+            // blank bar, so there is always a way forward.
+            showRetry()
+            return
+        }
+        selfHealAttempted = true
+        android.util.Log.w(
+            "SupportBotFlow",
+            "dead-screen guard fired: session=$sessionId mode=$currentInputMode ticket=$ticketId — re-syncing"
+        )
+        adapter.showTyping()
+        viewModel.session(sessionId)
+    }
+
     private fun scrollToEnd() {
         val rv = binding.rvChat
         rv.post {
@@ -854,6 +872,73 @@ class SupportBotActivity : BaseActivity() {
      * so BOTH a live reply and one delivered late by [SupportBotReplyKeeper] (after
      * the user backed out and returned) render through the exact same path.
      */
+    /**
+     * BUG 18 — the feedback ("Yes" / "Still need help") response handler.
+     *
+     * Body is unchanged from the old feedbackLiveData observer; it just lives in a
+     * named function now so BOTH paths can run it: the keeper's onFeedbackResult
+     * (every user-facing tap, and the one that survives back-navigation) and the
+     * CSAT ack that still arrives on LiveData.
+     */
+    private fun handleFeedbackResult(r: com.gmwapp.hima.retrofit.responses.SupportBotFeedbackResponse) {
+        // The rating re-post's response is an acknowledgement only — the
+        // thank-you already showed in the sheet. Swallow it so the closing
+        // message is not rendered into the chat a second time.
+        if (awaitingRatingAck) {
+            awaitingRatingAck = false
+            return
+        }
+
+        // The backend can RE-ASK for the problem in a text box instead of
+        // escalating: after "Still need help" on a non-problem, secondAttempt's
+        // needs_reply branch returns input_mode=text (step 3), NOT second_attempt
+        // and NOT escalated. Honor it — show the composer and keep the session
+        // OPEN so the typed reply routes back through reply(). This MUST run before
+        // the second_attempt/terminal branches below, which hardcode YESNO/NONE and
+        // otherwise hid the input entirely (QA video 27-Jul: the input box vanished
+        // after "Still need help", leaving a dead screen).
+        if (r.input_mode == BotInputMode.TEXT) {
+            botSays(r.ai_message, null)
+            showInput(BotInputMode.TEXT)
+            return
+        }
+
+        // Spec #6 — the second, different attempt. No ticket yet; they get
+        // another Yes/No.
+        if (r.second_attempt) {
+            botSays(r.ai_message, null)
+            binding.tvFeedbackPrompt.text = r.feedback_prompt.orEmpty()
+            showInput(BotInputMode.YESNO)
+            return
+        }
+
+        // Past the second attempt the session is terminal either way
+        // (resolved, or a ticket raised) — the next open should start
+        // fresh, not resume this closed conversation.
+        clearActiveSession()
+
+        botSays(r.ai_message, null)
+        ticketId = r.ticket_id
+
+        if (r.escalated && r.ticket_id != null) {
+            binding.tvViewTicket.text = getString(R.string.support_bot_view_ticket, r.ticket_id)
+            showInput(BotInputMode.NONE)
+            binding.tvViewTicket.visibility = View.VISIBLE
+            // Spec #7 — if the team is off shift, say when they'll look.
+            if (!r.out_of_hours.isNullOrBlank()) {
+                adapter.addMessage(AiChatMessage(r.out_of_hours, isUser = false))
+            }
+            // Spec #8 — offered the moment a human is involved, which is
+            // when a screenshot stops being clutter and becomes evidence.
+            if (r.can_attach) offerAttachment(r.attach_prompt)
+        } else {
+            showInput(BotInputMode.NONE)
+            // Spec #9 — rating only after they confirmed it's resolved.
+            // Now a bottom-sheet popup, not an inline chat row.
+            if (r.ask_rating) showCsatSheet()
+        }
+    }
+
     private fun handleReplyResult(r: com.gmwapp.hima.retrofit.responses.SupportBotReplyResponse) {
         adapter.hideTyping()
         if (!r.success) {

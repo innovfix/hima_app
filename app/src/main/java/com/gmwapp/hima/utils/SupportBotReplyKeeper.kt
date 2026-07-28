@@ -2,6 +2,7 @@ package com.gmwapp.hima.utils
 
 import com.gmwapp.hima.repositories.SupportBotRepository
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.SupportBotFeedbackResponse
 import com.gmwapp.hima.retrofit.responses.SupportBotReplyResponse
 import retrofit2.Call
 import retrofit2.Response
@@ -32,6 +33,15 @@ object SupportBotReplyKeeper {
         fun onReplyLoading(loading: Boolean)
         fun onReplyResult(result: SupportBotReplyResponse)
         /**
+         * BUG 18 — a FEEDBACK result ("Yes" / "Still need help"). Kept here for the
+         * same reason as a reply: leaving the screen mid-feedback used to drop the
+         * answer permanently, because feedback ran on activity-scoped LiveData while
+         * only reply() had a keeper. The server had already advanced the session, so
+         * the returning screen repainted a stale cached input_mode=none and the user
+         * landed on a dead screen with no composer and no AI message.
+         */
+        fun onFeedbackResult(result: SupportBotFeedbackResponse)
+        /**
          * A reply failed. [retryAfterSeconds] > 0 means the server rate-limited us
          * (HTTP 429): the screen should show a short back-off and gate the retry for
          * that long, instead of an instant "Try again" that just fires another
@@ -44,6 +54,7 @@ object SupportBotReplyKeeper {
     private var pendingSessionId: Int = 0
     private var loading: Boolean = false
     private var storedResult: SupportBotReplyResponse? = null
+    private var storedFeedback: SupportBotFeedbackResponse? = null
     private var storedError: Boolean = false
     /** Seconds to wait before retrying, carried with a stored 429 error. */
     private var storedRetryAfter: Int = 0
@@ -56,7 +67,7 @@ object SupportBotReplyKeeper {
      */
     fun isBusyFor(sessionId: Int): Boolean =
         sessionId > 0 && pendingSessionId == sessionId &&
-            (loading || storedResult != null || storedError)
+            (loading || storedResult != null || storedFeedback != null || storedError)
 
     /** Fire a reply. Owns the call so it outlives the calling activity. */
     fun send(
@@ -93,6 +104,59 @@ object SupportBotReplyKeeper {
 
             override fun onFailure(call: Call<SupportBotReplyResponse>, t: Throwable) = deliverError(0)
         })
+    }
+
+    /**
+     * BUG 18 — fire a feedback tap ("Yes" / "Still need help"). Mirrors [send] exactly:
+     * the call is owned here, so backing out mid-feedback no longer abandons the answer.
+     */
+    fun sendFeedback(
+        repository: SupportBotRepository,
+        sessionId: Int,
+        solved: Int,
+        csat: Int?
+    ) {
+        pendingSessionId = sessionId
+        loading = true
+        storedResult = null
+        storedFeedback = null
+        storedError = false
+        storedRetryAfter = 0
+        listener?.onReplyLoading(true)
+        repository.feedback(sessionId, solved, csat, object : NetworkCallback<SupportBotFeedbackResponse> {
+            override fun onNoNetwork() = deliverError(0)
+
+            override fun onResponse(
+                call: Call<SupportBotFeedbackResponse>,
+                response: Response<SupportBotFeedbackResponse>
+            ) {
+                val body = response.body()
+                if (response.isSuccessful && body != null) {
+                    deliverFeedback(body)
+                } else {
+                    // The 2nd-attempt feedback re-runs the model, so it shares the
+                    // rate-limit bucket — same 429 back-off contract as a reply.
+                    val retryAfter = if (response.code() == 429)
+                        (response.headers()["Retry-After"]?.toIntOrNull()?.coerceIn(1, 60) ?: 5)
+                    else 0
+                    deliverError(retryAfter)
+                }
+            }
+
+            override fun onFailure(call: Call<SupportBotFeedbackResponse>, t: Throwable) = deliverError(0)
+        })
+    }
+
+    private fun deliverFeedback(r: SupportBotFeedbackResponse) {
+        loading = false
+        val l = listener
+        if (l != null) {
+            l.onReplyLoading(false)
+            l.onFeedbackResult(r)
+            storedFeedback = null
+        } else {
+            storedFeedback = r
+        }
     }
 
     private fun deliver(r: SupportBotReplyResponse) {
@@ -136,6 +200,12 @@ object SupportBotReplyKeeper {
             l.onReplyResult(r)
             return
         }
+        storedFeedback?.let { r ->
+            storedFeedback = null
+            l.onReplyLoading(false)
+            l.onFeedbackResult(r)
+            return
+        }
         if (storedError) {
             storedError = false
             l.onReplyLoading(false)
@@ -152,6 +222,7 @@ object SupportBotReplyKeeper {
         pendingSessionId = 0
         loading = false
         storedResult = null
+        storedFeedback = null
         storedError = false
         storedRetryAfter = 0
     }

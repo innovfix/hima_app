@@ -130,6 +130,24 @@ class SupportBotViewModel @Inject constructor(
     }
 
     fun feedback(sessionId: Int, solved: Boolean, csat: Int? = null) {
+        // BUG 18 — a "Yes" / "Still need help" tap goes through the app-scoped keeper,
+        // exactly like reply() above. It used to run on this activity-scoped LiveData,
+        // so backing out before the answer landed destroyed the observer and dropped
+        // the response for good — while the SERVER had already advanced the session.
+        // The returning screen then repainted its cached input_mode=none and the user
+        // got a dead screen: no AI message, no composer. Now the call outlives the
+        // Activity and its result is replayed on the next attach().
+        //
+        // The CSAT re-post is deliberately NOT routed here: it fires from the rating
+        // sheet after the session is already terminal and its response is an ack the
+        // screen swallows (awaitingRatingAck). Putting it in the keeper would leave a
+        // finished session looking "busy" and bring the typing dots back on next open.
+        if (csat == null) {
+            com.gmwapp.hima.utils.SupportBotReplyKeeper.sendFeedback(
+                repository, sessionId, if (solved) 1 else 0, null
+            )
+            return
+        }
         loadingLiveData.value = true
         repository.feedback(sessionId, if (solved) 1 else 0, csat, object : NetworkCallback<SupportBotFeedbackResponse> {
             override fun onNoNetwork() = fail("No internet connection")
