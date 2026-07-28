@@ -3671,7 +3671,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private fun setVideoChromeVisible(visible: Boolean) {
         if (!isVideoCallGoing || !::binding.isInitialized) return
         videoChromeVisible = visible
-        listOf(binding.topBar, binding.controlsContainer, binding.quickGiftSection).forEach { v ->
+        // timerContainer is listed explicitly: on the direct video screen it is a
+        // child of top_bar (so fading top_bar takes it along), but B041 moved it
+        // out to the root here to centre it on the screen. Without naming it, the
+        // timer pill stayed on screen after the 10s idle hide on a switched call.
+        listOf(
+            binding.topBar,
+            binding.timerContainer,
+            binding.controlsContainer,
+            binding.quickGiftSection
+        ).forEach { v ->
             v.animate().cancel()
             if (visible) {
                 v.visibility = View.VISIBLE
@@ -3698,7 +3707,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
         videoChromeVisible = true
         if (!::binding.isInitialized) return
-        listOf(binding.topBar, binding.controlsContainer, binding.quickGiftSection).forEach { v ->
+        listOf(
+            binding.topBar,
+            binding.timerContainer,
+            binding.controlsContainer,
+            binding.quickGiftSection
+        ).forEach { v ->
             v.animate().cancel()
             v.alpha = 1f
             v.visibility = View.VISIBLE

@@ -3632,7 +3632,15 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         videoChromeVisible = visible
         // Include the icebreaker hint button only when it's active for this call,
         // so a hidden/disabled button isn't force-shown when chrome re-appears.
-        val chrome = mutableListOf<View>(binding.topBar, binding.controlsContainer)
+        // timerContainer is listed explicitly: on the direct video screen it is a
+        // child of top_bar (so fading top_bar takes it along), but B041 moved it
+        // out to the root here to centre it on the screen. Without naming it, the
+        // timer pill stayed on screen after the 10s idle hide on a switched call.
+        val chrome = mutableListOf<View>(
+            binding.topBar,
+            binding.timerContainer,
+            binding.controlsContainer
+        )
         if (icebreakerActive) chrome.add(binding.icebreakerHintButton)
         chrome.forEach { v ->
             v.animate().cancel()
@@ -3661,7 +3669,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         chromeAutoHideHandler.removeCallbacks(chromeAutoHideRunnable)
         videoChromeVisible = true
         if (!::binding.isInitialized) return
-        listOf(binding.topBar, binding.controlsContainer).forEach { v ->
+        listOf(
+            binding.topBar,
+            binding.timerContainer,
+            binding.controlsContainer
+        ).forEach { v ->
             v.animate().cancel()
             v.alpha = 1f
             v.visibility = View.VISIBLE
