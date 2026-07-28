@@ -4387,6 +4387,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun showRemoteBlurState() {
+        // Bug #1 (round 2) — INVISIBLE, never GONE. GONE detaches the SurfaceView from
+        // the window, so Android DESTROYS its Surface. Agora's renderer keeps pointing at
+        // the dead one, so when the blur clears the view is visible but draws nothing: a
+        // transparent hole over the Light theme's WHITE window background, with the call
+        // chrome already auto-hidden after 10s idle = the blank white screen QA reported
+        // after a peer hid their face for 2-4 minutes. INVISIBLE keeps the Surface alive.
+
         if (isRemoteBlurVisible) return
         isRemoteBlurVisible = true
         binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
@@ -4404,8 +4411,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         card.scaleY = 0.96f
         card.alpha = 0f
         card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(220).start()
-        remoteSurfaceView?.visibility = View.GONE
-        binding.remoteVideoViewContainer.visibility = View.GONE
+        remoteSurfaceView?.visibility = View.INVISIBLE
+        binding.remoteVideoViewContainer.visibility = View.INVISIBLE
     }
 
     private fun hideRemoteBlurState() {
@@ -4423,7 +4430,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 overlay.alpha = 1f
             }.start()
         }
-        if (remoteSurfaceView == null && videoUid != 0) {
+        // Bug #1 (round 2) — rebind whenever we have a uid, not only when the view is
+        // null. The view object surviving does NOT mean its Surface did: if anything ever
+        // takes it GONE again, Agora is left rendering into a destroyed Surface and the
+        // screen goes blank. A rebind is cheap; a white screen for the rest of the call
+        // is not. (The INVISIBLE change above means this should now rarely be needed.)
+        if (videoUid != 0) {
             setupRemoteVideo(videoUid)
         } else {
             remoteSurfaceView?.visibility = View.VISIBLE
@@ -4459,8 +4471,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 if (isLocalNoFaceOverlayVisible) {
                     // Defer remote unblur until local overlay is dismissed
                     pendingRemoteBlurHide = true
-                    remoteSurfaceView?.visibility = View.GONE
-                    binding.remoteVideoViewContainer.visibility = View.GONE
+                    remoteSurfaceView?.visibility = View.INVISIBLE
+                    binding.remoteVideoViewContainer.visibility = View.INVISIBLE
                 } else {
                     hideRemoteBlurState()
                     pendingRemoteBlurHide = false

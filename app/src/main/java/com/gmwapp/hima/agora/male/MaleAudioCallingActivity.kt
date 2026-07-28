@@ -4196,6 +4196,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     private fun showRemoteBlurState() {
+        // Bug #1 (round 2) — INVISIBLE, never GONE. GONE detaches the SurfaceView from
+        // the window, so Android DESTROYS its Surface. Agora's renderer keeps pointing at
+        // the dead one, so when the blur clears the view is visible but draws nothing: a
+        // transparent hole over the Light theme's WHITE window background, with the call
+        // chrome already auto-hidden after 10s idle = the blank white screen QA reported
+        // after a peer hid their face for 2-4 minutes. INVISIBLE keeps the Surface alive.
+
         // "Host's video is blurred" is a video-only signal — never show it on an
         // audio call, whatever path called this (belt-and-braces alongside the
         // isVideoCallGoing guards at the call sites and the hide on switch-to-audio).
@@ -4217,8 +4224,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         card.scaleY = 0.96f
         card.alpha = 0f
         card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(220).start()
-        remoteSurfaceView?.visibility = View.GONE
-        binding.remoteVideoViewContainer.visibility = View.GONE
+        remoteSurfaceView?.visibility = View.INVISIBLE
+        binding.remoteVideoViewContainer.visibility = View.INVISIBLE
     }
 
     private fun hideRemoteBlurState() {
@@ -4259,8 +4266,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 if (isLocalNoFaceOverlayVisible) {
                     // Defer remote unblur until local overlay is dismissed
                     pendingRemoteBlurHide = true
-                    remoteSurfaceView?.visibility = View.GONE
-                    binding.remoteVideoViewContainer.visibility = View.GONE
+                    remoteSurfaceView?.visibility = View.INVISIBLE
+                    binding.remoteVideoViewContainer.visibility = View.INVISIBLE
                 } else {
                     hideRemoteBlurState()
                     pendingRemoteBlurHide = false
