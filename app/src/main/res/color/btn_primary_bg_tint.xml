@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    BUG 16 — fill for Widget.Hima.Button.Primary as a ColorStateList, NOT a flat
+    backgroundTint.
+
+    The Delete Account button ships android:enabled="false" until a reason is picked,
+    and delete_account_button_text_color was tuned in an earlier fix specifically
+    against a #D1D5DB disabled fill (white when enabled, #6B7280 when not, ~3:1).
+    A plain app:backgroundTint="@color/colorAccent" would let MaterialButton apply its
+    own default disabled overlay instead, silently undoing that contrast fix.
+
+    Keeping #D1D5DB here preserves it. Enabled state is flat brand pink — replacing the
+    old bg_btn_primary gradient (#EC4899 -> #D946EF), which was pink-to-PURPLE and not
+    the colorAccent every other action button uses.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="#D1D5DB" android:state_enabled="false" />
+    <item android:color="@color/colorAccent" />
+</selector>

@@ -524,24 +524,30 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Delete Button: canonical Hima primary CTA (bg_btn_primary — 52dp/r14/gradient, shared grey disabled) -->
-        <androidx.appcompat.widget.AppCompatButton
+        <!-- BUG 16 — was an AppCompatButton on bg_btn_primary: 52dp, r14, and filled with a
+             #EC4899 -> #D946EF pink-to-PURPLE gradient rather than brand colorAccent. QA
+             flagged both the shape and the colour against the Block/Cancel buttons.
+
+             Now on Widget.Hima.Button.Primary — the style B_042 already declared canonical
+             and whose own comment names "Delete Account" as a target it was never migrated
+             to (only Submit Ticket and the feedback dialog had adopted it).
+
+             Fill is btn_primary_bg_tint (a ColorStateList), not a flat tint, so the #D1D5DB
+             disabled fill survives — delete_account_button_text_color is tuned against it. -->
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_delete_account"
+            style="@style/Widget.Hima.Button.Primary"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:background="@drawable/bg_btn_primary"
+            android:layout_height="56dp"
             android:enabled="false"
-            android:fontFamily="@font/poppins_bold"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minHeight="0dp"
             android:text="@string/delete_account"
-            android:textAllCaps="false"
             android:textColor="@color/delete_account_button_text_color"
-            android:textSize="16sp"
-            android:shadowColor="#33000000"
-            android:shadowDx="0"
-            android:shadowDy="1"
-            android:shadowRadius="3"
             android:stateListAnimator="@null"
-            android:elevation="0dp" />
+            app:backgroundTint="@color/btn_primary_bg_tint"
+            app:elevation="0dp" />
 
     </LinearLayout>
     </LinearLayout>
