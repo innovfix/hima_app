@@ -99,7 +99,8 @@
             android:turnScreenOn="true" />
         <activity
             android:name=".AddUpiActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.DeepLinkActivity"
             android:exported="false" />

@@ -36,6 +36,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.gmwapp.hima.utils.applyImeAwareInsets
 
 @AndroidEntryPoint
 class EditProfileActivity : BaseActivity() {
@@ -54,11 +55,9 @@ class EditProfileActivity : BaseActivity() {
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
         enableEdgeToEdge()
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // BUG 10 — was a systemBars-only listener, so the keyboard covered the
+        // focused field and the form could not scroll. See applyImeAwareInsets.
+        applyImeAwareInsets(findViewById(R.id.main))
         initUI()
     }
 

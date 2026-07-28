@@ -58,6 +58,7 @@ import okhttp3.Response
 import org.json.JSONObject
 import retrofit2.Call
 import java.io.IOException
+import com.gmwapp.hima.utils.applyImeAwareInsets
 @AndroidEntryPoint
 class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     lateinit var binding: ActivityPaymentBinding
@@ -129,11 +130,9 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         enableEdgeToEdge()
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // BUG 10 — was a systemBars-only listener, so the keyboard covered the
+        // focused field and the form could not scroll. See applyImeAwareInsets.
+        applyImeAwareInsets(findViewById(R.id.main))
 
         getPaymentGateway()
         initUI()

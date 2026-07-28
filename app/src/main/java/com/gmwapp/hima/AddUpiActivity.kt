@@ -23,6 +23,7 @@ import android.text.TextWatcher
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyImeAwareInsets
 
 @AndroidEntryPoint
 class AddUpiActivity : AppCompatActivity() {
@@ -42,11 +43,9 @@ class AddUpiActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_add_upi)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // BUG 10 — was a systemBars-only listener, so the keyboard covered the
+        // focused field and the form could not scroll. See applyImeAwareInsets.
+        applyImeAwareInsets(findViewById(R.id.main))
         bindViews()
         setupListeners()
         observeViewModels()

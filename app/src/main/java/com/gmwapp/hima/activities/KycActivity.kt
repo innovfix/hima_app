@@ -33,6 +33,7 @@ import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.PanCardViewModel
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyImeAwareInsets
 
 @AndroidEntryPoint
 class KycActivity : AppCompatActivity() {
@@ -56,11 +57,9 @@ class KycActivity : AppCompatActivity() {
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // BUG 10 — was a systemBars-only listener, so the keyboard covered the
+        // focused field and the form could not scroll. See applyImeAwareInsets.
+        applyImeAwareInsets(findViewById(R.id.main))
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
         userData?.let { loginViewModel.login(it.mobile,"0","0") }
