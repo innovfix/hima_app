@@ -75,6 +75,7 @@
         android:layout_marginBottom="12dp" />
 
     <EditText
+        android:textCursorDrawable="@drawable/color_cursor"
         android:id="@+id/et_invite_code"
         android:layout_width="match_parent"
         android:layout_height="56dp"

@@ -285,6 +285,7 @@
                 android:paddingVertical="10dp">
 
                 <EditText
+                    android:textCursorDrawable="@drawable/color_cursor"
                     android:id="@+id/et_message"
                     android:layout_width="0dp"
                     android:layout_height="48dp"

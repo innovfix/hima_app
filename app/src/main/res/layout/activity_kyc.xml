@@ -179,6 +179,7 @@
                     android:textSize="12sp" />
 
                 <EditText
+                    android:textCursorDrawable="@drawable/color_cursor"
                     android:id="@+id/etPanName"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
@@ -213,6 +214,7 @@
                     android:textSize="12sp" />
 
                 <EditText
+                    android:textCursorDrawable="@drawable/color_cursor"
                     android:id="@+id/etPanNumber"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"

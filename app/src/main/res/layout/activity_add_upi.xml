@@ -177,6 +177,7 @@
                         app:cardBackgroundColor="@color/grey_extra_light">
 
                         <com.google.android.material.textfield.TextInputLayout
+                            app:cursorColor="@color/colorAccent"
                             android:id="@+id/til_upi"
                             style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
                             android:layout_width="match_parent"
@@ -191,6 +192,7 @@
                             app:endIconTint="@color/grey_medium">
 
                             <com.google.android.material.textfield.TextInputEditText
+                                android:textCursorDrawable="@drawable/color_cursor"
                                 android:id="@+id/et_upi_id"
                                 android:layout_width="match_parent"
                                 android:layout_height="56dp"

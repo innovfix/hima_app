@@ -162,6 +162,7 @@
 
                     <!-- Answer field -->
                     <com.google.android.material.textfield.TextInputLayout
+                        app:cursorColor="@color/colorAccent"
                         android:id="@+id/til_experience"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
@@ -175,6 +176,7 @@
                         app:hintTextColor="@color/colorAccent">
 
                         <com.google.android.material.textfield.TextInputEditText
+                            android:textCursorDrawable="@drawable/color_cursor"
                             android:id="@+id/et_experience"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"

@@ -144,6 +144,7 @@
                         android:padding="16dp">
 
                         <EditText
+                            android:textCursorDrawable="@drawable/color_cursor"
                             android:id="@+id/et_description"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"

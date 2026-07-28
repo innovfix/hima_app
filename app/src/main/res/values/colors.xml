@@ -44,6 +44,9 @@
     <color name="green">#019A66</color>
     <color name="online_green">#10B981</color>
     <color name="pink">#FF1381</color>
+    <!-- BUG 8 — text-selection highlight. 22% brand pink: dark enough to read as a
+         selection, light enough to keep the selected text legible on white. -->
+    <color name="pink_selection">#38FF1383</color>
     <color name="pink_bold">#C11063</color>
     <color name="pink_light">#FFA5CF</color>
     <color name="pink_extra_light">#FFC0D4</color>

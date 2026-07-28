@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" >
     <size android:width="2dp" />
-    <solid android:color="@color/pink"  />
+    <!-- BUG 8 — was @color/pink (#FF1381). The app had three near-identical pinks in
+         play for cursors (#ff1383 / #FF1381 / #ff0d4a); they all collapse onto the
+         one brand colour here. -->
+    <solid android:color="@color/colorAccent"  />
 </shape>

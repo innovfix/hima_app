@@ -82,6 +82,7 @@
                 app:singleSelection="true" />
 
             <com.google.android.material.textfield.TextInputLayout
+                app:cursorColor="@color/colorAccent"
                 android:id="@+id/til_reason_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

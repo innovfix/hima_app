@@ -132,7 +132,7 @@
                 android:text=""
                 android:inputType="textPersonName"
                 android:padding="@dimen/_14sdp"
-                android:textCursorDrawable="@color/colorPrimaryDark"
+                android:textCursorDrawable="@drawable/color_cursor"
                 android:textSize="@dimen/_12sdp" />
 
             <!-- Account Number -->
@@ -203,6 +203,7 @@
                 android:textSize="@dimen/_12sdp" />
 
             <EditText
+                android:textCursorDrawable="@drawable/color_cursor"
                 android:id="@+id/etIfsccode"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -241,7 +242,7 @@
                 android:text="Bank"
                 android:inputType="textPersonName"
                 android:padding="@dimen/_14sdp"
-                android:textCursorDrawable="@color/colorPrimaryDark"
+                android:textCursorDrawable="@drawable/color_cursor"
                 android:textSize="@dimen/_12sdp" />
 
             <!-- Branch Name -->
@@ -269,7 +270,7 @@
                 android:inputType="textPersonName"
                 android:text="Branch"
                 android:padding="@dimen/_14sdp"
-                android:textCursorDrawable="@color/colorPrimaryDark"
+                android:textCursorDrawable="@drawable/color_cursor"
                 android:textSize="@dimen/_12sdp" />
 
             <com.google.android.material.button.MaterialButton

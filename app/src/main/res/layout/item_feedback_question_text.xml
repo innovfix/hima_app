@@ -25,6 +25,7 @@
         android:visibility="gone" />
 
     <com.google.android.material.textfield.TextInputLayout
+        app:cursorColor="@color/colorAccent"
         android:id="@+id/tilAnswer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -38,6 +39,7 @@
         app:hintEnabled="false">
 
         <com.google.android.material.textfield.TextInputEditText
+            android:textCursorDrawable="@drawable/color_cursor"
             android:id="@+id/etAnswer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -94,6 +94,7 @@
                         android:contentDescription="@string/chat_search_desc" />
 
                     <EditText
+                        android:textCursorDrawable="@drawable/color_cursor"
                         android:id="@+id/et_search"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"

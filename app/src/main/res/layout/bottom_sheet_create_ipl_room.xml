@@ -108,6 +108,7 @@
         android:fontFamily="@font/poppins_medium"/>
 
     <com.google.android.material.textfield.TextInputLayout
+        app:cursorColor="@color/colorAccent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
@@ -123,6 +124,7 @@
         app:counterMaxLength="30">
 
         <com.google.android.material.textfield.TextInputEditText
+            android:textCursorDrawable="@drawable/color_cursor"
             android:id="@+id/et_room_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -107,6 +107,7 @@
 
         <!-- Description Input (for ratings < 4) -->
         <com.google.android.material.textfield.TextInputLayout
+            app:cursorColor="@color/colorAccent"
             android:id="@+id/tilDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -123,6 +124,7 @@
             app:boxStrokeWidth="2dp">
 
             <com.google.android.material.textfield.TextInputEditText
+                android:textCursorDrawable="@drawable/color_cursor"
                 android:id="@+id/etDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

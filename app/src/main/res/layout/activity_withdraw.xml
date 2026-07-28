@@ -532,7 +532,7 @@
                                             android:fontFamily="@font/poppins_medium"
                                             android:inputType="text|textNoSuggestions"
                                             android:imeOptions="actionDone"
-                                            android:textCursorDrawable="@color/black_light" />
+                                            android:textCursorDrawable="@drawable/color_cursor" />
 
                                         <TextView
                                             android:id="@+id/tv_verify"
