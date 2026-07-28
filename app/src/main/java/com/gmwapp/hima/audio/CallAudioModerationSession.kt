@@ -10,22 +10,26 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.File
-import java.io.RandomAccessFile
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.zip.CRC32
 
 /**
- * Turns the local-mic extractor into one VAD-trimmed WAV per call and hands it to the
- * uploader.
+ * Turns the local-mic extractor into one AAC recording of the whole call and hands it to
+ * the uploader.
  *
- * Capture requires ALL of: the server's capture_enabled (which already folds in the master
- * switch, app version, consent row and spend ceiling) AND this call being in the sample.
- * The client is never the authority — every check is repeated server-side on upload — but
- * doing them here means unsampled audio is never recorded, never written to disk and never
- * sent, which is what makes the sample rate a real ceiling on cost rather than a filter
- * applied after the money is spent.
+ * Capture requires the server's capture_enabled, which already folds in the master switch,
+ * app version, consent row and spend ceiling. The client is never the authority — every
+ * check is repeated server-side on upload.
+ *
+ * Two deliberate changes from the original design, both because the recording is now the
+ * product rather than a disposable input to the AI:
+ *
+ *  - The FULL call is written, not just VAD-trimmed speech. Trimming destroyed the timing
+ *    of the conversation, so the file was useless as a record of what happened.
+ *  - There is no client-side sampling. Every eligible call is recorded and stored, and the
+ *    SERVER decides which recordings are analysed. Skipping on the device used to be free
+ *    because the audio was deleted after analysis anyway; now a call skipped here is gone.
  */
 class CallAudioModerationSession(
     context: Context,
@@ -56,10 +60,14 @@ class CallAudioModerationSession(
 
     private val vad = EnergyVoiceActivityDetector()
     private val writeLock = Any()
-    private var writer: RandomAccessFile? = null
-    private var wavFile: File? = null
+    private var recorder: AacAudioRecorder? = null
+    private var audioFile: File? = null
     private var pcmBytes = 0
     private var capturedMs = 0L
+    // Speech is no longer what gets written — the FULL call is. It is still measured,
+    // because the server stores it and the moderation pipeline uses it to size the model's
+    // token budget, and because a call with no speech in it is not worth uploading.
+    private var speechBytes = 0
     private var capturedCallId = 0
     private var capReached = false
 
@@ -103,10 +111,10 @@ class CallAudioModerationSession(
         val cfg = config ?: return // config not here yet; prepare()'s callback will retry
         val callId = callIdProvider()
         if (!cfg.captureEnabled || cfg.consentVersion.isBlank() || callId <= 0) return
-        if (!isCallSampled(callId, cfg.sampleRate)) {
-            Log.d(TAG, "Call $callId not in the ${cfg.sampleRate}% sample — not recording")
-            return
-        }
+        // No client-side sampling any more. Every eligible call is recorded and stored; the
+        // SERVER decides which recordings get analysed. Sampling on the device made sense
+        // when audio existed only to be moderated and was deleted straight after — now the
+        // recording is the product, and a call skipped here is gone for good.
         if (!capturing.compareAndSet(false, true)) return // already recording
 
         val engine = engineProvider()
@@ -116,16 +124,17 @@ class CallAudioModerationSession(
         }
 
         val opened = synchronized(writeLock) {
-            if (writer != null) return@synchronized true
+            if (recorder != null) return@synchronized true
             runCatching {
                 val dir = File(appContext.cacheDir, CallAudioUploadWorker.CACHE_DIRECTORY)
                 check(dir.exists() || dir.mkdirs()) { "cannot create audio cache dir" }
-                val file = File(dir, "call-$callId-${System.currentTimeMillis()}.wav")
-                val raf = RandomAccessFile(file, "rw")
-                raf.write(ByteArray(Pcm16WavEncoder.HEADER_BYTES))
-                wavFile = file
-                writer = raf
+                val file = File(dir, "call-$callId-${System.currentTimeMillis()}.m4a")
+                val enc = AacAudioRecorder(sampleRateHz = SAMPLE_RATE_HZ, bitRate = AAC_BIT_RATE)
+                check(enc.start(file)) { "AAC encoder unavailable" }
+                audioFile = file
+                recorder = enc
                 pcmBytes = 0
+                speechBytes = 0
                 capturedMs = 0
                 capReached = false
                 capturedCallId = callId
@@ -179,33 +188,43 @@ class CallAudioModerationSession(
             }
         }
 
-        val speech = vad.trimToSpeech(chunk.pcm16Le, chunk.sampleRateHz, from, unique)
         capturedMs += chunk.durationMs
-        if (speech.isEmpty()) return
 
-        // Byte ceiling. Write only what fits under MAX_PCM_BYTES (aligned to a 2-byte
-        // sample), then stop — the file stays uploadable and we keep the opening minutes
-        // instead of the server rejecting an oversized WAV and the worker deleting it all.
+        // The FULL call is written now, silence included. Previously only the VAD-trimmed
+        // speech was kept, which made the recording useless as a record of the call: pauses
+        // collapsed, timing was destroyed, and a reviewer could not tell a two-second gap
+        // from a two-minute one. The VAD result is still measured — the server needs
+        // speech_ms, and it decides whether the call is worth analysing at all — but it no
+        // longer decides what is stored.
+        // voicedRanges rather than trimToSpeech: we only need the LENGTH, and
+        // trimToSpeech allocates and copies the speech itself — up to ~1 MB per 30s
+        // chunk, thrown away immediately. That is avoidable GC churn during a call.
+        speechBytes += vad.voicedRanges(chunk.pcm16Le, chunk.sampleRateHz, from, unique)
+            .sumOf { it.last - it.first + 1 }
+
+        // Byte ceiling against the raw PCM fed in. AAC output is ~8x smaller, so this is a
+        // generous bound in practice; it exists so a pathologically long call cannot fill
+        // the user's cache or produce a file the server will reject.
         val room = (MAX_PCM_BYTES - pcmBytes).let { it - (it % 2) }
         if (room <= 0) {
             capReached = true
             return
         }
-        val toWrite = if (speech.size > room) speech.copyOf(room) else speech
+        val length = minOf(unique, room)
 
         synchronized(writeLock) {
-            val raf = writer ?: return
+            val enc = recorder ?: return
             runCatching {
-                raf.write(toWrite)
-                pcmBytes += toWrite.size
+                enc.write(chunk.pcm16Le, from, length)
+                pcmBytes += length
             }.onFailure { Log.w(TAG, "Audio write failed: ${it.message}") }
         }
         if (pcmBytes >= MAX_PCM_BYTES) capReached = true
     }
 
     /**
-     * Closes the WAV and queues it. Nothing is uploaded if the call produced no speech —
-     * an empty track costs money to transcribe and tells a reviewer nothing.
+     * Finalises the M4A and queues it. Nothing is uploaded if the call produced no speech —
+     * a recording of silence costs storage and tells a reviewer nothing.
      */
     fun finishCall(expectedCallId: Int) {
         // Cancel any deferred start FIRST: a fast-answered call can end before its config
@@ -213,29 +232,36 @@ class CallAudioModerationSession(
         // hangup would start a zombie recording of a call that is already over.
         startRequested = false
         if (expectedCallId <= 0 || expectedCallId != capturedCallId) return
+        // Dispose the extractor BEFORE stopping the encoder: its dispose() blocks until the
+        // final flush has actually written, so the tail of the call reaches the encoder
+        // before the container is closed. Reversing these loses the last chunk, and on a
+        // short call that chunk IS the call.
         extractor?.dispose()
         extractor = null
 
         val file: File
-        val bytes: Int
         val durationMs: Long
+        val speechMs: Long
+        val finalised: Boolean
         synchronized(writeLock) {
-            val raf = writer ?: return
-            file = wavFile ?: return
-            bytes = pcmBytes
+            val enc = recorder ?: return
+            file = audioFile ?: return
             durationMs = capturedMs
-            writer = null
-            wavFile = null
-            runCatching {
-                raf.seek(0)
-                raf.write(Pcm16WavEncoder.monoHeader(bytes, SAMPLE_RATE_HZ))
-                raf.fd.sync()
-                raf.close()
-            }.onFailure { Log.w(TAG, "Unable to finalise WAV: ${it.message}") }
+            speechMs = speechBytes.toLong() * 1000L / (SAMPLE_RATE_HZ * BYTES_PER_SAMPLE)
+            recorder = null
+            audioFile = null
+            finalised = enc.stop()
         }
 
-        val speechMs = bytes.toLong() * 1000L / (SAMPLE_RATE_HZ * 2L)
-        if (bytes <= 0 || speechMs < MIN_SPEECH_MS) {
+        // A failed finalise means no moov atom — the MP4 is unplayable no matter its size,
+        // so there is nothing worth uploading or keeping.
+        if (!finalised) {
+            file.delete()
+            Log.w(TAG, "Call $expectedCallId produced no usable recording")
+            return
+        }
+
+        if (speechMs < MIN_SPEECH_MS) {
             file.delete()
             Log.d(TAG, "Call $expectedCallId had ${speechMs}ms of speech — nothing worth uploading")
             return
@@ -263,25 +289,11 @@ class CallAudioModerationSession(
 
     private fun closeAndDiscard() {
         synchronized(writeLock) {
-            runCatching { writer?.close() }
-            writer = null
-            wavFile?.delete()
-            wavFile = null
+            runCatching { recorder?.stop() }
+            recorder = null
+            audioFile?.delete()
+            audioFile = null
         }
-    }
-
-    /**
-     * Must agree with CallAudioModerationGate::isCallSampled byte-for-byte, or the client
-     * uploads audio the server rejects (wasted bandwidth) or skips calls the server expects.
-     * Verified 2026-07-17: crc32("hima-audio-42") == 3185532901 in both PHP and Java.
-     * Hashed on callId ALONE so both participants' devices independently agree and a sampled
-     * call yields both microphones or neither.
-     */
-    private fun isCallSampled(callId: Int, rate: Int): Boolean {
-        if (rate <= 0) return false
-        if (rate >= 100) return true
-        val crc = CRC32().apply { update("hima-audio-$callId".toByteArray(Charsets.US_ASCII)) }.value
-        return (crc % 100) < rate
     }
 
     private fun fetchConfig(): Config? {
@@ -313,14 +325,26 @@ class CallAudioModerationSession(
     private companion object {
         private const val TAG = "CallAudioModeration"
         private const val SAMPLE_RATE_HZ = 16_000
+        private const val BYTES_PER_SAMPLE = 2
         private const val MIN_SPEECH_MS = 1_000L
-        // Hard byte ceiling on the PCM payload. The server rejects a WAV over ~12 MiB, and
-        // the upload worker then DELETES it — so an oversized file loses the whole call.
-        // Capping here keeps the first ~6.5 min of *speech* (16 kHz mono = 32 KB/s, so
-        // 12 MiB ≈ 393 s of voiced audio; VAD trimming means far more wall-clock than that).
-        // The 4 KB margin leaves room for the 44-byte header. Independent of max_minutes,
-        // which caps wall-clock; this caps bytes so upload can never be rejected for size.
-        private const val MAX_PCM_BYTES = 12_582_912 - 4_096
+
+        /**
+         * AAC-LC at 32 kbps mono. 4 KB/s against raw PCM's 32 KB/s, so an average 97-second
+         * call goes from 3.1 MB to 388 KB leaving the user's phone. Speech at 16 kHz mono
+         * survives this comfortably; the model bills per second of duration rather than per
+         * byte, so the compression costs nothing in transcription accuracy or spend.
+         */
+        private const val AAC_BIT_RATE = 32_000
+
+        /**
+         * Ceiling on RAW PCM fed to the encoder, not on the output file. AAC at 32 kbps is
+         * ~8x smaller than the PCM feeding it, so 320 MiB of PCM encodes to roughly 40 MB —
+         * comfortably under the 45 MB the uploader allows and the 50M that nginx and
+         * php-fpm enforce on prod. That is ~2.8 hours of call at 16 kHz mono. A runaway
+         * guard, not a feature cap: whole calls are meant to be kept, and audio_max_minutes
+         * remains the admin-facing control.
+         */
+        private const val MAX_PCM_BYTES = 320 * 1024 * 1024
         private val CLIENT = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)

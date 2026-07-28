@@ -24,7 +24,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** Uploads one call's VAD-trimmed local-mic WAV for moderation, then deletes it. */
+/** Uploads one call's local-mic recording (AAC/M4A, whole call) for moderation, then deletes it. */
 class CallAudioUploadWorker(
     appContext: Context,
     workerParams: WorkerParameters,
@@ -72,7 +72,7 @@ class CallAudioUploadWorker(
             .addFormDataPart("consent_version", consentVersion)
             .addFormDataPart("duration_ms", durationMs.toString())
             .addFormDataPart("speech_ms", speechMs.toString())
-            .addFormDataPart("audio", audio.name, audio.asRequestBody("audio/wav".toMediaType()))
+            .addFormDataPart("audio", audio.name, audio.asRequestBody("audio/mp4".toMediaType()))
             .build()
 
         val request = Request.Builder()
@@ -145,9 +145,15 @@ class CallAudioUploadWorker(
         private const val MAX_ATTEMPTS = 6
         private const val MIN_DURATION_MS = 1_000L
         private const val MAX_DURATION_MS = 36_000_000L
-        private const val MIN_WAV_BYTES = 45L
-        // Must stay <= the server's max_upload_bytes (12 MB) or every upload 422s.
-        private const val MAX_WAV_BYTES = 12_582_912L
+        // An MP4 with a moov atom and one AAC frame is a few hundred bytes; anything under
+        // this is a truncated container that will not decode.
+        private const val MIN_WAV_BYTES = 256L
+        // Must stay <= the server's max_upload_bytes or every upload 422s, AND under the
+        // stack's real ceiling: nginx client_max_body_size and php-fpm upload_max_filesize
+        // are both 50M on prod, so anything above that is rejected before Laravel sees it.
+        // 45 MB leaves room for multipart overhead and is ~3.2 hours at 32 kbps — longer
+        // than any real call, and still 8x smaller per minute than the WAV it replaces.
+        private const val MAX_WAV_BYTES = 47_185_920L
         private val PERMANENT_CODES = setOf(403, 404, 409, 422, 426)
 
         private const val KEY_CALL_ID = "call_id"

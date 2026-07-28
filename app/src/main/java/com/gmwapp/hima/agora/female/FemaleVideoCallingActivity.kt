@@ -395,6 +395,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private var agoraEngine: RtcEngine? = null
     private var callModerationCaptureManager: com.gmwapp.hima.utils.CallModerationCaptureManager? = null
+    // AUDIO_IN_VIDEO_CALLS_2026_07_28 — video calls carry a microphone exactly like audio
+    // calls do; only the snapshot side was ever wired here, so ~70% of call volume was
+    // recording no audio at all. Same class, same lifecycle as the audio screens.
+    private var audioModerationSession: com.gmwapp.hima.audio.CallAudioModerationSession? = null
 
     // In-call "on hold" signaling over the Agora data stream — tells the peer
     // when we step away for a cellular / VoIP call so they see a dedicated
@@ -617,6 +621,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             // audio in the expected output immediately (also helps Bluetooth/headset).
             agoraEngine!!.setDefaultAudioRoutetoSpeakerphone(true)
             agoraEngine!!.setEnableSpeakerphone(isSpeakerOn)
+            // prepare() fetches the moderation config during ring, so a fast-answered
+            // call does not lose its opening words waiting on HTTP.
+            audioModerationSession?.dispose()
+            audioModerationSession = com.gmwapp.hima.audio.CallAudioModerationSession(
+                context = this,
+                callIdProvider = { call_Id },
+                engineProvider = { agoraEngine },
+            ).also { it.prepare() }
             Log.d("AgoraTiming", "FemaleVideo setupVideoSDKEngine done at ${System.currentTimeMillis()}")
 
             audioRouter?.release()
@@ -693,6 +705,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             if (muted) {
                 if (!mutedByInterrupt) {
                     mutedByInterrupt = true
+                    audioModerationSession?.setPaused(true)
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(true)
                     // B148: stop PLAYING the remote audio locally — Spotify (resumed mid-call)
                     // mixes with the caller's voice out of the same speaker otherwise.
@@ -719,6 +732,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 }
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
+                    audioModerationSession?.setPaused(isMuted)
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
                     agoraEngine?.muteAllRemoteAudioStreams(false)
                     agoraEngine?.muteAllRemoteVideoStreams(false)
@@ -1608,6 +1622,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     override fun onDestroy() {
         audioRouteExecutor.shutdown() // B_009 follow-up: stop the audio-route worker
         callModerationCaptureManager?.dispose()
+        // dispose() routes through finishCall(), which finalises the M4A and enqueues
+        // the upload, so the recording survives the activity going away.
+        audioModerationSession?.dispose()
+        audioModerationSession = null
         super.onDestroy()
         stopBonusTicker() // F1: stop the independent bonus clock so it can't leak past the call
         bonusAnchorFallbackHandler.removeCallbacksAndMessages(null) // F1: cancel any pending anchor
@@ -1786,6 +1804,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 )
             }
             callModerationCaptureManager?.startAfterPeerConnected()
+            audioModerationSession?.startAfterPeerConnected(initiallyPaused = isMuted || mutedByInterrupt)
 
             // F1 Call Duration Bonus — pull the LATEST config before popups start so admin
             // edits reflect on THIS call, then anchor once (guarded so reconnect doesn't
@@ -3120,6 +3139,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private fun toggleMute() {
         isMuted = !isMuted
+        // Agora keeps delivering local mic frames while muted (mute stops publishing,
+        // not capture), so the recorder must be paused explicitly or it would capture
+        // speech the user believes is private.
+        audioModerationSession?.setPaused(isMuted || mutedByInterrupt)
         // BUG 27 — Agora gates the mic in TWO independent places and both must be
         // kept in step: muteLocalAudioStream() mutes the stream, while
         // publishMicrophoneTrack decides whether the mic track is published to the
