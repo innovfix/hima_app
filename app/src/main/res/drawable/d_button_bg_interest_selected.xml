@@ -1,9 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Selected state for every chip in the app: Delete Account reasons
+  (DeleteReasonAdapter), the interests pickers (InterestsListAdapter,
+  MaleInterestsListAdapter, InterestsReviewListAdapter) and the post-call rating
+  feedback (RatingActivity).
+
+  BUG #5 — this used to be violet (#7C3AED border on a #F5F3FF fill), which was never
+  themed: nothing else on those screens is violet, so a selected reason looked like it
+  belonged to a different app than the pink CTA directly below it. Now brand pink.
+
+  The star-creator purple (ic_member_star, activity_star_creator_applied, the earnings
+  cell header) is a DIFFERENT, deliberate #7C3AED and is intentionally untouched.
+
+  All five adapters reference this drawable, so the colour lives here only — do not
+  hardcode a selected-chip colour at a call site.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#F5F3FF" />
+    <solid android:color="@color/chip_selected_bg" />
     <corners android:radius="20dp" />
     <stroke
         android:width="2dp"
-        android:color="#7C3AED" />
+        android:color="@color/colorAccent" />
 </shape>

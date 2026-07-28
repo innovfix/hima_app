@@ -18,7 +18,13 @@
     <color name="black_background">#161a1d</color>
     <color name="blue_background">#1a0042</color>
     <color name="interest_text_color">#334155</color>
-    <color name="interest_selected_text_color">#7C3AED</color>
+    <!-- BUG #5 — was #7C3AED. Referenced nowhere today (every adapter sets black on a
+         selected chip), but leaving a violet named "selected" in the palette is how the
+         off-brand colour would come back. Points at the brand pink now. -->
+    <color name="interest_selected_text_color">@color/colorAccent</color>
+    <!-- BUG #5 — fill behind a selected chip. Pink counterpart of the violet #F5F3FF it
+         replaces; black text on it measures 17.9:1, well past AA. -->
+    <color name="chip_selected_bg">#FFF0F7</color>
     <color name="transaction_text_color">#f4f5f7</color>
     <color name="interest_disabled_text_color">#9CA3AF</color>
     <color name="yellow">#f5e77e</color>
