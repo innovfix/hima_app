@@ -282,22 +282,37 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
                 }
             }
             // The sheet draws to the screen bottom (behind the nav bar), so the last row
-            // ("View more plans") was clipped by the navigation bar. The old one-shot
-            // getRootWindowInsets() read fired before insets were dispatched (navInset=0),
-            // so the padding never grew — BUG #24. Use an inset listener, and take
-            // max(baseGap, navInset) — NOT baseGap + navInset — so 3-button nav just
-            // clears the bar without stacking an extra 20dp on top of it. Gesture nav
-            // (navInset≈0) keeps the 20dp resting gap; no wasted space either way.
+            // ("View more plans") is covered by the navigation bar and needs a manual
+            // scroll to reach — BUG #7 / #24.
+            //
+            // Two earlier attempts both read the inset from b.llWelcomeContent and both
+            // returned 0. Material inflates every sheet into design_bottom_sheet_dialog,
+            // whose top two containers (#container and #coordinator) BOTH declare
+            // android:fitsSystemWindows="true" — i.e. they consume the system-window
+            // insets and hand their children the leftovers. Our content sits four levels
+            // below that, so getInsets(navigationBars()).bottom is always 0 there and
+            // max(20dp, 0) stayed 20dp on every device. Switching a one-shot read to an
+            // inset listener changed WHEN we read, not WHERE, so it changed nothing.
+            //
+            // Read above that chain instead: the host Activity's decorView sees the real,
+            // unconsumed insets and is already laid out by the time a sheet opens, so the
+            // value is correct and available immediately — no dispatch dependency at all.
+            //
+            // max(baseGap, navInset) — NOT baseGap + navInset — so 3-button nav clears the
+            // bar without stacking an extra 20dp on top of it, and gesture nav (navInset≈0)
+            // keeps the 20dp resting gap. No wasted space either way.
             _binding?.let { b ->
                 val baseGap = (20 * resources.displayMetrics.density).toInt()
-                androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(b.llWelcomeContent) { v, insets ->
-                    val navInset = insets.getInsets(
-                        androidx.core.view.WindowInsetsCompat.Type.navigationBars()
-                    ).bottom
-                    v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, maxOf(baseGap, navInset))
-                    insets
-                }
-                androidx.core.view.ViewCompat.requestApplyInsets(b.llWelcomeContent)
+                val navInset = androidx.core.view.ViewCompat
+                    .getRootWindowInsets(requireActivity().window.decorView)
+                    ?.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+                    ?.bottom ?: 0
+                b.llWelcomeContent.setPadding(
+                    b.llWelcomeContent.paddingLeft,
+                    b.llWelcomeContent.paddingTop,
+                    b.llWelcomeContent.paddingRight,
+                    maxOf(baseGap, navInset)
+                )
             }
         }
         return dialog
