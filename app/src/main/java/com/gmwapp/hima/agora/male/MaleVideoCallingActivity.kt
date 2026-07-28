@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.TextureView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -124,6 +125,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 
 @AndroidEntryPoint
@@ -316,7 +318,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     // B176: tracks whether we muted local video for background/lock so onResume can restore it.
     private var videoMutedForBackground = false
 
-    private var localSurfaceView: SurfaceView? = null
+    // BUG 25 — TextureView, not SurfaceView. A SurfaceView with
+    // setZOrderMediaOverlay(true) is composited ABOVE the whole window, so nothing
+    // drawn in the window (the gift takeover, dialogs) could ever cover it — which is
+    // why animateGift() used to blank the local preview for ~3.3s. A TextureView
+    // lives inside the view hierarchy, so overlays compose above it normally and the
+    // selfie stays live. Do NOT call setZOrderMediaOverlay on this.
+    private var localVideoView: TextureView? = null
 
     // @Volatile: see videoUid — touched from the Agora callback thread and the
     // UI thread; the recovery guard in onRemoteVideoStateChanged reads it [TC_007].
@@ -725,8 +733,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         )
         
         // ✅ Set status bar and navigation bar to black with light icons
-        window.statusBarColor = android.graphics.Color.BLACK
-        window.navigationBarColor = android.graphics.Color.BLACK
+        applyImmersiveSystemBars()
         
         // Make status bar icons light (white) so they're visible on black background
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -982,25 +989,21 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun animateGift(image: String) {
-        // Cinematic gift moment — shared GiftCinema overlay. Video call uses
-        // LITE mode (fewer particles, no god-rays) to protect call quality,
-        // and the local selfie PiP (a media-overlay surface composited ABOVE
-        // the normal view hierarchy) is hidden for the takeover then restored
-        // so it can't punch through the full-screen animation.
+        // Cinematic gift moment — shared GiftCinema overlay. Video call uses LITE
+        // mode (fewer particles, no god-rays) to protect call quality.
+        //
+        // BUG 25 — the selfie PiP is no longer hidden for the takeover. It used to be
+        // a SurfaceView with setZOrderMediaOverlay(true), composited above the window,
+        // so the full-screen animation could not cover it and the only way to stop it
+        // punching through was to blank it for the ~3.3s the animation ran — which QA
+        // reported as your own video going black. It is a TextureView now (see
+        // setupLocalVideo), so the overlay composes above it and the preview stays live.
         BaseApplication.getInstance()?.playSendGiftSound()
         com.gmwapp.hima.widgets.GiftCinema.send(
             activity = this,
             giftUrl = image,
             recipientView = binding.remoteVideoViewContainer,
-            lite = true,
-            onStart = {
-                localSurfaceView?.visibility = View.INVISIBLE
-                localPreviewSurface?.visibility = View.INVISIBLE
-            },
-            onEnd = {
-                localSurfaceView?.visibility = View.VISIBLE
-                localPreviewSurface?.visibility = View.VISIBLE
-            }
+            lite = true
         )
     }
 
@@ -2177,22 +2180,23 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun setupLocalVideo() {
-        localSurfaceView = SurfaceView(baseContext)
-        // Insert the surface at index 0 (below the overlay children). A
-        // below-window SurfaceView punches a transparent hole where it draws;
-        // if it were added on top of iv_self_mic_muted that hole would erase
-        // the self-mute badge. Keeping it at the bottom lets the badge show.
-        binding.localVideoViewContainer.addView(localSurfaceView, 0)
-        localSurfaceView!!.setZOrderMediaOverlay(true)
-        // B124: forward touches from the SurfaceView (which lives on a
-        // separate compositor layer due to setZOrderMediaOverlay) into the
-        // CardView's drag listener. Without this, Redmi/MIUI users can't
-        // drag the local preview because the touch never reaches the CardView.
-        localSurfaceView!!.setOnTouchListener(localPreviewTouchListener)
+        localVideoView = TextureView(baseContext)
+        // Index 0 keeps the preview below its overlay siblings so the self-mute
+        // badge (iv_self_mic_muted) still draws on top of it.
+        binding.localVideoViewContainer.addView(localVideoView, 0)
+        // BUG 25 — no setZOrderMediaOverlay here. That flag is what pushed the old
+        // SurfaceView onto its own compositor layer above the window and forced
+        // animateGift() to blank the preview for the whole gift takeover. A
+        // TextureView draws in the hierarchy, so it still sits above the remote
+        // feed (which is a below-window SurfaceView) and the gift overlay now
+        // covers it correctly without hiding anything.
+        // B124: keep forwarding touches to the CardView drag listener so the
+        // local preview can still be dragged.
+        localVideoView!!.setOnTouchListener(localPreviewTouchListener)
 
         agoraEngine!!.setupLocalVideo(
             VideoCanvas(
-                localSurfaceView,
+                localVideoView,
                 VideoCanvas.RENDER_MODE_HIDDEN,
                 0
             )
@@ -2497,7 +2501,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
             if (cameraOk) {
                 setupLocalVideo()
-                localSurfaceView!!.visibility = View.VISIBLE
+                localVideoView!!.visibility = View.VISIBLE
                 agoraEngine!!.startPreview()
             } else {
                 Log.w("CameraFallback", "MaleVideo.joinChannel: camera unavailable, joining audio-only")
@@ -2555,7 +2559,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             Log.w(TAG_END, "leaveChannel teardown threw (safe): ${t.message}")
         }
         if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
-        if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
+        if (localVideoView != null) localVideoView!!.visibility = View.GONE
         val wasJoined = isJoined
         isJoined = false
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
@@ -3011,7 +3015,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 // Rebuild the local preview Surface once. Remove ONLY the old
                 // (dead) SurfaceView so the self-mute badge sibling survives;
                 // setupLocalVideo() then adds a fresh Surface below the badge.
-                localSurfaceView?.let { old ->
+                localVideoView?.let { old ->
                     (old.parent as? android.view.ViewGroup)?.removeView(old)
                 }
                 setupLocalVideo()
@@ -3057,6 +3061,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
     private fun toggleMute() {
         isMuted = !isMuted
+        // BUG 27 — Agora gates the mic in TWO independent places and both must be
+        // kept in step: muteLocalAudioStream() mutes the stream, while
+        // publishMicrophoneTrack decides whether the mic track is published to the
+        // channel at all. enableVideoCall()/enableAudioCall() set BOTH from isMuted
+        // when the call switches mode, so muting before an audio->video switch left
+        // the track unpublished. This toggle only reset the stream, so tapping
+        // unmute afterwards did nothing — no track in the channel to un-mute, the
+        // peer heard silence, and Agora kept reporting us as muted so the peer's
+        // badge stayed on. Only publishMicrophoneTrack is set here; unset fields in
+        // ChannelMediaOptions are left unchanged by the SDK.
+        agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
+            publishMicrophoneTrack = !isMuted
+        })
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)

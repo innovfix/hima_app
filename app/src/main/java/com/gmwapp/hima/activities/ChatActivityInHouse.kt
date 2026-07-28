@@ -96,6 +96,7 @@ import com.gmwapp.hima.utils.ClearedChatsPrefsHelper
 import com.gmwapp.hima.utils.DeletedChatsPrefsHelper
 import com.gmwapp.hima.utils.LocallyDeletedMessagesStore
 import com.gmwapp.hima.utils.ImageCompressor
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
@@ -669,15 +670,19 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Configure UI based on user gender
         // Always show back button for all users with consistent avatar margin
         cvBack.visibility = View.VISIBLE
-        val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
+        // BUG 23 — iv_user now sits inside fl_user_avatar (the gradient ring container),
+        // so the avatar's start margin belongs to the container. Applying it to iv_user
+        // would inset the photo within its own ring instead of spacing the block.
+        val avatarBlock: View = findViewById(R.id.fl_user_avatar)
+        val layoutParams = avatarBlock.layoutParams as android.view.ViewGroup.MarginLayoutParams
         val marginInPx = (12 * resources.displayMetrics.density).toInt()
         layoutParams.marginStart = marginInPx
-        ivUser.layoutParams = layoutParams
+        avatarBlock.layoutParams = layoutParams
 
         // App is light-only — force a white status bar with dark icons regardless
         // of the system uiMode. Removes the conditional dark-mode handling that
         // T17 introduced.
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, findViewById(R.id.main)).isAppearanceLightStatusBars = true
         // Edge-to-edge: the wallpaper (on R.id.main) fills the whole screen incl. the
         // bottom gesture strip (WhatsApp-style). Keep the TOP clean — the white top-bar
@@ -1681,8 +1686,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         // used to have no click handler at all, and the avatar's hit target was tiny
         // (QA: ~4-5 taps needed). The identity column spans the full width between
         // the avatar and the call buttons, giving a comfortable single-tap target.
+        // BUG 23 — bind to fl_user_avatar, not iv_user: the gradient ring container is the
+        // full 42dp, while iv_user is now inset 3dp inside it. Keeping the listener on the
+        // image would have quietly shrunk the hit target that B_016 widened.
         val openProfile = View.OnClickListener { openUserProfile() }
-        ivUser.setOnClickListener(openProfile)
+        findViewById<View>(R.id.fl_user_avatar)?.setOnClickListener(openProfile)
         findViewById<View>(R.id.ll_header_identity)?.setOnClickListener(openProfile)
     }
 

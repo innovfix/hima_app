@@ -29,6 +29,7 @@ import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.random.Random
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 
 @AndroidEntryPoint
@@ -102,7 +103,7 @@ class LoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                window.statusBarColor = resources.getColor(R.color.dark_blue)
+                applyLightSystemBars()
                 updateSendOtpButtonState()
             }
 

@@ -37,6 +37,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 //import com.tencent.mmkv.MMKV
 //import com.zegocloud.uikit.prebuilt.call.ZegoUIKitPrebuiltCallService
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 
 @AndroidEntryPoint
@@ -51,7 +52,7 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
         binding = ActivityDeleteAccountBinding.inflate(layoutInflater)
         setContentView(binding.root)
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         applyStatusBarPaddingForToolbar()
         applyNavBarPaddingForBottomBar()
         setupKeyboardLift()

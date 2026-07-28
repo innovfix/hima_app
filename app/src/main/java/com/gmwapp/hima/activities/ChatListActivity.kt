@@ -11,7 +11,6 @@ import android.util.Log
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -30,6 +29,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import retrofit2.Response
 import javax.inject.Inject
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class ChatListActivity : AppCompatActivity() {
@@ -86,7 +86,7 @@ class ChatListActivity : AppCompatActivity() {
 
 
     private fun initializeViews() {
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
 
         // ✅ SIMPLE: Set status bar icons to LIGHT (white) - works on all devices
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

@@ -56,6 +56,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.ceil
 import com.gmwapp.hima.utils.applyImeAwareInsets
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 
 @AndroidEntryPoint
@@ -102,7 +103,7 @@ class WithdrawActivity : BaseActivity() {
             finish()
             return
         }
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         WindowCompat.setDecorFitsSystemWindows(window, false)

@@ -37,61 +37,83 @@
         android:orientation="horizontal"
         app:layout_constraintGuide_percent="0.92" />
 
-    <!-- Back Button Card with Subtle Shadow -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cv_back"
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:layout_marginStart="4dp"
-        android:layout_marginTop="16dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="2dp"
-        app:cardBackgroundColor="#FFFFFF"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+    <!-- BUG 21 — header band ported from activity_transactions.xml so the creator and the
+         user "Transactions" screens finally share one header: white band, 16dp padding all
+         round, back card + title block vertically centred inside it. The band's paddingTop
+         replaces cv_back's old marginTop, so the top offset stays exactly where 90f2aa2b
+         put it. elevation gives the bottom edge the content sits under. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/header_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        android:elevation="3dp"
+        android:paddingStart="16dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageView
-            android:id="@+id/iv_back"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_gravity="center"
-        android:contentDescription="@string/edit"
-        android:src="@drawable/ic_back"
-            app:tint="#374151" />
+        <!-- Back Button Card with Subtle Shadow -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cv_back"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
-    </androidx.cardview.widget.CardView>
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/edit"
+                android:src="@drawable/ic_back"
+                app:tint="#374151" />
 
-    <TextView
-        android:id="@+id/tv_earnings"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="@string/transactions"
-        android:textColor="#111827"
-        android:textSize="22sp"
-        android:fontFamily="@font/poppins_semibold"
-        android:letterSpacing="-0.01"
-        app:layout_constraintStart_toEndOf="@+id/cv_back"
-        app:layout_constraintTop_toTopOf="@+id/cv_back" />
+        </androidx.cardview.widget.CardView>
 
-    <TextView
-        android:id="@+id/tv_earnings_subtitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Track your balance &amp; payouts"
-        android:textColor="@color/grey_medium"
-        android:textSize="13sp"
-        android:fontFamily="@font/poppins_regular"
-        app:layout_constraintStart_toStartOf="@+id/tv_earnings"
-        app:layout_constraintTop_toBottomOf="@+id/tv_earnings"
-        tools:ignore="HardcodedText" />
+        <!-- Title and Subtitle Container -->
+        <LinearLayout
+            android:id="@+id/ll_title_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/cv_back"
+            app:layout_constraintTop_toTopOf="parent">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_earnings_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.11" />
+            <TextView
+                android:id="@+id/tv_earnings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/transactions"
+                android:textColor="#111827"
+                android:textSize="18sp"
+                android:fontFamily="@font/poppins_semibold"
+                android:letterSpacing="-0.01" />
+
+            <TextView
+                android:id="@+id/tv_earnings_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Track your balance &amp; payouts"
+                android:textColor="@color/grey_medium"
+                android:textSize="12sp"
+                android:fontFamily="@font/poppins_regular"
+                tools:ignore="HardcodedText" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.cardview.widget.CardView
         android:id="@+id/cl_earnings"
@@ -103,7 +125,7 @@
         app:cardBackgroundColor="@color/white"
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintTop_toBottomOf="@+id/gl_earnings_top_margin">
+        app:layout_constraintTop_toBottomOf="@+id/header_layout">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"

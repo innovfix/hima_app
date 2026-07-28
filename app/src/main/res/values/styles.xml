@@ -17,11 +17,29 @@
          bottom nav keep the explicit colours in their own styles. -->
     <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+        <!-- BUG 29 — the app targets SDK 35, and Android 15 turns
+             Window.setStatusBarColor()/setNavigationBarColor() into no-ops: it forces
+             edge-to-edge and makes both bars transparent. The app sets those colours in
+             46 places, so the SAME APK painted its bars on Android <=14 and showed the
+             screen through them on 15+. QA photographed two handsets side by side and
+             read it as "the same screen changes colour". Opting out restores the
+             setters so every Android version renders identically, which is the whole
+             point of the ticket.
+             This attribute only exists while we target SDK 35 — Google removes it at
+             SDK 36, at which point the real fix is proper edge-to-edge with insets and
+             scrims on every screen. Treat this as a dated bridge, not a resting place. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="colorPrimaryVariant">@color/pink</item>
         <item name="colorControlActivated">@color/colorAccent</item>
         <item name="android:textColorHighlight">@color/pink_selection</item>
-        <item name="android:statusBarColor" tools:targetApi="l">@color/pink</item>
+        <!-- BUG 29 — white, not pink. ~12 activities never set a bar colour at all and
+             silently inherited this default, so they showed a pink status bar above a
+             white navigation bar while every screen that DID set one used white. Making
+             the default match the light rule means a new screen is uniform without
+             having to remember anything; only genuinely dark screens now opt out, via
+             applyImmersiveSystemBars(). -->
+        <item name="android:statusBarColor" tools:targetApi="l">@color/white</item>
         <item name="android:navigationBarColor">@color/white</item>
         <item name="android:windowAnimationStyle">
             @style/activityTransition
@@ -40,6 +58,15 @@
     <style name="AppTheme.CallConnecting" parent="AppTheme">
         <item name="android:windowIsTranslucent">false</item>
         <item name="android:windowBackground">@color/call_connecting_bg</item>
+    </style>
+
+    <!-- BUG 29 — FullscreenImageActivity is the one screen of ours on a raw framework
+         theme, so it does not inherit AppTheme's edge-to-edge opt-out. Same parent as
+         before (a DARK AppCompat theme — switching it to AppTheme would restyle its
+         widgets), plus the opt-out so its bars behave like every other screen on
+         Android 15. -->
+    <style name="AppTheme.FullscreenImage" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
     </style>
 
     <style name="AlertDialogTransparent" parent="Theme.MaterialComponents.Dialog.Alert">
@@ -89,6 +116,10 @@
           - postSplashScreenTheme swaps to AppTheme when the activity is interactive.
     -->
     <style name="SplashTheme" parent="Theme.SplashScreen">
+        <!-- BUG 29 — splash does not inherit AppTheme, so it needs the opt-out too or
+             its pink bars vanish on Android 15 and the app opens with a different
+             looking first frame per device. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
         <item name="windowSplashScreenBackground">@color/pink</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_transparent</item>
         <item name="windowSplashScreenAnimationDuration">0</item>

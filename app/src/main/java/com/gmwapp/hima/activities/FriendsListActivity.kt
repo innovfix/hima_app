@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -26,6 +25,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import retrofit2.Response
 import javax.inject.Inject
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class FriendsListActivity : AppCompatActivity() {
@@ -67,7 +67,7 @@ class FriendsListActivity : AppCompatActivity() {
         setupViewPager()
         loadTabCounts()  // Load counts immediately
         onBackPressedBtn()
-        window.statusBarColor = Color.parseColor("#ffffff")
+        applyLightSystemBars()
 
         // Light status bar background → dark status-bar icons
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

@@ -9,7 +9,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -20,6 +19,7 @@ import com.gmwapp.hima.databinding.ActivityAccountPrivacyBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 
 @AndroidEntryPoint
@@ -33,7 +33,7 @@ class AccountPrivacyActivity : BaseActivity() {
         binding = ActivityAccountPrivacyBinding.inflate(layoutInflater)
         setContentView(binding.root)
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)

@@ -6,7 +6,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
@@ -19,6 +18,7 @@ import com.gmwapp.hima.viewmodels.ExplanationVideoViewModel
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 
 @AndroidEntryPoint
@@ -29,7 +29,7 @@ class YoutubeActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityYoutubeBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         // Light background → dark status-bar icons.
         androidx.core.view.WindowInsetsControllerCompat(window, binding.root)
             .isAppearanceLightStatusBars = true

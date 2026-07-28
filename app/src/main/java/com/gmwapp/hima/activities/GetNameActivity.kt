@@ -21,6 +21,7 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.showAppToast
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 @AndroidEntryPoint
 class GetNameActivity : BaseActivity() {
@@ -39,10 +40,10 @@ class GetNameActivity : BaseActivity() {
         binding = ActivityGetNameBinding.inflate(layoutInflater)
         setContentView(binding.root)
         // Pink gradient header extends under the status bar via
-        // fitsSystemWindows=true on the AppBarLayout. Force LIGHT
-        // (white) status-bar icons so they're readable on pink.
-        WindowInsetsControllerCompat(window, binding.root)
-            .isAppearanceLightStatusBars = false
+        // BUG 29 — dark header, so the immersive rule: black bars, light icons.
+        // Was relying on AppTheme's pink status bar for icon contrast; that default is
+        // white now, which would have made white icons invisible.
+        applyImmersiveSystemBars()
 
         // User has already registered on the server — there's nothing to go back to.
         // Swallow back presses so a stray swipe doesn't drop them to a blank stack.

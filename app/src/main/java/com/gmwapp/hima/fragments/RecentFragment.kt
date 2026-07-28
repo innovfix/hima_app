@@ -35,6 +35,7 @@ import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.viewmodels.RecentViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyHimaRefreshColors
 
 @AndroidEntryPoint
 class RecentFragment : BaseFragment(), Refreshable {
@@ -103,6 +104,7 @@ class RecentFragment : BaseFragment(), Refreshable {
         setupSearchListener()
 
         // Swipe to refresh
+        binding.swipeRefreshLayout.applyHimaRefreshColors()
         binding.swipeRefreshLayout.setOnRefreshListener {
             loadCallsList(currentSortType, resetData = true)
         }

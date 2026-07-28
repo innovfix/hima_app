@@ -90,6 +90,7 @@ import com.google.android.gms.common.api.Status
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.Arrays
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
@@ -545,8 +546,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         // Marketing funnel — Phone Number Screen (the login screen is the phone entry).
         com.gmwapp.hima.utils.HimaAnalytics.logPhoneNumberScreen(this)
         // Light login background: match system bars to the page and use dark icons.
-        window.statusBarColor = getColor(R.color.grey_extra_light)
-        window.navigationBarColor = getColor(R.color.white)
+        applyLightSystemBars()
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = true
             isAppearanceLightNavigationBars = true
@@ -805,7 +805,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                window.statusBarColor = resources.getColor(R.color.grey_extra_light)
+                applyLightSystemBars()
                 updateSendOtpButtonState()
             }
 
@@ -969,7 +969,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
     private fun initOtpUI(mobile: String, otp: Int, countryCode: Int) {
-        window.statusBarColor = resources.getColor(R.color.grey_extra_light)
+        applyLightSystemBars()
         if (verifyOtpEnabledTint == null) {
             verifyOtpEnabledTint = binding.btnVerifyOtp.backgroundTintList
         }

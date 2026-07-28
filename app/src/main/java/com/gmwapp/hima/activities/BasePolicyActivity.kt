@@ -22,6 +22,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityPrivacyPolicyBinding
 import com.gmwapp.hima.databinding.ItemPolicySectionBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 /**
  * Shared scaffold for the native, card-based policy screens
@@ -96,7 +97,7 @@ abstract class BasePolicyActivity : BaseActivity() {
         binding = ActivityPrivacyPolicyBinding.inflate(layoutInflater)
         setContentView(binding.root)
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)

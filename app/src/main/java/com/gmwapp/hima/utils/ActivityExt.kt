@@ -31,9 +31,18 @@ fun AppCompatActivity.applySystemBarInsets(
     applyIme: Boolean = false,
     darkStatusBarIcons: Boolean = false,
 ) {
-    window.statusBarColor = ContextCompat.getColor(this, statusBarColor)
-    WindowInsetsControllerCompat(window, rootView)
-        .isAppearanceLightStatusBars = darkStatusBarIcons
+    // BUG 29 — colour BOTH bars, not just the status bar. This helper only ever set
+    // the status bar, so its 22 screens took their navigation bar from AppTheme and
+    // silently depended on that default staying white. Setting both here means a screen
+    // cannot end up with a white status bar above a differently-coloured nav bar, and
+    // it matches applyLightSystemBars/applyImmersiveSystemBars in SystemBars.kt.
+    val barColor = ContextCompat.getColor(this, statusBarColor)
+    window.statusBarColor = barColor
+    window.navigationBarColor = barColor
+    WindowInsetsControllerCompat(window, rootView).apply {
+        isAppearanceLightStatusBars = darkStatusBarIcons
+        isAppearanceLightNavigationBars = darkStatusBarIcons
+    }
     ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
         val typeMask = if (applyIme) {
             WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()

@@ -56,6 +56,7 @@ import javax.inject.Inject
 import com.gmwapp.hima.viewmodels.BlockUserViewModel
 import com.gmwapp.hima.viewmodels.ReportUserViewModel
 import kotlin.math.abs
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class UserProfileDetailActivity : AppCompatActivity() {
@@ -181,7 +182,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         // Block status: onResume -> checkBlockStatus()
 
-        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
+        applyLightSystemBars()
 
         // Make status bar icons light (white) so they're visible on black background
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

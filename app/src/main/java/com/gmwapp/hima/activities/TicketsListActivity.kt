@@ -9,7 +9,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -22,6 +21,7 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.google.android.material.tabs.TabLayoutMediator
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class TicketsListActivity : BaseActivity() {
@@ -42,7 +42,7 @@ class TicketsListActivity : BaseActivity() {
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         // Status bar configuration
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.setSystemBarsAppearance(
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,

@@ -49,15 +49,29 @@
 
             </androidx.cardview.widget.CardView>
 
-            <de.hdodenhof.circleimageview.CircleImageView
-                android:id="@+id/iv_user"
+            <!-- BUG 23 — unified gradient avatar ring: same 3dp gradient + 2dp white
+                 recipe as Home / Friends / Recent / Favourite, scaled to the 42dp header
+                 avatar. The ring lives on the container so iv_user keeps its id, its
+                 Glide target and its click listener. NOTE: the runtime marginStart in
+                 ChatActivityInHouse now targets fl_user_avatar — nesting iv_user would
+                 otherwise shift the photo sideways inside its own ring. -->
+            <FrameLayout
+                android:id="@+id/fl_user_avatar"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_marginStart="12dp"
-                android:contentDescription="@string/chat_peer_avatar_desc"
-                android:src="@drawable/logo"
-                app:civ_border_width="2dp"
-                app:civ_border_color="#FFE5F1" />
+                android:background="@drawable/profile_gradient_border">
+
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:id="@+id/iv_user"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="3dp"
+                    android:contentDescription="@string/chat_peer_avatar_desc"
+                    android:src="@drawable/logo"
+                    app:civ_border_width="2dp"
+                    app:civ_border_color="@color/white" />
+            </FrameLayout>
 
             <LinearLayout
                 android:id="@+id/ll_header_identity"

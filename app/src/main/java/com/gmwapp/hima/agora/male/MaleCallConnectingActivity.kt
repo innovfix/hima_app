@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Response
 import javax.inject.Inject
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 
 @AndroidEntryPoint
@@ -230,7 +231,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         setContentView(binding.root)
         // Dark connecting screen — match the status bar to the dark page bg and
         // render the status-bar icons LIGHT (white) so they stay legible.
-        window.statusBarColor = android.graphics.Color.parseColor("#0D0D10")
+        applyImmersiveSystemBars()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.setSystemBarsAppearance(
                 0,

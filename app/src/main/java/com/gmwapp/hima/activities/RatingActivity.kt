@@ -4,7 +4,6 @@ import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -48,6 +47,7 @@ import com.google.android.flexbox.FlexboxItemDecoration
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 @AndroidEntryPoint
 class RatingActivity : BaseActivity() {
@@ -122,7 +122,7 @@ class RatingActivity : BaseActivity() {
         }
 
 
-        window.statusBarColor = Color.parseColor("#0D0D10") // dark feedback bg
+        applyImmersiveSystemBars()
 
         // Dark background — render status-bar icons LIGHT (white).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

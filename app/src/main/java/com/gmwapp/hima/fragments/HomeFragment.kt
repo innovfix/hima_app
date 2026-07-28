@@ -56,6 +56,7 @@ import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
+import com.gmwapp.hima.utils.applyHimaRefreshColors
 
 
 @AndroidEntryPoint
@@ -756,6 +757,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
 
     private fun setupSwipeToRefresh() {
+        binding.swipeRefreshLayout.applyHimaRefreshColors()
         binding.swipeRefreshLayout.setOnRefreshListener {
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             userData?.id?.let {

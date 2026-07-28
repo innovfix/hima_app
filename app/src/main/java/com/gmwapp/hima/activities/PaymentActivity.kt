@@ -9,7 +9,6 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
-import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -59,6 +58,7 @@ import org.json.JSONObject
 import retrofit2.Call
 import java.io.IOException
 import com.gmwapp.hima.utils.applyImeAwareInsets
+import com.gmwapp.hima.utils.applyLightSystemBars
 @AndroidEntryPoint
 class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     lateinit var binding: ActivityPaymentBinding
@@ -126,7 +126,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         super.onCreate(savedInstanceState)
         binding = ActivityPaymentBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         enableEdgeToEdge()

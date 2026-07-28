@@ -17,6 +17,8 @@ import com.gmwapp.hima.models.IplRoom
 import com.gmwapp.hima.viewmodels.IplRoomViewModel
 import androidx.core.view.WindowInsetsControllerCompat
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyHimaRefreshColors
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 @AndroidEntryPoint
 class IplRoomsActivity : AppCompatActivity() {
@@ -39,9 +41,8 @@ class IplRoomsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityIplRoomsBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Dark fantasy header extends under status bar via fitsSystemWindows
-        // on the LinearLayout banner. LIGHT icons for readability.
-        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
+        // BUG 29 — dark #070E1A screen, so the immersive rule: black bars, light icons.
+        applyImmersiveSystemBars()
 
         binding.ivBack.setOnClickListener { finish() }
 
@@ -161,10 +162,8 @@ class IplRoomsActivity : AppCompatActivity() {
         })
 
         // BUG-010: Pull-to-refresh
-        binding.swipeRefresh.setColorSchemeColors(
-            android.graphics.Color.parseColor("#FF6B35"),
-            android.graphics.Color.parseColor("#4CAF50")
-        )
+        // BUG 28 — brand pink, same as every other pull-to-refresh in the app.
+        binding.swipeRefresh.applyHimaRefreshColors()
         binding.swipeRefresh.setOnRefreshListener {
             loadRooms()
         }

@@ -9,7 +9,6 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
-import androidx.core.content.ContextCompat
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -34,6 +33,7 @@ import com.gmwapp.hima.viewmodels.PanCardViewModel
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import com.gmwapp.hima.utils.applyImeAwareInsets
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class KycActivity : AppCompatActivity() {
@@ -52,7 +52,7 @@ class KycActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding= ActivityKycBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         WindowCompat.setDecorFitsSystemWindows(window, false)

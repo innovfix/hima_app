@@ -32,6 +32,7 @@ import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.viewmodels.RecentViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import com.gmwapp.hima.utils.applyHimaRefreshColors
 
 @AndroidEntryPoint
 class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
@@ -104,6 +105,7 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
 
         // Swipe to refresh
+        binding.swipeRefreshLayout.applyHimaRefreshColors()
         binding.swipeRefreshLayout.setOnRefreshListener {
             loadFavouritesList(resetData = true)
         }

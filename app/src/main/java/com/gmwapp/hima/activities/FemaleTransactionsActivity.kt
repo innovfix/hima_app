@@ -18,6 +18,8 @@ import com.gmwapp.hima.databinding.ActivityTransactionsBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FemaleTransactionsViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyHimaRefreshColors
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class FemaleTransactionsActivity : BaseActivity() {
@@ -47,7 +49,7 @@ class FemaleTransactionsActivity : BaseActivity() {
         binding = ActivityTransactionsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        window.statusBarColor = resources.getColor(R.color.pink)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         transactionType = intent.getStringExtra(EXTRA_TYPE)
@@ -79,7 +81,7 @@ class FemaleTransactionsActivity : BaseActivity() {
         binding.rvTransactions.adapter = transactionAdapter
 
         // BUG #14 — pull-to-refresh
-        binding.swipeRefresh.setColorSchemeResources(R.color.pink)
+        binding.swipeRefresh.applyHimaRefreshColors()
         binding.swipeRefresh.setOnRefreshListener { refreshTransactions() }
 
         // Load Initial Transactions

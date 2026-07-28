@@ -17,6 +17,7 @@ import com.bumptech.glide.Glide
 import com.github.chrisbanes.photoview.PhotoView
 import com.gmwapp.hima.R
 import de.hdodenhof.circleimageview.CircleImageView
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 /**
  * CHAT-047 image viewer. Replaces the bare-dialog full-screen Glide image that
@@ -56,8 +57,7 @@ class FullscreenImageActivity : AppCompatActivity() {
         // Edge-to-edge: photo lives behind the system bars, chrome handles
         // its own top + bottom safe-area insets via fitsSystemWindows.
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = 0x00000000
-        window.navigationBarColor = 0x00000000
+        applyImmersiveSystemBars()
         // Light icons on the dark photo background.
         val controller = WindowInsetsControllerCompat(window, window.decorView)
         controller.isAppearanceLightStatusBars = false

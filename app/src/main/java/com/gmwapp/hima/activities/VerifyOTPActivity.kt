@@ -24,6 +24,7 @@ import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.socket.SocketManager
 //import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class VerifyOTPActivity : BaseActivity() {
@@ -61,7 +62,7 @@ class VerifyOTPActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        window.statusBarColor = resources.getColor(R.color.dark_blue)
+        applyLightSystemBars()
         val mobileNumber: String = intent.getStringExtra(DConstants.MOBILE_NUMBER).orEmpty()
         val otp = intent.getIntExtra(DConstants.OTP, 0)
         val countryCode = intent.getIntExtra(DConstants.COUNTRY_CODE, 0)

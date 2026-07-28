@@ -42,6 +42,7 @@ import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 @AndroidEntryPoint
 class IplRoomCallActivity : AppCompatActivity() {
@@ -269,7 +270,7 @@ class IplRoomCallActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Dark status bar to match the room UI (translucent theme: root draws behind bar)
-        window.statusBarColor = Color.parseColor("#070E1A")
+        applyImmersiveSystemBars()
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
 
         roomId = intent.getIntExtra("room_id", 0)

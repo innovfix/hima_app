@@ -57,6 +57,7 @@ import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 
 @AndroidEntryPoint
@@ -71,9 +72,8 @@ class ReviewActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityReviewBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Pink gradient root (bg_gradiend) extends under status bar via
-        // fitsSystemWindows=true. LIGHT icons for pink background.
-        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
+        // BUG 29 — dark gradient root (#BE1940 -> #C00F62), so the immersive rule.
+        applyImmersiveSystemBars()
         initUI()
     }
 

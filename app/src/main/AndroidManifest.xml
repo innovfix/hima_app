@@ -185,7 +185,7 @@
         <activity
             android:name=".activities.FullscreenImageActivity"
             android:exported="false"
-            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            android:theme="@style/AppTheme.FullscreenImage" />
         <activity
             android:name=".agora.male.MaleCallConnectingActivity"
             android:exported="true"

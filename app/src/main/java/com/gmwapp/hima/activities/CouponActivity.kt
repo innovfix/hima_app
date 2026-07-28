@@ -10,7 +10,6 @@ import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -24,6 +23,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityCouponBinding
 import com.gmwapp.hima.viewmodels.CouponViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 
@@ -38,7 +38,7 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
         super.onCreate(savedInstanceState)
         binding = ActivityCouponBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         enableEdgeToEdge()

@@ -41,6 +41,7 @@ import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 @AndroidEntryPoint
 class MaleCallAcceptActivity : AppCompatActivity() {
@@ -209,7 +210,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMaleCallAcceptBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        applyImmersiveSystemBars()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)

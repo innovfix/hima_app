@@ -25,6 +25,7 @@ import retrofit2.Call
 import retrofit2.Response
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 /**
  * B1 — post-call earnings honour screen (creator/female only).
@@ -76,6 +77,8 @@ class EarningsHonourActivity : AppCompatActivity() {
 
     private fun buildScreen() {
         setContentView(R.layout.activity_earnings_honour)
+        // BUG 29 — dark velvet background (#1C1236 -> #0C0A18), immersive rule.
+        applyImmersiveSystemBars()
 
         root = findViewById(R.id.earningsRoot)
         embers = findViewById(R.id.embersContainer)

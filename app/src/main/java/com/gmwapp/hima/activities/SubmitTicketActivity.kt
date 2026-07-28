@@ -13,7 +13,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -32,6 +31,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class SubmitTicketActivity : BaseActivity() {
@@ -60,7 +60,7 @@ class SubmitTicketActivity : BaseActivity() {
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         // Status bar configuration
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.setSystemBarsAppearance(
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,

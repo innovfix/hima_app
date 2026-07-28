@@ -53,6 +53,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 import javax.inject.Inject
+import com.gmwapp.hima.utils.applyHimaRefreshColors
 
 @AndroidEntryPoint
 class FriendsTabFragment : Fragment() {
@@ -716,6 +717,7 @@ class FriendsTabFragment : Fragment() {
     }
 
     private fun setupSwipeRefresh() {
+        binding.swipeRefresh.applyHimaRefreshColors()
         binding.swipeRefresh.setOnRefreshListener {
             loadData()
         }

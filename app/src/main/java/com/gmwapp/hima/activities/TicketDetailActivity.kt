@@ -6,7 +6,6 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -20,6 +19,7 @@ import com.gmwapp.hima.retrofit.responses.TicketDataResponse
 import com.gmwapp.hima.utils.unescapeHelpContent
 import java.text.SimpleDateFormat
 import java.util.Locale
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 /**
  * Read-only detail page for a single support ticket. Shows BOTH sides of the
@@ -43,7 +43,7 @@ class TicketDetailActivity : AppCompatActivity() {
         // white status bar with dark icons, and pad the app bar down by exactly
         // the status-bar inset so the title never overlaps the clock/battery.
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         val appBarBaseTop = binding.appBar.paddingTop
         ViewCompat.setOnApplyWindowInsetsListener(binding.appBar) { v, insets ->
             val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top

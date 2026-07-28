@@ -7,7 +7,6 @@ import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.View
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -18,6 +17,8 @@ import com.gmwapp.hima.databinding.ActivityTransactionsBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.TransactionsViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyHimaRefreshColors
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class TransactionsActivity : BaseActivity() {
@@ -34,7 +35,7 @@ class TransactionsActivity : BaseActivity() {
         binding = ActivityTransactionsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         initUI()
@@ -49,7 +50,7 @@ class TransactionsActivity : BaseActivity() {
         binding.rvTransactions.adapter = transactionAdapter
 
         // BUG #14 — pull-to-refresh
-        binding.swipeRefresh.setColorSchemeResources(R.color.pink)
+        binding.swipeRefresh.applyHimaRefreshColors()
         binding.swipeRefresh.setOnRefreshListener { refreshTransactions() }
 
         // Load Initial Transactions

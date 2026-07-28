@@ -5,7 +5,6 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -24,6 +23,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import retrofit2.Response
 import javax.inject.Inject
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class ManageNotificationsActivity : AppCompatActivity() {
@@ -43,7 +43,7 @@ class ManageNotificationsActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_manage_notifications)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, findViewById(android.R.id.content)).isAppearanceLightStatusBars =
             true
 

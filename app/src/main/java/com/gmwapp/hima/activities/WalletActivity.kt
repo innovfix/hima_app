@@ -84,6 +84,7 @@ import java.security.Key
 import java.util.Date
 import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 
 @AndroidEntryPoint
@@ -179,7 +180,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         // and Firebase (Event.ADD_PAYMENT_INFO).
         com.gmwapp.hima.utils.HimaAnalytics.logAddPaymentInfo(this, success = true)
 
-        window.navigationBarColor = resources.getColor(android.R.color.white, null)
+        applyLightSystemBars()
 
         fromDeepLink = intent.getBooleanExtra("from_deeplink", false)
 

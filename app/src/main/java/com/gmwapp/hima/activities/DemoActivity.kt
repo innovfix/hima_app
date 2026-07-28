@@ -15,12 +15,12 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityDemoBinding
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class DemoActivity : AppCompatActivity() {
@@ -36,7 +36,7 @@ class DemoActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityDemoBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.colorAccent)
+        applyLightSystemBars()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)

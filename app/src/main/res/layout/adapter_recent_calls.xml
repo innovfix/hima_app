@@ -46,11 +46,13 @@
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Profile Image with Gradient Border -->
+        <!-- Profile Image with Gradient Border.
+             BUG 23 — 64dp -> 58dp so the avatar matches Home / Friends / Favourite. The
+             3dp gradient + 2dp white ring recipe is unchanged; only the canvas shrinks. -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/profile_container"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="58dp"
+            android:layout_height="58dp"
             android:background="@drawable/profile_gradient_border"
             android:elevation="1dp"
             app:layout_constraintStart_toStartOf="parent"
@@ -58,9 +60,9 @@
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_profile"
-                android:layout_width="58dp"
-                android:layout_height="58dp"
-                app:cardCornerRadius="29dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                app:cardCornerRadius="26dp"
                 app:cardElevation="0dp"
                 app:cardBackgroundColor="@color/white"
                 app:strokeWidth="0dp"
@@ -350,11 +352,18 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Bottom Row: Amount and Chat aligned -->
+            <!-- Bottom Row: Amount and Chat aligned.
+                 BUG 22 — the 10dp gap above the pill lives HERE, not on tv_amount. A top
+                 margin on a child of a gravity="center" horizontal LinearLayout is counted
+                 twice: once sizing the row (height = pill + margin), then again positioning
+                 the child inside it (childTop = centred + margin). Half the margin comes
+                 back, half does not, so the pill hung 3dp below the row and the row's
+                 default clipChildren cut it off. This row is itself a child of a VERTICAL
+                 LinearLayout, where a top margin is applied once, so it is safe here. -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="10dp"
                 android:gravity="center"
                 android:orientation="horizontal">
 
@@ -363,7 +372,6 @@
                     android:id="@+id/tv_amount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
                     android:background="@drawable/rounded_green_light_bg"
                     android:fontFamily="@font/poppins_bold"
                     android:gravity="center"

@@ -8,7 +8,6 @@ import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
@@ -25,6 +24,7 @@ import com.gmwapp.hima.viewmodels.SupportBotViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.zoho.salesiqembed.ZohoSalesIQ
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 /**
  * In-app AI support chat.
@@ -121,7 +121,7 @@ class SupportBotActivity : BaseActivity() {
         setContentView(binding.root)
 
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
 
         initUI()
         observe()

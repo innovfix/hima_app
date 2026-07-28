@@ -24,6 +24,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -117,6 +118,7 @@ import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import kotlin.math.abs
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 @AndroidEntryPoint
 class FemaleVideoCallingActivity : AppCompatActivity() {
@@ -426,7 +428,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         private const val TIMER_RESYNC_INTERVAL_MS = 30_000L
     }
 
-    private var localSurfaceView: SurfaceView? = null
+    // BUG 25 — TextureView, not SurfaceView. A SurfaceView with
+    // setZOrderMediaOverlay(true) is composited ABOVE the whole window, so nothing
+    // drawn in the window (the gift takeover, dialogs) could ever cover it — which is
+    // why animateGift() used to blank the creator's own preview for ~3.3s. A
+    // TextureView lives inside the view hierarchy, so overlays compose above it
+    // normally and the selfie stays live. Do NOT call setZOrderMediaOverlay on this.
+    private var localVideoView: TextureView? = null
 
     // Locked-accept video fix: when a video call is answered from a SECURE
     // lockscreen we no longer defer the whole join (that left the caller stuck on
@@ -770,8 +778,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         )
         
         // ✅ Set status bar and navigation bar to black with light icons
-        window.statusBarColor = android.graphics.Color.BLACK
-        window.navigationBarColor = android.graphics.Color.BLACK
+        applyImmersiveSystemBars()
         
         // Make status bar icons light (white) so they're visible on black background
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -2090,22 +2097,23 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun setupLocalVideo() {
-        localSurfaceView = SurfaceView(baseContext)
-        // Insert the surface at index 0 (below the overlay children). A
-        // below-window SurfaceView punches a transparent hole where it draws;
-        // if it were added on top of iv_self_mic_muted that hole would erase
-        // the self-mute badge. Keeping it at the bottom lets the badge show.
-        binding.localVideoViewContainer.addView(localSurfaceView, 0)
-        localSurfaceView!!.setZOrderMediaOverlay(true)
-        // B124: forward touches from the SurfaceView (which lives on a
-        // separate compositor layer due to setZOrderMediaOverlay) into the
-        // CardView's drag listener. Without this, Redmi/MIUI users can't
-        // drag the local preview because the touch never reaches the CardView.
-        localSurfaceView!!.setOnTouchListener(localPreviewTouchListener)
+        localVideoView = TextureView(baseContext)
+        // Index 0 keeps the preview below its overlay siblings so the self-mute
+        // badge (iv_self_mic_muted) still draws on top of it.
+        binding.localVideoViewContainer.addView(localVideoView, 0)
+        // BUG 25 — no setZOrderMediaOverlay here. That flag is what pushed the old
+        // SurfaceView onto its own compositor layer above the window and forced
+        // animateGift() to blank the selfie for the whole gift takeover. A
+        // TextureView draws in the hierarchy, so it still sits above the remote
+        // feed (which is a below-window SurfaceView) and the gift overlay now
+        // covers it correctly without hiding anything.
+        // B124: keep forwarding touches to the CardView drag listener so the
+        // local preview can still be dragged.
+        localVideoView!!.setOnTouchListener(localPreviewTouchListener)
 
         agoraEngine!!.setupLocalVideo(
             VideoCanvas(
-                localSurfaceView,
+                localVideoView,
                 VideoCanvas.RENDER_MODE_HIDDEN,
                 0
             )
@@ -2484,7 +2492,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             } else {
                 pendingVideoPublishAfterUnlock = false
                 setupLocalVideo()
-                localSurfaceView!!.visibility = View.VISIBLE
+                localVideoView!!.visibility = View.VISIBLE
                 agoraEngine!!.startPreview()
             }
 
@@ -2492,7 +2500,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             if (result == 0) {
                 Log.d("AgorajoinChannel", "joinChannel: Success $result")
                 if (!keyguardLocked && cameraOk) {
-                    localSurfaceView!!.visibility = View.VISIBLE
+                    localVideoView!!.visibility = View.VISIBLE
                     var startpreview = agoraEngine!!.startPreview()
                     Log.d("startpreview", "$startpreview")
                 }
@@ -2548,7 +2556,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             Log.w("FemaleVideoCalling", "leaveChannel teardown threw (safe): ${t.message}")
         }
         if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
-        if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
+        if (localVideoView != null) localVideoView!!.visibility = View.GONE
         val wasJoined = isJoined
         isJoined = false
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
@@ -2867,23 +2875,22 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun animateGift(image: String) {
-        // Cinematic gift moment — shared GiftCinema overlay (receiver side,
-        // video). LITE mode + hide the local selfie PiP (media-overlay surface
-        // above the view hierarchy) for the takeover, then restore it.
+        // Cinematic gift moment — shared GiftCinema overlay (receiver side, video),
+        // LITE mode to protect call quality.
+        //
+        // BUG 25 — the selfie PiP is no longer hidden for the takeover. It used to be
+        // a SurfaceView with setZOrderMediaOverlay(true), composited above the window,
+        // so the full-screen animation could not cover it and the only way to stop it
+        // punching through was to blank it for the ~3.3s the animation ran — which QA
+        // reported as the creator's own video going black. It is a TextureView now
+        // (see setupLocalVideo), so the overlay composes above it and the creator
+        // keeps seeing herself throughout.
         BaseApplication.getInstance()?.playSendGiftSound()
         com.gmwapp.hima.widgets.GiftCinema.send(
             activity = this,
             giftUrl = image,
             recipientView = binding.ivFemaleUser,
-            lite = true,
-            onStart = {
-                localSurfaceView?.visibility = View.INVISIBLE
-                localPreviewSurface?.visibility = View.INVISIBLE
-            },
-            onEnd = {
-                localSurfaceView?.visibility = View.VISIBLE
-                localPreviewSurface?.visibility = View.VISIBLE
-            }
+            lite = true
         )
     }
 
@@ -2934,8 +2941,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             Log.d("FemaleVideoCalling", "keyguard dismissed — attaching + publishing camera")
             agoraEngine?.enableLocalVideo(true)
             agoraEngine?.muteLocalVideoStream(false)
-            if (localSurfaceView == null) setupLocalVideo()
-            localSurfaceView?.visibility = View.VISIBLE
+            if (localVideoView == null) setupLocalVideo()
+            localVideoView?.visibility = View.VISIBLE
             agoraEngine?.startPreview()
             // Start publishing the camera now that the window is visible. Mirrors
             // the publishCameraTrack pattern used by enableVideoCall / the
@@ -3064,7 +3071,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 // Rebuild the local preview Surface once. Remove ONLY the old
                 // (dead) SurfaceView so the self-mute badge sibling survives;
                 // setupLocalVideo() then adds a fresh Surface below the badge.
-                localSurfaceView?.let { old ->
+                localVideoView?.let { old ->
                     (old.parent as? android.view.ViewGroup)?.removeView(old)
                 }
                 setupLocalVideo()
@@ -3113,6 +3120,19 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private fun toggleMute() {
         isMuted = !isMuted
+        // BUG 27 — Agora gates the mic in TWO independent places and both must be
+        // kept in step: muteLocalAudioStream() mutes the stream, while
+        // publishMicrophoneTrack decides whether the mic track is published to the
+        // channel at all. enableVideoCall()/enableAudioCall() set BOTH from isMuted
+        // when the call switches mode, so muting before an audio->video switch left
+        // the track unpublished. This toggle only reset the stream, so tapping
+        // unmute afterwards did nothing — no track in the channel to un-mute, the
+        // peer heard silence, and Agora kept reporting us as muted so the peer's
+        // badge stayed on. Only publishMicrophoneTrack is set here; unset fields in
+        // ChannelMediaOptions are left unchanged by the SDK.
+        agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
+            publishMicrophoneTrack = !isMuted
+        })
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)

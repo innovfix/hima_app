@@ -37,6 +37,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.gmwapp.hima.utils.applyImeAwareInsets
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 @AndroidEntryPoint
 class EditProfileActivity : BaseActivity() {
@@ -52,7 +53,7 @@ class EditProfileActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityEditProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        applyLightSystemBars()
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
         enableEdgeToEdge()
         // BUG 10 — was a systemBars-only listener, so the keyboard covered the
@@ -94,7 +95,7 @@ class EditProfileActivity : BaseActivity() {
         binding.includeProfileToolbar.cvBack.setOnClickListener(View.OnClickListener {
             finish()
         })
-        window.navigationBarColor = getColor(R.color.black_background)
+        applyLightSystemBars()
 
         binding.etUserName.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {

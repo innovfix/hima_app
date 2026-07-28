@@ -78,18 +78,23 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- Avatar + online dot -->
+            <!-- Avatar + online dot.
+                 BUG 23 — unified gradient avatar ring (3dp gradient + 2dp white), matching
+                 Home / Friends / Recent / Favourite. The ring goes on the existing
+                 container, so the online dot keeps landing on the ring edge. -->
             <FrameLayout
                 android:id="@+id/fl_image_container"
                 android:layout_width="54dp"
-                android:layout_height="54dp">
+                android:layout_height="54dp"
+                android:background="@drawable/profile_gradient_border">
 
                 <de.hdodenhof.circleimageview.CircleImageView
                     android:id="@+id/iv_user_image"
-                    android:layout_width="54dp"
-                    android:layout_height="54dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="3dp"
                     android:src="@drawable/small_profile"
-                    app:civ_border_color="@color/grey_extra_light"
+                    app:civ_border_color="@color/white"
                     app:civ_border_width="2dp"
                     tools:src="@drawable/small_profile" />
 

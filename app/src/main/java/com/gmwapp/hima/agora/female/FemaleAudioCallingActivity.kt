@@ -109,6 +109,7 @@ import java.io.InputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import kotlin.math.abs
+import com.gmwapp.hima.utils.applyImmersiveSystemBars
 
 @AndroidEntryPoint
 class FemaleAudioCallingActivity : AppCompatActivity() {
@@ -2777,8 +2778,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         }
 
         // ✅ Set status bar and navigation bar to black when switching to video
-        window.statusBarColor = android.graphics.Color.BLACK
-        window.navigationBarColor = android.graphics.Color.BLACK
+        applyImmersiveSystemBars()
         
         // Make status bar icons light (white) so they're visible on black background
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -3180,6 +3180,19 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     private fun toggleMute() {
         isMuted = !isMuted
+        // BUG 27 — Agora gates the mic in TWO independent places and both must be
+        // kept in step: muteLocalAudioStream() mutes the stream, while
+        // publishMicrophoneTrack decides whether the mic track is published to the
+        // channel at all. enableVideoCall()/enableAudioCall() set BOTH from isMuted
+        // when the call switches mode, so muting before an audio->video switch left
+        // the track unpublished. This toggle only reset the stream, so tapping
+        // unmute afterwards did nothing — no track in the channel to un-mute, the
+        // peer heard silence, and Agora kept reporting us as muted so the peer's
+        // badge stayed on. Only publishMicrophoneTrack is set here; unset fields in
+        // ChannelMediaOptions are left unchanged by the SDK.
+        agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
+            publishMicrophoneTrack = !isMuted
+        })
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         audioModerationSession?.setPaused(isMuted || mutedByInterrupt)
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img

@@ -72,6 +72,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.random.Random
+import com.gmwapp.hima.utils.applyHimaRefreshColors
 
 
 @AndroidEntryPoint
@@ -567,9 +568,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         binding.swipeRefreshFemaleHome.isRefreshing = true
         binding.swipeRefreshFemaleHome.removeCallbacks(femaleHomeSwipeRefreshTimeout)
         binding.swipeRefreshFemaleHome.postDelayed(femaleHomeSwipeRefreshTimeout, 8_000L)
-        binding.swipeRefreshFemaleHome.setColorSchemeColors(
-            ContextCompat.getColor(requireContext(), R.color.colorAccent)
-        )
+        binding.swipeRefreshFemaleHome.applyHimaRefreshColors()
 
         femaleUsersViewModel.getReports(userId)
         profileViewModel.getUsers(userId)

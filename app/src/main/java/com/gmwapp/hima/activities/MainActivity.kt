@@ -140,6 +140,7 @@ import org.json.JSONObject
 import retrofit2.Call
 import java.io.IOException
 import kotlin.math.round
+import com.gmwapp.hima.utils.applyLightSystemBars
 
 
 @AndroidEntryPoint
@@ -329,8 +330,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         // Set status bar color to pink
         // Set colors
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-        window.navigationBarColor = ContextCompat.getColor(this, android.R.color.white)
+        applyLightSystemBars()
 
         // ✅ SIMPLE: Set status bar icons to LIGHT (white) - works on all devices
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -371,7 +371,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             binding.bottomNavigationView.visibility = View.VISIBLE
             binding.bottomNavigationView.bringToFront()
             // Ensure status bar stays pink
-            window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+            applyLightSystemBars()
         }
         BaseApplication.getInstance()?.messageCameWhenIsAlive = 1
 
@@ -1022,7 +1022,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         when (item.itemId) {
             R.id.home -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                applyLightSystemBars()
 
                 val homeFragment = if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.FEMALE
@@ -1032,7 +1032,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
             R.id.chat -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                applyLightSystemBars()
                 // B_010 — opening the Chat tab acknowledges the badge (Instagram-style):
                 // clear it now, and mark the current unread+requests total as "seen" so it
                 // stays clear until something NEW pushes the total above this level.
@@ -1044,14 +1044,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
             R.id.recent -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                applyLightSystemBars()
 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
             }
 
             R.id.favourite -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                applyLightSystemBars()
                 // B_015 — opening the Friends tab acknowledges only the REQUESTS portion
                 // (Instagram-style). Unread MESSAGES are NOT cleared here — they stay on the
                 // badge until actually read (owner), so we re-evaluate instead of blanket-
@@ -1064,7 +1064,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
             R.id.profile -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.grey_extra_light)
+                applyLightSystemBars()
 
                 if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
