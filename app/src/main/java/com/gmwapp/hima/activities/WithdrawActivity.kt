@@ -55,6 +55,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.ceil
+import com.gmwapp.hima.utils.applyImeAwareInsets
 
 
 @AndroidEntryPoint
@@ -106,11 +107,9 @@ class WithdrawActivity : BaseActivity() {
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // BUG 10 — was a systemBars-only listener, so the keyboard covered the
+        // focused field and the form could not scroll. See applyImeAwareInsets.
+        applyImeAwareInsets(findViewById(R.id.main))
         initUI()
     }
 
@@ -375,6 +374,15 @@ class WithdrawActivity : BaseActivity() {
             if (amount == null || amount <= 0) {
                 showAppToast("Enter a valid amount", Toast.LENGTH_SHORT)
                 return@setOnClickListener
+            }
+            // BUG #9 — backstop. The enabled/disabled state of the button must not be the
+            // only thing keeping a below-minimum request off the wire; that is exactly how
+            // the Rs 9 request got through. Re-check the minimum here too.
+            minWithdrawAmount?.let { min ->
+                if (amount < min) {
+                    showAppToast("Minimum withdrawal amount is Rs $min", Toast.LENGTH_SHORT)
+                    return@setOnClickListener
+                }
             }
             lastWithdrawAmount = amount.toDouble()
             val paymentMethod = payment_method.orEmpty().trim()
@@ -685,6 +693,12 @@ class WithdrawActivity : BaseActivity() {
                     binding.btnWithdraw.isEnabled = true
                 }
 
+                // BUG #9 — this branch only exists to zero the summary rows when the amount
+                // is BELOW the minimum, and it used to set isEnabled = true here. That let
+                // a creator tap Withdraw on e.g. Rs 9 with every row reading "= Rs 0", and
+                // the click handler has no minimum check of its own, so it really did fire
+                // the request. Keep the button disabled — validateFields() already reset it
+                // to false at the top, so this branch must not turn it back on.
                 if (
                     amount.isNotEmpty() &&
                     isValidAmount(amount) &&
@@ -695,8 +709,7 @@ class WithdrawActivity : BaseActivity() {
                     binding.tvTxFeeAmount?.text = "= ₹0"
                     binding.tvTdsAmount?.text = "= ₹0"
                     binding.tvAmountReceive?.text = "= ₹0"
-                    binding.btnWithdraw.isEnabled = true
-
+                    binding.btnWithdraw.isEnabled = false
                 }
             }
 
