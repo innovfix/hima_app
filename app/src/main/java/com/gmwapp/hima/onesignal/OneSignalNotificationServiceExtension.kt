@@ -573,67 +573,97 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         if (type != "message") return
 
         val peerId = parsePeerId(data)
-        if (peerId <= 0) return
-
-        val text = event.notification.body.orEmpty().trim()
-        if (text.isBlank()) return
-        val messageType = data.optString("message_type", "text").ifBlank { "text" }
-        // Numeric id if the backend sends one (may arrive as number or string).
-        val messageId = data.optLong("message_id", 0L).takeIf { it > 0L }
-            ?: data.optString("message_id", "").toLongOrNull()?.takeIf { it > 0L }
-
-        // Always tell the chat list / badge to refresh — this is cheap and
-        // idempotent. The thread-level refresh below only fires when the chat
-        // is actively open.
-        sendChatListRefresh(context, peerId, text, messageType, messageId)
-
-        // WhatsApp-style behaviour: if the user is already looking at the chat
-        // for this peer, don't show a heads-up — broadcast a refresh signal so
-        // the open activity can catch up via REST in case the Socket.IO event
-        // was missed (reconnect gap, dropped event, etc.).
-        // T11: pass context so the prefs-backed fallback works when the NSE runs in a separate process.
-        if (ActiveChatTracker.isActiveFor(context, peerId)) {
-            Log.d(TAG, "chat visible for peerId=$peerId — suppressing heads-up, broadcasting refresh")
-            val refresh = Intent(ACTION_CHAT_REFRESH)
-                .setPackage(context.packageName)
-                .putExtra("peer_id", peerId)
-            context.sendBroadcast(refresh)
-            event.preventDefault()
+        // No resolvable sender means no notifIdFor() slot to post under, so our copy
+        // could neither stack nor replace an earlier one. Leave this push to OneSignal
+        // rather than swallow it. Unreachable with the current backend — all three chat
+        // send sites in AuthController.php ship from_user_id.
+        if (peerId <= 0) {
+            Log.w(TAG, "chat push with no resolvable peer id — leaving it to OneSignal")
             return
         }
 
-        // Fall back to previously-seen metadata if this follow-up push omits name/image.
-        val (storedName, storedImage) = ChatNotificationStore.getMeta(context, peerId)
-        // Prefer structured name fields. The notification title is only a last
-        // resort AND must be sanitised: it is the full "<name> sent you a message"
-        // headline, so feeding it raw poisoned the chat header + profile with the
-        // whole sentence. sanitizePeerName() recovers the leading username.
-        val peerName = com.gmwapp.hima.utils.PeerNameUtils.sanitizePeerName(
+        // BUG #4 — claim the push HERE, the moment we know it is a chat message for a
+        // known peer. preventDefault() used to sit ~55 lines below, after the blank-body
+        // guard and the SharedPreferences/JSON work in ChatNotificationStore. Any early
+        // return, and any throw in that stretch, fell through to onNotificationReceived's
+        // catch ("on error, fall through and let the notification show normally") and
+        // handed the push back to OneSignal — which renders it with ITS OWN notification
+        // id, so a plain "<name> sent you a message" row appeared BESIDE our
+        // MessagingStyle stack instead of replacing it. That is the reported
+        // two-notifications-from-one-sender. Claiming it up front makes every chat push
+        // ours whatever fails afterwards, and the catch below always posts under
+        // notifIdFor(peerId), which REPLACES.
+        event.preventDefault()
+
+        val messageType = data.optString("message_type", "text").ifBlank { "text" }
+        // Media pushes can carry an empty body, and returning early on blank text was
+        // one of the leaks described above. Substitute the same preview wording the
+        // in-app socket path uses instead of bailing out.
+        val text = event.notification.body.orEmpty().trim().ifBlank {
+            when (messageType.lowercase()) {
+                "image" -> "Photo"
+                "audio" -> "Voice message"
+                else -> "New message"
+            }
+        }
+
+        // Resolved before the try so the fallback notification still gets a clean title.
+        // sanitizePeerName() is required: notification.title is the full
+        // "<name> sent you a message" headline, and feeding it raw poisoned the chat
+        // header + profile with the whole sentence.
+        var peerName = com.gmwapp.hima.utils.PeerNameUtils.sanitizePeerName(
             firstNonEmpty(data, "user_name", "sender_name", "name", "username")
                 ?: event.notification.title
-        ).ifBlank { storedName }
-        val peerImage = firstNonEmpty(
-            data, "user_image", "image", "image_url", "profile_image", "sender_image", "avatar"
-        ) ?: storedImage.orEmpty()
+        )
 
-        ChatNotificationStore.saveMeta(context, peerId, peerName, peerImage)
-        // Dedup key: OneSignal's per-push notification id. When OneSignal's receive
-        // handler is cancelled (JobCancellationException) it reprocesses the SAME
-        // push, which used to append the message twice → doubled MessagingStyle line.
-        // The id is identical across reprocessing (and present even on text pushes,
-        // which carry no backend message_id), so it reliably drops the duplicate.
-        val dedupId = event.notification.notificationId?.takeIf { it.isNotBlank() }
-        val entries = ChatNotificationStore.append(context, peerId, text, System.currentTimeMillis(), dedupId)
-
-        // H15: preventDefault BEFORE show — if show() throws, OneSignal's default
-        // would otherwise also fire and the user would see two notifications for
-        // the same message. We post a minimal fallback below in the catch block.
-        event.preventDefault()
         try {
+            // Numeric id if the backend sends one (may arrive as number or string).
+            val messageId = data.optLong("message_id", 0L).takeIf { it > 0L }
+                ?: data.optString("message_id", "").toLongOrNull()?.takeIf { it > 0L }
+
+            // Always tell the chat list / badge to refresh — this is cheap and
+            // idempotent. The thread-level refresh below only fires when the chat
+            // is actively open.
+            sendChatListRefresh(context, peerId, text, messageType, messageId)
+
+            // WhatsApp-style behaviour: if the user is already looking at the chat
+            // for this peer, don't show a heads-up — broadcast a refresh signal so
+            // the open activity can catch up via REST in case the Socket.IO event
+            // was missed (reconnect gap, dropped event, etc.).
+            // T11: pass context so the prefs-backed fallback works when the NSE runs in a separate process.
+            if (ActiveChatTracker.isActiveFor(context, peerId)) {
+                Log.d(TAG, "chat visible for peerId=$peerId — suppressing heads-up, broadcasting refresh")
+                val refresh = Intent(ACTION_CHAT_REFRESH)
+                    .setPackage(context.packageName)
+                    .putExtra("peer_id", peerId)
+                context.sendBroadcast(refresh)
+                return
+            }
+
+            // Fall back to previously-seen metadata if this follow-up push omits name/image.
+            val (storedName, storedImage) = ChatNotificationStore.getMeta(context, peerId)
+            peerName = peerName.ifBlank { storedName }
+            val peerImage = firstNonEmpty(
+                data, "user_image", "image", "image_url", "profile_image", "sender_image", "avatar"
+            ) ?: storedImage.orEmpty()
+
+            ChatNotificationStore.saveMeta(context, peerId, peerName, peerImage)
+            // Dedup key. Prefer the backend message id, because it is the SAME value the
+            // in-app socket path uses — so a message that arrives on both transports (the
+            // brief window while the app is being backgrounded) appends only once. Falls
+            // back to OneSignal's per-push id, which stays identical when OneSignal's
+            // receive handler is cancelled (JobCancellationException) and reprocesses the
+            // same push; that replay used to double the MessagingStyle line.
+            val dedupId = messageId?.let { "msg_$it" }
+                ?: event.notification.notificationId?.takeIf { it.isNotBlank() }
+            val entries = ChatNotificationStore.append(context, peerId, text, System.currentTimeMillis(), dedupId)
+
             ChatNotifications.show(context, peerId, peerName, peerImage, entries)
             Log.d(TAG, "Chat notif posted for peerId=$peerId (lines=${entries.size})")
         } catch (e: Exception) {
-            Log.e(TAG, "Chat notif post failed for peerId=$peerId: ${e.message}")
+            // Posts under notifIdFor(peerId) too, so this REPLACES any earlier row for
+            // this peer instead of adding a second one.
+            Log.e(TAG, "Chat notif path failed for peerId=$peerId: ${e.message}", e)
             postFallbackNotification(context, peerId, peerName, text)
         }
     }

@@ -49,8 +49,10 @@ object FeatureFlags {
      *
      * When true: while the app is in the FOREGROUND (socket connected, so the server
      * sends NO push), an incoming chat message from someone the user is NOT currently
-     * viewing posts the same "<name> sent you a message" heads-up the background push
-     * would have shown. Strictly gated (foreground only, not the open chat, not during
+     * viewing posts through the same builder the background push uses
+     * (ChatNotifications, MessagingStyle), so the sender looks identical either way and
+     * the message joins the same stack. Strictly gated (foreground only, not the open
+     * chat, not during
      * a call, DND off, male chat-notif pref on) and purely additive — it only adds an
      * alert where today there is none (badge only). Flip to false to disable instantly.
      */

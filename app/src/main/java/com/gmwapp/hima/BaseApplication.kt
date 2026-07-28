@@ -3398,9 +3398,10 @@ class BaseApplication : Application(), Configuration.Provider {
      * One-time collector of the socket new-message stream. When the app is in the
      * foreground the server does not send a push (receiver is socket-connected), so
      * a message from a peer the user is NOT currently viewing would otherwise show
-     * only a badge. This posts the same "<name> sent you a message" heads-up the
-     * background push path would, gated so it never fires on the open chat, during a
-     * call, under DND, or when the male chat-notif master pref is off. Fully fail-open.
+     * only a badge. This posts through the SAME builder the background push path uses
+     * (ChatNotifications, MessagingStyle), so a sender looks identical whether the app
+     * was open or closed. Gated so it never fires on the open chat, during a call,
+     * under DND, or when the male chat-notif master pref is off. Fully fail-open.
      */
     private fun setupInAppChatHeadsUp() {
         inAppChatScope.launch {
@@ -3471,44 +3472,51 @@ class BaseApplication : Application(), Configuration.Provider {
             if (!on) return
         }
 
-        // Title matches the existing push style ("<name> sent you a message"); body
-        // mirrors the backend getChatMessagePreview (text, or Photo / Voice message).
-        // The socket payload has no sender name (msg.from is the numeric id), so resolve
-        // it from PeerNameCache (populated by the chat list + any opened chat); a cache
-        // miss falls back to "Someone" — the body preview still makes the alert useful.
-        val name = com.gmwapp.hima.utils.PeerNameCache.get(fromId) ?: "Someone"
+        // BUG #4 — go through ChatNotifications, exactly like the background push path.
+        // This used to build its OWN plain "<name> sent you a message" notification, so
+        // one sender rendered two different ways depending only on whether the app
+        // happened to be open. Worse, it never wrote to ChatNotificationStore, so a
+        // message received while the app was open was MISSING from the stack that the
+        // next background push drew.
+        //
+        // Body mirrors the backend getChatMessagePreview (text, or Photo / Voice
+        // message). The socket payload has no sender name (msg.from is the numeric id),
+        // so resolve it from PeerNameCache (populated by the chat list + any opened
+        // chat), then the name the last push stored, then a neutral placeholder — the
+        // body preview still makes the alert useful.
+        val cachedName = com.gmwapp.hima.utils.PeerNameCache.get(fromId)
         val body = when (msg.messageType.lowercase()) {
             "image" -> "Photo"
             "audio" -> "Voice message"
             else -> msg.message.trim().ifBlank { "New message" }
         }
 
-        val tapIntent = android.content.Intent(this, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
-            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            putExtra("USER_ID", fromId)
-            putExtra("USER_NAME", name)
+        // ChatNotifications.show() loads the peer avatar with a BLOCKING Glide call, so
+        // it must not run inline here — this collector lives on Dispatchers.Main.immediate.
+        inAppChatScope.launch(Dispatchers.IO) {
+            try {
+                val ctx = this@BaseApplication
+                val (storedName, storedImage) =
+                    com.gmwapp.hima.utils.ChatNotificationStore.getMeta(ctx, fromId)
+                val peerName = cachedName?.takeIf { it.isNotBlank() }
+                    ?: storedName.ifBlank { "Someone" }
+                com.gmwapp.hima.utils.ChatNotificationStore.saveMeta(ctx, fromId, peerName, storedImage)
+                // Same dedup key shape as the push path ("msg_<backend id>"), so a message
+                // that reaches both transports while the app is being backgrounded
+                // appends a single line rather than two.
+                val entries = com.gmwapp.hima.utils.ChatNotificationStore.append(
+                    ctx, fromId, body, System.currentTimeMillis(), "msg_${msg.id}"
+                )
+                // Posts under notifIdFor(peerId) — the same id the push path uses — so a
+                // later real push updates this notification instead of duplicating it.
+                // No-ops without POST_NOTIFICATIONS.
+                com.gmwapp.hima.utils.ChatNotifications.show(
+                    ctx, fromId, peerName, storedImage.orEmpty(), entries
+                )
+            } catch (t: Throwable) {
+                Log.w("InAppChatNotif", "in-app chat notif failed for peer=$fromId: ${t.message}")
+            }
         }
-        val pi = android.app.PendingIntent.getActivity(
-            this, fromId, tapIntent,
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val builder = androidx.core.app.NotificationCompat.Builder(
-            this, "f49d2168-bc20-4a4b-a984-a7abffe0d6aa" // same channel id as ChatNotifications
-        )
-            .setSmallIcon(com.gmwapp.hima.R.drawable.logo)
-            .setContentTitle("$name sent you a message")
-            .setContentText(body)
-            .setAutoCancel(true)
-            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
-            .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
-            .setContentIntent(pi)
-
-        // notifIdFor(peerId) is the SAME id the push path uses, so repeat messages
-        // from one peer collapse instead of stacking, and a later real push replaces
-        // this in-app one rather than duplicating it. No-ops without POST_NOTIFICATIONS.
-        androidx.core.app.NotificationManagerCompat.from(this)
-            .notify(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(fromId), builder.build())
     }
 
     /**
