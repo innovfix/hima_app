@@ -30,6 +30,9 @@ import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.R
+import com.gmwapp.hima.retrofit.responses.GiftData
+import com.gmwapp.hima.utils.GiftManager
+import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.activities.CreatorLevelActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.GrantPermissionsActivity
@@ -220,6 +223,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     private val whatsappLinkViewModel: WhatsappLinkViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
     private val firstCallUpdateViewModel: FirstCallUpdateViewModel by viewModels()
+    private val giftImageViewModel: GiftImageViewModel by viewModels()
 
     // C-02: shimmer placeholders for the "Creators Joining Now" row while the
     // discovery feed loads, so a cold home isn't a blank strip. Cleared the
@@ -576,6 +580,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         femaleUsersViewModel.getFemaleDiscovery(userId)
         fetchBadgeList(userId)
         accountViewModel.getSettings()
+        giftImageViewModel.fetchGiftImages()
     }
 
     private fun refreshIplBanner() {
@@ -808,6 +813,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         femaleUsersViewModel.getFemaleUsers(userData.id)
         showDiscoverySkeleton()
         femaleUsersViewModel.getFemaleDiscovery(userData.id)
+        setupGiftInfo()
 
         femaleUsersViewModel.femaleUsersResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
             if (response != null && response.success) {
@@ -1158,6 +1164,72 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 
             binding.llDiscoveryCreators.addView(itemView)
         }
+    }
+
+    // ---- Feature 3: Gift Info on Female Home (read-only) ----
+
+    /**
+     * Fills the "Gifts you can earn" card from the shared gift catalog. The
+     * catalog is prefetched at app launch (GiftManager) and observed here, so the
+     * card live-syncs with the admin gift list. Informational only — no sending.
+     */
+    private fun setupGiftInfo() {
+        val cached = GiftManager.getCachedGifts()
+        if (cached.isNotEmpty()) renderGiftInfo(cached)
+        GiftManager.cachedGiftsLiveData.observe(viewLifecycleOwner) { list ->
+            renderGiftInfo(list ?: emptyList())
+        }
+        giftImageViewModel.giftResponseLiveData.observe(viewLifecycleOwner) { response ->
+            val list = response?.data
+            if (response?.success == true && !list.isNullOrEmpty()) {
+                GiftManager.updateGifts(list)
+                renderGiftInfo(list)
+            }
+        }
+        if (cached.isEmpty()) giftImageViewModel.fetchGiftImages()
+    }
+
+    private fun renderGiftInfo(gifts: List<GiftData>) {
+        if (!::binding.isInitialized) return
+        val ll = binding.llGiftInfo
+        ll.removeAllViews()
+        if (gifts.isEmpty()) {
+            binding.cvGiftInfo.visibility = View.GONE
+            return
+        }
+        binding.cvGiftInfo.visibility = View.VISIBLE
+        gifts.forEach { gift ->
+            val item = layoutInflater.inflate(R.layout.item_female_gift_info, ll, false)
+            val iv = item.findViewById<ImageView>(R.id.iv_gift)
+            val tvName = item.findViewById<TextView>(R.id.tv_gift_name)
+            val tvEarn = item.findViewById<TextView>(R.id.tv_gift_earning)
+            Glide.with(this)
+                .load(gift.gift_icon)
+                .placeholder(R.drawable.gift_png)
+                .error(R.drawable.gift_png)
+                .into(iv)
+            tvName.text = giftDisplayName(gift)
+            val earn = gift.earning ?: (gift.coins * 0.1)
+            tvEarn.text = "₹" + formatEarning(earn)
+            ll.addView(item)
+        }
+    }
+
+    /** Server name if set, else a friendly label by coin cost (mirrors the in-call gift themes). */
+    private fun giftDisplayName(gift: GiftData): String {
+        val n = gift.name?.trim()
+        if (!n.isNullOrEmpty()) return n
+        return when {
+            gift.coins >= 120 -> "Teddy"
+            gift.coins >= 100 -> "Crown"
+            gift.coins >= 60 -> "Chocolate"
+            else -> "Rose"
+        }
+    }
+
+    private fun formatEarning(v: Double): String {
+        return if (v % 1.0 == 0.0) v.toInt().toString()
+        else String.format(java.util.Locale.US, "%.2f", v).trimEnd('0').trimEnd('.')
     }
 
     private fun setupSwitchListeners(userData: UserData?) {

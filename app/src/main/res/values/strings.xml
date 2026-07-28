@@ -426,6 +426,10 @@
     <string name="earnings">Earnings</string>
     <string name="gift_earning">Gift Earning</string>
     <string name="gift_earning_subtitle">Earnings from gifts you received</string>
+    <!-- Feature 3 — Gift Info on Female Home -->
+    <string name="gifts_you_can_earn">Gifts you can earn</string>
+    <string name="gifts_you_can_earn_subtitle">Ask your callers to send these — here\'s what you earn.</string>
+    <string name="you_earn">you earn</string>
     <string name="current_balance">Current balance</string>
     <string name="balance_hint_text">Balance should be at least \u20B9%d to withdraw</string>
     <string name="withdrawal_agency_blocked_text">Withdrawals are managed by your agency.</string>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Feature 3 — Gift Info on Female Home. One read-only gift tile:
+     image + name + "₹X you earn". Rendered into ll_gift_info. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:layout_marginEnd="12dp"
+    android:paddingHorizontal="2dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="62dp"
+        android:layout_height="62dp"
+        app:cardBackgroundColor="#F5F3FB"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp">
+
+        <ImageView
+            android:id="@+id/iv_gift"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="9dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/gifts_you_can_earn" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/tv_gift_name"
+        android:layout_width="74dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/poppins_semibold"
+        android:gravity="center"
+        android:maxLines="2"
+        android:text="Gift"
+        android:textColor="@color/black"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/tv_gift_earning"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="@font/poppins_semibold"
+        android:text="₹0"
+        android:textColor="@color/green"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/poppins_regular"
+        android:text="@string/you_earn"
+        android:textColor="@color/grey_medium"
+        android:textSize="9sp" />
+</LinearLayout>

@@ -292,6 +292,64 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- Feature 3 — Gift Info: read-only "Gifts you can earn" card, live-synced
+         from the shared gift catalog (GiftManager). Hidden until gifts load. -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cv_gift_info"
+        style="@style/CardViewStyle.Spacing"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="2dp"
+        app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
+        app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
+        app:layout_constraintTop_toBottomOf="@+id/cv_today_activity">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="@string/gifts_you_can_earn"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="@font/poppins_regular"
+                android:text="@string/gifts_you_can_earn_subtitle"
+                android:textColor="@color/grey_medium"
+                android:textSize="12sp" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/ll_gift_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_female_discovery"
         style="@style/CardViewStyle.Spacing"
@@ -303,7 +361,7 @@
         app:cardElevation="2dp"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
         app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
-        app:layout_constraintTop_toBottomOf="@+id/cv_today_activity">
+        app:layout_constraintTop_toBottomOf="@+id/cv_gift_info">
 
         <LinearLayout
             android:layout_width="match_parent"
